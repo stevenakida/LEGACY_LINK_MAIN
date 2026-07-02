@@ -28,7 +28,10 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
-
+CSRF_TRUSTED_ORIGINS = [
+    "https://legacy-link-main.onrender.com",
+]
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
 
