@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    rel="stylesheet"
+>
+    <title>Connections - LegacyLink Africa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172d 0%, #1c2d59 100%);
+            min-height: 100vh;
+            color: #ffffff;
+        }
+        
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.25rem 1.5rem;
+            margin: 1.25rem auto 0 auto;
+            max-width: 1200px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+            background: rgba(15, 23, 45, 0.92);
+            border-radius: 22px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+        }
+        
+        .page-titles {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .page-titles h1 {
+            font-size: 2rem;
+            color: #ffffff;
+        }
+        
+        .page-titles p {
+            color: #b8c4d1;
+            font-size: 1rem;
+            max-width: 640px;
+            line-height: 1.7;
+        }
+        
+        .nav-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn-back,
+        .btn-secondary {
+            padding: 0.75rem 1.25rem;
+            border-radius: 999px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: all 0.25s ease;
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            background: rgba(255,255,255,0.05);
+            color: #d4af37;
+        }
+        
+        .btn-back:hover,
+        .btn-secondary:hover {
+            background: rgba(212, 175, 55, 0.18);
+            transform: translateY(-1px);
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(220px, 1fr));
+            gap: 1rem;
+            max-width: 1200px;
+            margin: 1.5rem auto;
+            padding: 0 1.5rem;
+        }
+        
+        .status-card {
+            background: rgba(15, 23, 45, 0.92);
+            border: 1px solid rgba(212, 175, 55, 0.16);
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .status-card strong {
+            font-size: 2rem;
+            color: #ffffff;
+        }
+        
+        .status-card span {
+            color: #a0b0c7;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        
+        .section-title {
+            font-size: 1.8rem;
+            margin-bottom: 0.75rem;
+            color: #ffffff;
+        }
+        
+        .section-copy {
+            color: #b8c4d1;
+            margin-bottom: 1.5rem;
+            line-height: 1.7;
+            max-width: 720px;
+        }
+        
+        .pending-list,
+        .connections-grid {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .connection-card {
+            background: rgba(15, 23, 45, 0.92);
+            border: 1px solid rgba(212, 175, 55, 0.16);
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 80px 1fr auto;
+            gap: 1rem;
+            align-items: center;
+            transition: all 0.25s ease;
+        }
+        
+        .connection-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 18px 40px rgba(212, 175, 55, 0.12);
+        }
+        
+        .connection-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: #0f172d;
+            color: #d4af37;
+            border: 2px solid #d4af37;
+            display: grid;
+            place-items: center;
+            font-size: 1.5rem;
+            overflow: hidden;
+        }
+        
+        .connection-details {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .connection-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        
+        .connection-meta {
+            color: #a0b0c7;
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
+        
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.55rem 1rem;
+            border-radius: 999px;
+            background: rgba(212, 175, 55, 0.12);
+            color: #d4af37;
+            font-weight: 700;
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+        
+        .empty-state {
+            background: rgba(15, 23, 45, 0.92);
+            border: 1px dashed rgba(212, 175, 55, 0.3);
+            border-radius: 20px;
+            padding: 3rem;
+            text-align: center;
+            color: #a0b0c7;
+            max-width: 1200px;
+            margin: 1.5rem auto;
+        }
+        
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(15, 23, 45, 0.98);
+            border-top: 1px solid rgba(212, 175, 55, 0.25);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+        
+        .nav-link {
+            color: #ffffff;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            padding: 0.45rem 0.85rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            min-width: 70px;
+            transition: all 0.25s ease;
+        }
+        
+        .nav-link:hover,
+        .nav-link.active {
+            background: rgba(212, 175, 55, 0.16);
+            color: #d4af37;
+            transform: translateY(-1px);
+        }
+        
+        .bottom-nav-icon {
+            font-size: 1.2rem;
+        }
+        
+        .footer {
+            background: rgba(15, 23, 45, 0.95);
+            border-top: 1px solid rgba(212, 175, 55, 0.15);
+            padding: 2rem 0;
+            margin-top: 3rem;
+            text-align: center;
+            color: #9fb0c9;
+            position: relative;
+            z-index: 2;
+        }
+        .material-symbols-rounded {
+    font-family: 'Material Symbols Rounded';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 1.25rem;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'liga';
+
+    font-variation-settings:
+        'FILL' 1,
+        'wght' 500,
+        'GRAD' 0,
+        'opsz' 24;
+}
+
+.nav-icon {
+    font-size: 1.45rem;
+}
+
+.header-actions a,
+.header-actions button,
+.brand .action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+
+.logout-form {
+    margin: 0;
+}
+
+.logout-form button {
+    font: inherit;
+}
+.material-symbols-rounded {
+    font-family: 'Material Symbols Rounded';
+    font-size: 1.45rem;
+    line-height: 1;
+    display: inline-block;
+    font-variation-settings:
+        'FILL' 1,
+        'wght' 500,
+        'GRAD' 0,
+        'opsz' 24;
+}
+
+.bottom-nav-icon {
+    margin-bottom: 0.2rem;
+}
+        @media (max-width: 1024px) {
+            .connection-card {
+                grid-template-columns: 80px 1fr;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .connection-card {
+                grid-template-columns: 72px 1fr;
+                gap: 0.75rem;
+            }
+            
+            .main-content {
+                padding-bottom: 11rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <div class="page-titles">
+            <h1>Connections</h1>
+            <p>Manage incoming requests, view accepted connections, and expand your verified alumni network.</p>
+        </div>
+        <div class="nav-actions">
+            <a href="/dashboard/" class="btn-back">← Dashboard</a>
+            <a href="/profile/" class="btn-secondary">Profile</a>
+        </div>
+    </div>
+
+    <div class="status-grid">
+        <div class="status-card">
+            <strong>{{ accepted_count }}</strong>
+            <span>Connected</span>
+        </div>
+        <div class="status-card">
+            <strong>{{ pending_count }}</strong>
+            <span>Pending Requests</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">Pending Requests</h2>
+        <p class="section-copy">Review connection requests from classmates and alumni in your network.</p>
+        {% if pending_connections %}
+            <div class="pending-list">
+                {% for connection in pending_connections %}
+                    <div class="connection-card">
+                        <div class="connection-avatar">
+                            {% if connection.requester.avatar %}
+                                <img src="{{ connection.requester.avatar.url }}" alt="{{ connection.requester.full_name }}" style="width:100%;height:100%;object-fit:cover;" />
+                            {% else %}
+                                {{ connection.requester.full_name|first }}
+                            {% endif %}
+                        </div>
+                        <div class="connection-details">
+                            <div class="connection-name">{{ connection.requester.full_name }}</div>
+                            <div class="connection-meta">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · Class of {{ connection.requester.secondary_completion_year|default:'N/A' }}</div>
+                            <div class="connection-meta">{{ connection.requester.current_role|default:'Alumni member' }}</div>
+                        </div>
+                        <div class="connection-status">Pending</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <p>You have no pending connection requests right now.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">Your Network</h2>
+        <p class="section-copy">These are the alumni you have connected with through LegacyLink.</p>
+        {% if connections %}
+            <div class="connections-grid">
+                {% for connection in connections %}
+                    <div class="connection-card">
+                        <div class="connection-avatar">
+                            {% if connection.receiver == user %}
+                                {% if connection.requester.avatar %}
+                                    <img src="{{ connection.requester.avatar.url }}" alt="{{ connection.requester.full_name }}" style="width:100%;height:100%;object-fit:cover;" />
+                                {% else %}
+                                    {{ connection.requester.full_name|first }}
+                                {% endif %}
+                            {% else %}
+                                {% if connection.receiver.avatar %}
+                                    <img src="{{ connection.receiver.avatar.url }}" alt="{{ connection.receiver.full_name }}" style="width:100%;height:100%;object-fit:cover;" />
+                                {% else %}
+                                    {{ connection.receiver.full_name|first }}
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <div class="connection-details">
+                            {% if connection.receiver == user %}
+                                <div class="connection-name">{{ connection.requester.full_name }}</div>
+                                <div class="connection-meta">{{ connection.requester.current_role|default:'Alumni member' }}</div>
+                                <div class="connection-meta">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · Class of {{ connection.requester.secondary_completion_year|default:'N/A' }}</div>
+                            {% else %}
+                                <div class="connection-name">{{ connection.receiver.full_name }}</div>
+                                <div class="connection-meta">{{ connection.receiver.current_role|default:'Alumni member' }}</div>
+                                <div class="connection-meta">{{ connection.receiver.secondary_school.name|default:'Unknown school' }} · Class of {{ connection.receiver.secondary_completion_year|default:'N/A' }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="connection-status">Connected</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <p>You have no accepted connections yet. Start building your alumni network.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="bottom-nav">
+    <a href="/dashboard/" class="nav-link">
+        <span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">home</span>
+        <span>Home</span>
+    </a>
+
+    <a href="/connections/" class="nav-link active">
+        <span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">groups</span>
+        <span>Connections</span>
+    </a>
+
+    <a href="/profile/" class="nav-link">
+        <span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">person</span>
+        <span>Profile</span>
+    </a>
+</div>
+
+    <div class="footer">
+        <p>&copy; 2026 LegacyLink Africa. All rights reserved.</p>
+    </div>
+</body>
+</html>
+    
+    <div class="footer">
+        <p>&copy; 2026 LegacyLink Africa. All rights reserved.</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from .models import User
+
+
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    list_display = ['full_name', 'phone_or_email', 'primary_school', 'secondary_school', 'onboarding_complete']
+    list_filter = ['primary_school', 'secondary_school', 'onboarding_complete']
+    search_fields = ['full_name', 'phone_or_email']
+    ordering = ['-created_at']
+    fieldsets = (
+        (None, {'fields': ('phone_or_email', 'password')}),
+        ('Identity', {'fields': ('full_name', 'bio', 'current_role', 'current_location')}),
+        ('Education', {'fields': ('primary_school', 'primary_completion_year', 'secondary_school', 'secondary_completion_year', 'high_school', 'high_school_completion_year')}),
+        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
+    )
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('phone_or_email', 'full_name', 'password1', 'password2'),
+        }),
+    )
