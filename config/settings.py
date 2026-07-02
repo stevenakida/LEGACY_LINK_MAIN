@@ -25,6 +25,7 @@ SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False") == "True"
+
 import os
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
