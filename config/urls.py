@@ -25,6 +25,7 @@ from . import views
 urlpatterns = [
     path('', views.home, name='home'),
 path('register/', views.register, name='register'),
+    path('terms/', views.terms, name='terms'),
     path('login/', views.login_view, name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('dashboard/', views.dashboard, name='dashboard'),

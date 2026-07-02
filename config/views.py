@@ -45,7 +45,12 @@ def register(request):
         phone_or_email = request.POST.get('phone_or_email')
         full_name = request.POST.get('full_name')
         password = request.POST.get('password')
-        
+        agree_terms = request.POST.get('agree_terms')
+
+        if not agree_terms:
+            messages.error(request, 'You must accept the Terms of Use, Privacy and Data Usage Policy to create an account.')
+            return render(request, 'register.html')
+
         try:
             user = User.objects.create_user(phone_or_email, password, full_name=full_name)
             login(request, user)
@@ -54,6 +59,9 @@ def register(request):
             messages.error(request, f'Registration failed: {str(e)}')
             return render(request, 'register.html')
     return render(request, 'register.html')
+
+def terms(request):
+    return render(request, 'terms.html')
 
 def dashboard(request):
     if not request.user.is_authenticated:

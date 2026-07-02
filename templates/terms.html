@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Terms of Use, Privacy &amp; Data Usage Policy - LegacyLink Africa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a2a4a 0%, #2c3e5a 100%);
+            min-height: 100vh;
+            padding: calc(20px + env(safe-area-inset-top)) 20px calc(40px + env(safe-area-inset-bottom));
+            color: #e6ecf5;
+        }
+        .container {
+            width: 100%;
+            max-width: 780px;
+            margin: 0 auto;
+            background: rgba(30, 45, 74, 0.85);
+            border: 2px solid #3d5a7f;
+            border-radius: 15px;
+            padding: 40px 35px;
+        }
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+        .logo img {
+            height: 60px;
+            width: auto;
+        }
+        .top-bar a.back-link {
+            color: #d4af37;
+            text-decoration: none;
+            font-size: 0.95em;
+            font-weight: 600;
+        }
+        .top-bar a.back-link:hover {
+            text-decoration: underline;
+        }
+        h1.doc-title {
+            color: #d4af37;
+            font-size: 1.6em;
+            margin-bottom: 6px;
+        }
+        .doc-subtitle {
+            color: #a9bcd6;
+            font-size: 0.9em;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #d4af37;
+            font-size: 1.25em;
+            margin-top: 34px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #3d5a7f;
+        }
+        h2.effective-date {
+            font-size: 0.9em;
+            font-weight: 400;
+            color: #a9bcd6;
+            border-bottom: none;
+            margin-top: -4px;
+            margin-bottom: 18px;
+            padding-bottom: 0;
+        }
+        h2.callout {
+            font-size: 1.05em;
+            border-bottom: none;
+            color: #ffffff;
+            background: rgba(212, 175, 55, 0.12);
+            border-left: 4px solid #d4af37;
+            padding: 12px 16px;
+            border-radius: 6px;
+        }
+        h3 {
+            color: #ffffff;
+            font-size: 1.05em;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+        p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+            color: #d7e0ee;
+        }
+        ul {
+            margin: 0 0 10px 22px;
+            line-height: 1.6;
+            color: #d7e0ee;
+        }
+        li {
+            margin-bottom: 4px;
+        }
+        .footer-actions {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #3d5a7f;
+            text-align: center;
+        }
+        .footer-actions a {
+            display: inline-block;
+            background: #d4af37;
+            color: #1a2a4a;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .footer-actions a:hover {
+            background: #e5c158;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <div class="logo"><img src="{% static 'img/legacy-logo.png' %}" alt="LegacyLink Africa Logo"></div>
+            <a class="back-link" href="{% url 'register' %}">&larr; Back to Register</a>
+        </div>
+
+        <h1 class="doc-title">Terms of Use, Privacy and Data Usage Policy</h1>
+        <div class="doc-subtitle">Version 1.0</div>
+
+        <h2>LEGACYLINK AFRICA &ndash; TERMS OF USE</h2>
+        <h2 class="effective-date">Effective Date: 21 April 2026</h2>
+        <p>These Terms of Use (&ldquo;Terms&rdquo;) govern access to and use of the LegacyLink Africa platform (the &ldquo;Platform&rdquo;). By accessing or using the Platform, you agree to be bound by these Terms. If you do not agree, you must not use the Platform.</p>
+
+        <h3>1. DEFINITIONS</h3>
+        <ul>
+          <li>&ldquo;Company&rdquo; refers to LegacyLink Africa</li>
+          <li>&ldquo;User&rdquo; refers to any individual accessing or using the Platform</li>
+          <li>&ldquo;Content&rdquo; refers to any information, data, or materials submitted or displayed on the Platform</li>
+          <li>&ldquo;Services&rdquo; refers to all functionalities provided through the Platform</li>
+        </ul>
+
+        <h3>2. PLATFORM PURPOSE</h3>
+        <p>LegacyLink Africa provides a digital environment for:</p>
+        <ul>
+          <li>establishing verified alumni identity</li>
+          <li>facilitating connections between former students</li>
+          <li>enabling community interaction, collaboration, and opportunity access</li>
+        </ul>
+        <p>The Platform is intended solely for lawful, legitimate, and good-faith use.</p>
+
+        <h3>3. ELIGIBILITY</h3>
+        <p>By using the Platform, you represent and warrant that:</p>
+        <ul>
+          <li>you are at least 18 years of age or have obtained lawful consent</li>
+          <li>you possess the legal capacity to enter into binding agreements</li>
+          <li>all information provided by you is accurate, complete, and not misleading</li>
+        </ul>
+        <p>The Company reserves the right to deny access where eligibility requirements are not met.</p>
+
+        <h3>4. USER ACCOUNT AND SECURITY</h3>
+        <p>Users are responsible for:</p>
+        <ul>
+          <li>maintaining confidentiality of login credentials</li>
+          <li>ensuring all information provided remains accurate</li>
+          <li>all activities conducted through their account</li>
+        </ul>
+        <p>The Company may suspend or terminate accounts where:</p>
+        <ul>
+          <li>false or misleading information is provided</li>
+          <li>impersonation or fraudulent activity is detected</li>
+          <li>platform integrity or user safety is compromised</li>
+        </ul>
+
+        <h3>5. IDENTITY AND VERIFICATION</h3>
+        <p>The Platform may implement verification mechanisms, including:</p>
+        <ul>
+          <li>phone or email authentication</li>
+          <li>peer or cohort confirmation</li>
+          <li>additional identity validation processes</li>
+        </ul>
+        <p>Users agree to cooperate with verification processes where required. Provision of false identity information constitutes a material breach of these Terms.</p>
+
+        <h3>6. ACCEPTABLE USE</h3>
+        <p>Users shall not:</p>
+        <ul>
+          <li>use the Platform for unlawful purposes</li>
+          <li>harass, threaten, or mislead other users</li>
+          <li>engage in data scraping, extraction, or unauthorized collection</li>
+          <li>attempt to reverse engineer or interfere with Platform systems</li>
+          <li>introduce malicious software or compromise security</li>
+        </ul>
+        <p>The Company reserves the right to take appropriate action, including suspension or legal enforcement.</p>
+
+        <h3>7. USER CONTENT AND LICENSE</h3>
+        <p>Users retain ownership of Content they submit. However, by submitting Content, you grant the Company a non-exclusive, worldwide, royalty-free license to:</p>
+        <ul>
+          <li>use, display, and process such Content</li>
+          <li>facilitate connections and interactions</li>
+          <li>operate and improve the Platform</li>
+        </ul>
+        <p>Users are solely responsible for ensuring their Content:</p>
+        <ul>
+          <li>is accurate</li>
+          <li>does not infringe third-party rights</li>
+          <li>complies with applicable laws</li>
+        </ul>
+
+        <h3>8. INTELLECTUAL PROPERTY RIGHTS</h3>
+        <p>All intellectual property rights in the Platform, including:</p>
+        <ul>
+          <li>software and systems</li>
+          <li>designs and interfaces</li>
+          <li>branding and trademarks</li>
+        </ul>
+        <p>are owned exclusively by the Company or its licensors. No rights are granted except as expressly stated in these Terms. Unauthorized use is strictly prohibited.</p>
+
+        <h3>9. TERMINATION</h3>
+        <p>The Company may suspend or terminate access:</p>
+        <ul>
+          <li>for breach of these Terms</li>
+          <li>where necessary to protect the Platform or its users</li>
+          <li>where required by law</li>
+        </ul>
+        <p>Users may discontinue use at any time.</p>
+
+        <h3>10. DISCLAIMERS</h3>
+        <p>The Platform is provided on an &ldquo;as is&rdquo; and &ldquo;as available&rdquo; basis.</p>
+        <p>The Company does not guarantee:</p>
+        <ul>
+          <li>uninterrupted or error-free operation</li>
+          <li>accuracy of user-generated content</li>
+          <li>success of connections or opportunities</li>
+        </ul>
+
+        <h3>11. LIMITATION OF LIABILITY</h3>
+        <p>To the fullest extent permitted by law, the Company shall not be liable for:</p>
+        <ul>
+          <li>indirect, incidental, or consequential damages</li>
+          <li>loss of data, opportunities, or business</li>
+          <li>actions or conduct of other users</li>
+        </ul>
+
+        <h3>12. GOVERNING LAW AND JURISDICTION</h3>
+        <p>These Terms shall be governed by the laws of the United Republic of Tanzania. Any disputes shall be subject to the jurisdiction of competent Tanzanian courts.</p>
+
+        <h3>13. MODIFICATIONS</h3>
+        <p>The Company may revise these Terms periodically. Continued use of the Platform constitutes acceptance of updated Terms.</p>
+
+        <h2>LEGACYLINK AFRICA &ndash; PRIVACY POLICY</h2>
+        <h2 class="effective-date">Effective Date: 21 April 2026</h2>
+        <p>This Privacy Policy explains how LegacyLink Africa collects, uses, and protects personal data in accordance with applicable laws and internationally recognized data protection principles.</p>
+
+        <h3>1. INFORMATION WE COLLECT</h3>
+        <p>We may collect:</p>
+        <h3>a) Identity Data</h3>
+        <ul>
+          <li>full name</li>
+          <li>contact information (phone/email)</li>
+          <li>education details (school, graduation year)</li>
+        </ul>
+        <h3>b) Profile Data</h3>
+        <ul>
+          <li>biography and user preferences</li>
+          <li>connections and interactions</li>
+          <li>participation in platform activities</li>
+        </ul>
+        <h3>c) Technical Data</h3>
+        <ul>
+          <li>device information</li>
+          <li>usage logs and analytics</li>
+          <li>authentication and session data</li>
+        </ul>
+
+        <h3>2. LEGAL BASIS FOR PROCESSING</h3>
+        <p>We process personal data based on:</p>
+        <ul>
+          <li>user consent</li>
+          <li>performance of contractual obligations</li>
+          <li>legitimate interests in operating and improving the Platform</li>
+          <li>compliance with legal obligations</li>
+        </ul>
+
+        <h3>3. PURPOSE OF DATA USE</h3>
+        <p>Personal data is used to:</p>
+        <ul>
+          <li>create and manage user accounts</li>
+          <li>enable alumni matching and connections</li>
+          <li>facilitate communication and engagement</li>
+          <li>enhance platform functionality and security</li>
+        </ul>
+
+        <h3>4. DATA SHARING</h3>
+        <p>We do not sell personal data. We may disclose data:</p>
+        <ul>
+          <li>to other users, based on privacy settings</li>
+          <li>to trusted service providers under confidentiality obligations</li>
+          <li>where required by law or regulatory authority</li>
+        </ul>
+
+        <h3>5. USER CONTROL AND VISIBILITY</h3>
+        <p>Users have control over how their data is shared. Available controls may include:</p>
+        <ul>
+          <li>profile visibility settings</li>
+          <li>connection-based access</li>
+          <li>limitation of discoverability</li>
+        </ul>
+
+        <h3>6. DATA SECURITY</h3>
+        <p>We implement reasonable technical and organizational safeguards, including:</p>
+        <ul>
+          <li>access controls</li>
+          <li>secure data storage practices</li>
+          <li>internal governance protocols</li>
+        </ul>
+        <p>However, no system is completely secure.</p>
+
+        <h3>7. DATA RETENTION</h3>
+        <p>Personal data is retained:</p>
+        <ul>
+          <li>for as long as the account remains active</li>
+          <li>as required for legal, regulatory, or operational purposes</li>
+        </ul>
+
+        <h3>8. USER RIGHTS</h3>
+        <p>Subject to applicable law, users may:</p>
+        <ul>
+          <li>access their personal data</li>
+          <li>request correction or updates</li>
+          <li>request deletion or restriction of processing</li>
+        </ul>
+        <p>Requests may be subject to verification.</p>
+
+        <h3>9. INTERNATIONAL STANDARDS</h3>
+        <p>While based in Tanzania, LegacyLink Africa aligns its practices with internationally recognized data protection principles, including fairness, transparency, and accountability.</p>
+
+        <h3>10. POLICY UPDATES</h3>
+        <p>This Policy may be updated periodically. Continued use constitutes acceptance.</p>
+
+        <h2>LEGACYLINK AFRICA &ndash; DATA USAGE POLICY</h2>
+
+        <h3>1. PURPOSE AND PRINCIPLE</h3>
+        <p>LegacyLink Africa operates under a foundational principle:</p>
+        <h2 class="callout">User data is used to enable trust, not exploit it.</h2>
+        <p>Data exists to:</p>
+        <ul>
+          <li>establish identity</li>
+          <li>strengthen networks</li>
+          <li>create meaningful opportunities</li>
+        </ul>
+
+        <h3>2. SCOPE OF DATA USAGE</h3>
+        <p>Data is used strictly for:</p>
+        <ul>
+          <li>alumni matching through education identity</li>
+          <li>connection recommendations</li>
+          <li>community coordination and engagement</li>
+          <li>improving platform functionality</li>
+        </ul>
+
+        <h3>3. PROHIBITED DATA USE</h3>
+        <p>The Company does not:</p>
+        <ul>
+          <li>sell or trade personal data</li>
+          <li>permit unauthorized third-party access</li>
+          <li>use data beyond stated purposes</li>
+        </ul>
+
+        <h3>4. NETWORK-BASED DATA LOGIC</h3>
+        <p>Users acknowledge that:</p>
+        <ul>
+          <li>their data contributes to alumni network formation</li>
+          <li>visibility within cohorts enables connection discovery</li>
+        </ul>
+        <p>This is a core feature of the Platform.</p>
+
+        <h3>5. DATA GOVERNANCE FRAMEWORK</h3>
+        <p>Data usage is governed by:</p>
+        <ul>
+          <li>internal access controls</li>
+          <li>structured disclosure protocols (CDP)</li>
+          <li>role-based permissions</li>
+        </ul>
+
+        <h3>6. USER AUTONOMY</h3>
+        <p>Users retain control over:</p>
+        <ul>
+          <li>visibility of personal information</li>
+          <li>participation in network discovery</li>
+          <li>interaction scope</li>
+        </ul>
+
+        <h3>7. PLATFORM INTEGRITY AND ENFORCEMENT</h3>
+        <p>Any attempt to:</p>
+        <ul>
+          <li>scrape or extract data</li>
+          <li>misuse user information</li>
+          <li>bypass security mechanisms</li>
+        </ul>
+        <p>may result in:</p>
+        <ul>
+          <li>account suspension</li>
+          <li>legal action</li>
+          <li>reporting to relevant authorities</li>
+        </ul>
+
+        <div class="footer-actions">
+            <a href="{% url 'register' %}">&larr; Back to Register</a>
+        </div>
+    </div>
+</body>
+</html>
