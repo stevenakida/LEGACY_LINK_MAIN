@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
@@ -17,6 +17,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -24,6 +25,7 @@
             background: linear-gradient(135deg, #08213f 0%, #122b56 100%);
             min-height: 100vh;
             color: #ffffff;
+            overflow-x: hidden;
         }
 
         body::before {
@@ -43,7 +45,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.5rem 1.5rem;
+            padding: calc(0.5rem + env(safe-area-inset-top)) 1.5rem 0.5rem;
             background: rgba(8, 33, 63, 0.95);
             border-bottom: 1px solid rgba(212, 175, 55, 0.14);
             backdrop-filter: blur(10px);
@@ -56,7 +58,7 @@
         }
 
         .brand img {
-            height: 200px;
+            height: 48px;
             width: auto;
             display: block;
         }
@@ -396,7 +398,7 @@
             width: 100%;
             background: rgba(12, 24, 54, 0.98);
             border-top: 1px solid rgba(212, 175, 55, 0.25);
-            padding: 0.75rem 1rem;
+            padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
             display: flex;
             justify-content: space-around;
             align-items: center;
@@ -523,16 +525,6 @@
                 flex-direction: column;
             }
         }
-
-        <div class="header-actions">
-    <a href="/connections/" class="primary">Connections</a>
-    <a href="/profile/" class="secondary">Profile</a>
-
-    <form action="{% url 'logout' %}" method="post" class="logout-form">
-        {% csrf_token %}
-        <button type="submit" class="action-btn secondary">Logout</button>
-    </form>
-</div>
     </style>
 </head>
 <body>
@@ -657,5 +649,3 @@
 </footer>
 </body>
 </html>
-'@ 
-Set-Content -Path 'c:\Users\.~Barson\LEGACY AFRICA\templates\dashboard.html' -Value $content -Encoding utf8

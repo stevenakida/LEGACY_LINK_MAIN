@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
@@ -16,6 +16,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
         
         body {
@@ -26,6 +27,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom));
+            overflow-x: hidden;
         }
         
         .container {
@@ -73,9 +76,13 @@
             background: rgba(255, 255, 255, 0.05);
             border: 2px solid #3d5a7f;
             border-radius: 8px;
-            color: black;
+            color: #ffffff;
             font-size: 1rem;
             transition: all 0.3s ease;
+        }
+
+        select option {
+            color: #000000;
         }
         
         select:focus, input:focus {

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
@@ -16,6 +16,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
         
         body {
@@ -23,6 +24,8 @@
             background: linear-gradient(135deg, #0f172d 0%, #1c2d59 100%);
             min-height: 100vh;
             color: #ffffff;
+            padding-bottom: 6rem;
+            overflow-x: hidden;
         }
         
         .page-header {
@@ -31,7 +34,7 @@
             justify-content: space-between;
             gap: 1rem;
             padding: 1.25rem 1.5rem;
-            margin: 1.25rem auto 0 auto;
+            margin: calc(1.25rem + env(safe-area-inset-top)) auto 0 auto;
             max-width: 1200px;
             border-bottom: 1px solid rgba(212, 175, 55, 0.18);
             background: rgba(15, 23, 45, 0.92);
@@ -221,7 +224,7 @@
             justify-content: space-around;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.75rem 1rem;
+            padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
             z-index: 100;
             backdrop-filter: blur(12px);
         }
@@ -340,9 +343,9 @@
                 grid-template-columns: 72px 1fr;
                 gap: 0.75rem;
             }
-            
-            .main-content {
-                padding-bottom: 11rem;
+
+            body {
+                padding-bottom: 7rem;
             }
         }
     </style>
@@ -461,12 +464,6 @@
     </a>
 </div>
 
-    <div class="footer">
-        <p>&copy; 2026 LegacyLink Africa. All rights reserved.</p>
-    </div>
-</body>
-</html>
-    
     <div class="footer">
         <p>&copy; 2026 LegacyLink Africa. All rights reserved.</p>
     </div>

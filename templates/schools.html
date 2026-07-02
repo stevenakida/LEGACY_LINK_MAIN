@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
@@ -17,6 +17,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -24,6 +25,7 @@
             background: linear-gradient(135deg, #08213f 0%, #122b56 100%);
             min-height: 100vh;
             color: #ffffff;
+            overflow-x: hidden;
         }
 
         .header {
@@ -33,7 +35,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem 1.5rem;
+            padding: calc(1rem + env(safe-area-inset-top)) 1.5rem 1rem;
             background: rgba(8, 33, 63, 0.95);
             border-bottom: 1px solid rgba(212, 175, 55, 0.14);
             backdrop-filter: blur(10px);
@@ -371,7 +373,7 @@
             width: 100%;
             background: rgba(12, 24, 54, 0.98);
             border-top: 1px solid rgba(212, 175, 55, 0.25);
-            padding: 0.75rem 1rem;
+            padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
             display: flex;
             justify-content: space-around;
             align-items: center;

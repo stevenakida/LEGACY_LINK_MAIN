@@ -222,8 +222,8 @@ def onboarding(request):
         graduation_year = request.POST.get('graduation_year')
         if school_id and graduation_year:
             try:
-                user.school = School.objects.get(id=school_id)
-                user.graduation_year = int(graduation_year)
+                user.secondary_school = School.objects.get(id=school_id, school_type='secondary')
+                user.secondary_completion_year = int(graduation_year)
                 user.onboarding_complete = True
                 user.save()
                 messages.success(request, 'Onboarding completed!')
@@ -232,5 +232,5 @@ def onboarding(request):
                 messages.error(request, 'Invalid school or graduation year.')
         else:
             messages.error(request, 'Please fill all fields.')
-    schools = School.objects.all()
+    schools = School.objects.filter(school_type='secondary').order_by('name')
     return render(request, 'onboarding.html', {'schools': schools})

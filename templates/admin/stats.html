@@ -1,0 +1,21 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div style="display:flex;flex-wrap:wrap;gap:1rem;margin-top:1rem;">
+    <div style="flex:1;min-width:200px;background:#fff;border:1px solid #ddd;border-radius:8px;padding:1.25rem;">
+        <div style="font-size:2rem;font-weight:700;">{{ total_users }}</div>
+        <div style="color:#666;">Total Members</div>
+        <div style="color:#999;font-size:0.85rem;margin-top:0.25rem;">{{ onboarded_users }} completed onboarding</div>
+    </div>
+    <div style="flex:1;min-width:200px;background:#fff;border:1px solid #ddd;border-radius:8px;padding:1.25rem;">
+        <div style="font-size:2rem;font-weight:700;">{{ total_schools }}</div>
+        <div style="color:#666;">Total Schools</div>
+        <div style="color:#999;font-size:0.85rem;margin-top:0.25rem;">{{ primary_schools }} primary · {{ secondary_schools }} secondary</div>
+    </div>
+    <div style="flex:1;min-width:200px;background:#fff;border:1px solid #ddd;border-radius:8px;padding:1.25rem;">
+        <div style="font-size:2rem;font-weight:700;">{{ accepted_connections }}</div>
+        <div style="color:#666;">Accepted Connections</div>
+        <div style="color:#999;font-size:0.85rem;margin-top:0.25rem;">{{ pending_connections }} pending</div>
+    </div>
+</div>
+{% endblock %}

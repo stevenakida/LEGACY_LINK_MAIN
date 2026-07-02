@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
@@ -16,6 +16,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
         
         body {
@@ -23,12 +24,13 @@
             background: linear-gradient(135deg, #1a2a4a 0%, #2c3e5a 100%);
             min-height: 100vh;
             color: #ffffff;
+            overflow-x: hidden;
         }
         
         .header {
             background: rgba(26, 42, 74, 0.95);
             border-bottom: 2px solid #d4af37;
-            padding: 1.5rem 2rem;
+            padding: calc(1.5rem + env(safe-area-inset-top)) 2rem 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -153,7 +155,7 @@
             display: flex;
             justify-content: center;
             gap: 1rem;
-            padding: 0.75rem 1rem;
+            padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
             z-index: 100;
             backdrop-filter: blur(12px);
         }
@@ -241,7 +243,7 @@
             }
             
             .container {
-                padding: 1rem;
+                padding: 1rem 1rem 7rem;
             }
         }
     </style>
