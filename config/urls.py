@@ -15,11 +15,11 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, re_path, include
 from django.conf import settings
-from django.conf.urls.static import static
 from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
+from django.views.static import serve as serve_static
 from . import views
 
 urlpatterns = [
@@ -39,4 +39,8 @@ path('register/', views.register, name='register'),
     path('api/auth/', include('accounts.urls')),
     path('api/alumni/', include('alumni.urls')),
     path('api/connections/', include('connections.urls')),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Serve user-uploaded media (avatars, etc.) unconditionally — Django's
+    # static() helper only wires this up when DEBUG=True, which left avatars
+    # 404ing in production and falling back to the initials placeholder.
+    re_path(r'^media/(?P<path>.*)$', serve_static, {'document_root': settings.MEDIA_ROOT}),
+]

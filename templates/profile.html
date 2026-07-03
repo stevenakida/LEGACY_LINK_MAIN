@@ -149,6 +149,30 @@
             background: rgba(244, 67, 54, 0.2);
             border-left-color: #f44336;
         }
+
+        .avatar-preview {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 3px solid #d4af37;
+            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            margin: 0.5rem auto 0;
+        }
+
+        .avatar-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-preview .avatar-placeholder {
+            color: #d4af37;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
         
         .bottom-nav {
             position: fixed;
@@ -264,9 +288,13 @@
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <label for="id_avatar">Profile Photo</label>
-                <input type="file" name="avatar" id="id_avatar" accept="image/*">
+                <div class="avatar-preview" id="avatar-preview">
+                    <img src="{% if user.avatar %}{{ user.avatar.url }}{% endif %}" alt="{{ user.full_name }}" id="avatar-preview-img" {% if not user.avatar %}style="display:none;"{% endif %}>
+                    <span class="avatar-placeholder" id="avatar-preview-placeholder" {% if user.avatar %}style="display:none;"{% endif %}>{{ user.full_name|default:user.phone_or_email|first|upper }}</span>
+                </div>
+                <input type="file" name="avatar" id="id_avatar" accept="image/*" onchange="previewAvatar(event)">
                 {% if user.avatar %}
-                    <p style="color: #a0a0a0; font-size: 0.9rem; margin-top: 0.5rem;">✓ Photo uploaded</p>
+                    <p style="color: #a0a0a0; font-size: 0.9rem; margin-top: 0.5rem;">Current photo shown above. Choose a new file to replace it.</p>
                 {% endif %}
                 
                 <label for="id_full_name">Full Name</label>
@@ -344,5 +372,20 @@
     <div class="footer">
         <p>&copy; 2026 LegacyLink Africa. All rights reserved.</p>
     </div>
+    <script>
+        function previewAvatar(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('avatar-preview-img');
+                const placeholder = document.getElementById('avatar-preview-placeholder');
+                img.src = e.target.result;
+                img.style.display = 'block';
+                placeholder.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
 </body>
 </html>
