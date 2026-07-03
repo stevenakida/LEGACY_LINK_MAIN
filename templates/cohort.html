@@ -452,8 +452,8 @@
             <div class="school-details">
                 <span class="school-icon">🎓</span>
                 <div class="school-info-copy">
-                    <h3>{{ user.secondary_school.name|default:'School not set' }}</h3>
-                    <p>Class of {{ user.secondary_completion_year|default:'N/A' }}</p>
+                    <h3>{{ user.secondary_school.name|default:'Complete your education profile' }}</h3>
+                    <p>{% if user.secondary_completion_year %}Class of {{ user.secondary_completion_year }}{% else %}Class Year Pending{% endif %}</p>
                 </div>
             </div>
             <div class="school-sort">
@@ -476,7 +476,7 @@
                         </div>
                         <div class="classmate-info">
                             <h3>{{ classmate.full_name }}</h3>
-                            <p>{{ classmate.secondary_school.name|default:'School' }} · Class of {{ classmate.secondary_completion_year|default:'N/A' }}</p>
+                            <p>{{ classmate.secondary_school.name|default:'School' }} · {% if classmate.secondary_completion_year %}Class of {{ classmate.secondary_completion_year }}{% else %}Class Year Pending{% endif %}</p>
                             <p>{{ classmate.current_role|default:'Alumni member' }}</p>
                             <div class="verified">✓ Verified Member</div>
                         </div>

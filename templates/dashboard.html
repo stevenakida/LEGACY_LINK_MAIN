@@ -289,6 +289,75 @@
             line-height: 1.5;
         }
 
+        .identity-score-card {
+            margin-top: 2rem;
+            background: rgba(12, 24, 54, 0.94);
+            border: 1px solid rgba(212, 175, 55, 0.12);
+            border-radius: 22px;
+            padding: 1.5rem 1.75rem;
+        }
+
+        .identity-score-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.75rem;
+        }
+
+        .identity-score-header h2 {
+            color: #ffffff;
+            font-size: 1.2rem;
+        }
+
+        .identity-score-value {
+            color: #d4af37;
+            font-size: 1.6rem;
+        }
+
+        .identity-score-bar {
+            width: 100%;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .identity-score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #d4af37, #f0d585);
+            border-radius: 999px;
+            transition: width 0.4s ease;
+        }
+
+        .identity-score-hint {
+            color: #a0b0c7;
+            font-size: 0.92rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .identity-score-suggestions {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .identity-score-suggestions li {
+            color: #c4cdd6;
+            font-size: 0.92rem;
+            padding-left: 1.25rem;
+            position: relative;
+        }
+
+        .identity-score-suggestions li::before {
+            content: '+';
+            position: absolute;
+            left: 0;
+            color: #d4af37;
+            font-weight: 700;
+        }
+
         .stats-panel {
             margin-top: 2rem;
             display: grid;
@@ -318,6 +387,25 @@
             text-transform: uppercase;
         }
 
+        .dash-messages {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .dash-messages li {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            background: rgba(76, 175, 80, 0.2);
+            border-left: 4px solid #4caf50;
+            color: #ffffff;
+        }
+
+        .dash-messages li.error {
+            background: rgba(244, 67, 54, 0.2);
+            border-left-color: #f44336;
+        }
+
         .about-card {
             margin-top: 2rem;
             background: rgba(12, 24, 54, 0.95);
@@ -336,6 +424,37 @@
             color: #c4cdd6;
             line-height: 1.8;
             margin-bottom: 1.5rem;
+        }
+
+        .bio-text {
+            color: #c4cdd6;
+            line-height: 1.8;
+            margin-bottom: 0.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .bio-text.expanded {
+            -webkit-line-clamp: unset;
+            display: block;
+            overflow: visible;
+        }
+
+        .bio-toggle {
+            background: none;
+            border: none;
+            color: #d4af37;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .bio-toggle:hover {
+            text-decoration: underline;
         }
 
         .info-tags {
@@ -544,6 +663,13 @@
     </div>
 
     <main class="main-content">
+        {% if messages %}
+            <ul class="dash-messages">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
         <section class="hero-card">
             <div class="hero-grid">
                 <div class="avatar-frame">
@@ -554,9 +680,9 @@
                     {% endif %}
                 </div>
                 <div class="hero-copy">
-                    <div class="school">{{ user.secondary_school.name|default:'School not set' }}</div>
+                    <div class="school">{{ user.secondary_school.name|default:'Complete your education profile' }}</div>
                     <h1>{{ user.full_name|default:user.phone_or_email }}</h1>
-                    <div class="class-line">Class of {{ user.secondary_completion_year|default:'N/A' }}</div>
+                    <div class="class-line">{% if user.secondary_completion_year %}Class of {{ user.secondary_completion_year }}{% else %}Class Year Pending{% endif %}</div>
                     <div class="role">{{ user.current_role|default:'Alumni member' }}</div>
                     <p class="summary">{{ user.bio|default:'Add a short description about yourself to build trust with classmates and unlock more opportunities.' }}</p>
                     <div class="badges">
@@ -574,8 +700,8 @@
                 <p>This profile is trusted through our community and secure checks. Keep your details updated to stay visible to alumni opportunities.</p>
                 <div class="verified-grid">
                     <div class="verified-card">
-                        <strong>{{ user.secondary_school.name|default:'School not set' }}</strong>
-                        <span>School verified · Class of {{ user.secondary_completion_year|default:'N/A' }} confirmed</span>
+                        <strong>{{ user.secondary_school.name|default:'Complete your education profile' }}</strong>
+                        <span>{% if user.secondary_completion_year %}School verified · Class of {{ user.secondary_completion_year }} confirmed{% else %}School verified · Class Year Pending{% endif %}</span>
                     </div>
                     <div class="verified-card">
                         <strong>{{ connections_count }}</strong>
@@ -586,11 +712,31 @@
                         <span>Profile activity status</span>
                     </div>
                     <div class="verified-card">
-                        <strong>{{ trust_score }}/100</strong>
-                        <span>Trust score from profile signals</span>
+                        <strong>{{ identity_score }}/100</strong>
+                        <span>Identity Score from profile signals</span>
                     </div>
                 </div>
             </div>
+        </section>
+
+        <section class="identity-score-card">
+            <div class="identity-score-header">
+                <h2>Identity Score</h2>
+                <strong class="identity-score-value">{{ identity_score }}%</strong>
+            </div>
+            <div class="identity-score-bar">
+                <div class="identity-score-fill" style="width: {{ identity_score }}%;"></div>
+            </div>
+            {% if identity_score_suggestions %}
+                <p class="identity-score-hint">Complete your profile to raise your score:</p>
+                <ul class="identity-score-suggestions">
+                    {% for item in identity_score_suggestions %}
+                        <li>{{ item.label }} (+{{ item.points }}%)</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="identity-score-hint">Your profile is complete. Great work!</p>
+            {% endif %}
         </section>
 
         <section class="stats-panel">
@@ -603,18 +749,21 @@
                 <span>Classmates</span>
             </div>
             <div class="stats-card">
-                <strong>{{ trust_score }}%</strong>
-                <span>Trust Score</span>
+                <strong>{{ identity_score }}%</strong>
+                <span>Identity Score</span>
             </div>
         </section>
 
         <section class="about-card">
             <h3>About</h3>
-            <p>{{ user.bio|default:'Tell your network a little about yourself and your goals. This helps your classmates connect with you faster.' }}</p>
+            <p class="bio-text" id="bio-text">{{ user.bio|default:'Tell your network a little about yourself and your goals. This helps your classmates connect with you faster.' }}</p>
+            {% if user.bio %}
+                <button type="button" class="bio-toggle" id="bio-toggle" onclick="toggleBio()">Read more</button>
+            {% endif %}
             <div class="info-tags">
                 <span class="info-tag">{{ user.current_location|default:'Location not set' }}</span>
                 <span class="info-tag">{{ user.current_role|default:'Alumni member' }}</span>
-                <span class="info-tag">{{ user.secondary_school.name|default:'School not set' }}</span>
+                <span class="info-tag">{{ user.secondary_school.name|default:'Complete your education profile' }}</span>
             </div>
             <div class="action-row">
                 <a href="/connections/" class="connect-btn">Connect</a>
@@ -647,5 +796,22 @@
         <span>Profile</span>
     </a>
 </footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var bioText = document.getElementById('bio-text');
+        var toggle = document.getElementById('bio-toggle');
+        if (bioText && toggle && bioText.scrollHeight <= bioText.clientHeight + 2) {
+            toggle.style.display = 'none';
+        }
+    });
+
+    function toggleBio() {
+        var bioText = document.getElementById('bio-text');
+        var toggle = document.getElementById('bio-toggle');
+        var expanded = bioText.classList.toggle('expanded');
+        toggle.textContent = expanded ? 'Show less' : 'Read more';
+    }
+</script>
 </body>
 </html>

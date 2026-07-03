@@ -20,8 +20,14 @@ Core concepts:
   `secondary_completion_year` as the current user.
 - **Connection** (`connections.Connection`) — a request between two users with
   status `pending` / `accepted` / `declined`.
-- **Trust score** — a 0–100 score shown on the dashboard, built from profile
-  completeness (bio, avatar, school info) and number of accepted connections.
+- **Identity Score** (`User.identity_score`) — a 0–100 profile-completion meter
+  (replaces the old ad-hoc "trust score"). Weighted: Profile Picture 10%, Bio
+  10%, Primary School 12%, Secondary School 12%, University/Tertiary 11%,
+  Current Location 10%, Profession 20%, Company/Organization 15%. Shown on the
+  dashboard with a progress bar and up to 4 "complete your profile" suggestions
+  (`User.identity_score_suggestions`), sorted by point value. Verification
+  status is intentionally NOT scored yet — there's no identity verification
+  flow, so it was dropped from v1 rather than faked.
 
 ## 2. How to use it (end-user flow)
 
@@ -31,10 +37,12 @@ Core concepts:
 2. **Onboarding** at `/onboarding/` — pick your secondary school and
    graduation year. This sets `onboarding_complete = True` and is what powers
    cohort matching.
-3. **Dashboard** at `/dashboard/` — shows trust score, connection counts,
-   cohort preview, and accepted connections.
-4. **Profile** at `/profile/` — edit name, bio, role, location, avatar, and
-   primary/secondary school + years.
+3. **Dashboard** at `/dashboard/` — shows Identity Score (with improvement
+   suggestions), connection counts, cohort preview, and accepted connections.
+4. **Profile** at `/profile/` — edit name, bio, profile picture, current
+   location, professional info (current role, employment status, company/org
+   name), and education history (Primary, Secondary, Advanced Level/A-Level,
+   and University/Tertiary school + completion years).
 5. **Schools** at `/schools/` — browse/search schools (also has a section
    reserved for future "opportunities" content, currently empty/mock).
 6. **Cohort** at `/cohort/` — see all alumni who match your school + year.
@@ -95,13 +103,37 @@ instead (falls back to SQLite if unset — see commit `36ef5a6`).
   blocked historically on the `cryptography` package build on Windows. See
   `SOCIAL_LOGIN_SETUP.md`.
 - Schools page has a placeholder "opportunities" section with no backing model yet.
-- School coverage currently seeded mainly for Arusha region, Tanzania.
+- School coverage currently seeded mainly for Arusha region, Tanzania (plus 10
+  major Tanzanian universities for the University/Tertiary field).
+- Identity Score has no "Verification Status" component yet — deferred until
+  there's an actual identity-verification flow (see product discussion in
+  change log 2026-07-03).
+- Visibility tiers / search ranking / badges based on Identity Score were
+  discussed but explicitly deferred — there's no alumni search feature to
+  rank yet.
 
 ## 7. Change log
 
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-07-03: Added the Identity Score profile-completion meter (replaces the
+  old ad-hoc trust score) plus the fields it scores: `tertiary_school` /
+  `tertiary_completion_year` (University), `employment_status`, and
+  `company_name` on `accounts.User` (migration `accounts/0005_...`). Seeded 10
+  Tanzanian universities via `seed_schools`. Dashboard now shows a progress bar
+  and up to 4 ranked "complete your profile" suggestions.
+- 2026-07-03: UI copy pass — "School not set" → "Complete your education
+  profile"; "Class of N/A" → "Class Year Pending" (dashboard/cohort/connections);
+  bio on dashboard truncated to 3 lines with a "Read more" toggle; "Profile
+  Photo" → "Profile Picture"; "High School" → "Advanced Level (A-Level)";
+  login page logo/spacing tightened.
+- 2026-07-03: Fixed success messages rendering red — `login.html` hardcoded
+  every Django message into a red `.error` div regardless of type, and
+  `dashboard.html` never rendered messages at all (so a success message set on
+  profile update would silently carry over and surface wrongly-styled on the
+  next page that did render messages). Both templates now use `message.tags`
+  with proper success (green) / error (red) styling.
 - 2026-07-03: Fixed profile photo not displaying — `templates/profile.html` had
   no `<img>` preview (just "✓ Photo uploaded" text), and `config/urls.py` only
   served `/media/` uploads when `DEBUG=True`, so avatars 404'd in production.

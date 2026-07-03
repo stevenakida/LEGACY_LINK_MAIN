@@ -29,23 +29,23 @@
             background: rgba(30, 45, 74, 0.8);
             border: 2px solid #3d5a7f;
             border-radius: 15px;
-            padding: 50px 40px;
+            padding: 32px 40px 40px;
             text-align: center;
         }
         .logo {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 30px;
+            margin-bottom: 12px;
         }
         .logo img {
-            height: 220px;
+            height: 160px;
             width: auto;
             max-width: 100%;
         }
         .subtitle {
             color: #d4af37;
-            margin-bottom: 40px;
+            margin-bottom: 24px;
             font-size: 1.1em;
         }
         form {
@@ -178,6 +178,15 @@
             border-left: 4px solid #ff6666;
             text-align: left;
         }
+        .success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #b6f2ba;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4caf50;
+            text-align: left;
+        }
         @media (max-width: 480px) {
             .container {
                 padding: 30px 20px;
@@ -194,7 +203,7 @@
         <div class="subtitle">Sign In to Your Account</div>
         {% if messages %}
             {% for message in messages %}
-                <div class="error">{{ message }}</div>
+                <div class="{{ message.tags }}">{{ message }}</div>
             {% endfor %}
         {% endif %}
 

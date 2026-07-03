@@ -52,10 +52,22 @@ SCHOOLS = [
     {"name": "Tanzania Adventist Secondary School", "region": "Arusha", "school_type": "secondary"},
     {"name": "Sakina Secondary School", "region": "Arusha", "school_type": "secondary"},
     # Add more as needed
+
+    # Universities / Tertiary Institutions
+    {"name": "University of Dar es Salaam", "region": "Dar es Salaam", "school_type": "university"},
+    {"name": "Ardhi University", "region": "Dar es Salaam", "school_type": "university"},
+    {"name": "Sokoine University of Agriculture", "region": "Morogoro", "school_type": "university"},
+    {"name": "Mzumbe University", "region": "Morogoro", "school_type": "university"},
+    {"name": "University of Dodoma", "region": "Dodoma", "school_type": "university"},
+    {"name": "Nelson Mandela African Institution of Science and Technology", "region": "Arusha", "school_type": "university"},
+    {"name": "Tumaini University Makumira", "region": "Arusha", "school_type": "university"},
+    {"name": "St. Augustine University of Tanzania", "region": "Mwanza", "school_type": "university"},
+    {"name": "Muhimbili University of Health and Allied Sciences", "region": "Dar es Salaam", "school_type": "university"},
+    {"name": "Kilimanjaro Christian Medical University College", "region": "Kilimanjaro", "school_type": "university"},
 ]
 
 class Command(BaseCommand):
-    help = 'Seed Tanzania primary and secondary schools'
+    help = 'Seed Tanzania primary, secondary schools and universities'
 
     def handle(self, *args, **options):
         created = 0

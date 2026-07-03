@@ -91,27 +91,14 @@ def dashboard(request):
     connections_count = accepted_connections.count()
     pending_count = pending_connections.count()
 
-    trust_score = 40
-    if user.bio:
-        trust_score += 10
-    if user.avatar:
-        trust_score += 10
-    if user.secondary_school and user.secondary_completion_year:
-        trust_score += 10
-    trust_score += min(connections_count, 20)
-    if connections_count >= 10:
-        trust_score += 10
-    if connections_count >= 25:
-        trust_score += 10
-    trust_score = min(100, trust_score)
-
     return render(request, 'dashboard.html', {
         'user': user,
         'connections_count': connections_count,
         'pending_count': pending_count,
         'cohort_count': cohort_count,
         'cohort_users': cohort_users,
-        'trust_score': trust_score,
+        'identity_score': user.identity_score,
+        'identity_score_suggestions': user.identity_score_suggestions[:4],
         'accepted_connections': accepted_connections,
     })
 
@@ -148,6 +135,20 @@ def profile(request):
         
         user.high_school = request.POST.get('high_school', user.high_school)
         user.high_school_completion_year = request.POST.get('high_school_completion_year') or None
+
+        tertiary_school_id = request.POST.get('tertiary_school')
+        if tertiary_school_id:
+            try:
+                user.tertiary_school = School.objects.get(id=tertiary_school_id, school_type='university')
+            except School.DoesNotExist:
+                user.tertiary_school = None
+        else:
+            user.tertiary_school = None
+        user.tertiary_completion_year = request.POST.get('tertiary_completion_year') or None
+
+        user.employment_status = request.POST.get('employment_status', user.employment_status)
+        user.company_name = request.POST.get('company_name', user.company_name)
+
         # Handle avatar upload
         if 'avatar' in request.FILES:
             user.avatar = request.FILES['avatar']
@@ -156,10 +157,13 @@ def profile(request):
         return redirect('dashboard')
     primary_schools = School.objects.filter(school_type='primary').order_by('name')
     secondary_schools = School.objects.filter(school_type='secondary').order_by('name')
+    tertiary_schools = School.objects.filter(school_type='university').order_by('name')
     return render(request, 'profile.html', {
-        'user': request.user, 
+        'user': request.user,
         'primary_schools': primary_schools,
-        'secondary_schools': secondary_schools
+        'secondary_schools': secondary_schools,
+        'tertiary_schools': tertiary_schools,
+        'employment_status_choices': User.EMPLOYMENT_STATUS_CHOICES,
     })
 
 def schools(request):

@@ -287,7 +287,7 @@
         <div class="form-card">
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
-                <label for="id_avatar">Profile Photo</label>
+                <label for="id_avatar">Profile Picture</label>
                 <div class="avatar-preview" id="avatar-preview">
                     <img src="{% if user.avatar %}{{ user.avatar.url }}{% endif %}" alt="{{ user.full_name }}" id="avatar-preview-img" {% if not user.avatar %}style="display:none;"{% endif %}>
                     <span class="avatar-placeholder" id="avatar-preview-placeholder" {% if user.avatar %}style="display:none;"{% endif %}>{{ user.full_name|default:user.phone_or_email|first|upper }}</span>
@@ -306,9 +306,22 @@
                 <label for="id_current_location">Current Location</label>
                 <input type="text" name="current_location" id="id_current_location" placeholder="e.g., Nairobi, Kenya" value="{{ user.current_location }}">
                 
-                <label for="id_current_role">Current Role</label>
+                <h3 style="color: #d4af37; margin-top: 2rem; margin-bottom: 1rem; font-size: 1.2rem;">Professional Information</h3>
+
+                <label for="id_current_role">Current Role / Profession</label>
                 <input type="text" name="current_role" id="id_current_role" placeholder="e.g., Software Engineer, Doctor" value="{{ user.current_role }}">
-                
+
+                <label for="id_employment_status">Employment Status</label>
+                <select name="employment_status" id="id_employment_status">
+                    <option value="">-- Select Employment Status --</option>
+                    {% for value, label in employment_status_choices %}
+                        <option value="{{ value }}" {% if user.employment_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+
+                <label for="id_company_name">Company / Organization Name</label>
+                <input type="text" name="company_name" id="id_company_name" placeholder="e.g., LegacyLink Africa" value="{{ user.company_name }}">
+
                 <h3 style="color: #d4af37; margin-top: 2rem; margin-bottom: 1rem; font-size: 1.2rem;">Educational Background</h3>
                 
                 <label for="id_primary_school">Primary School</label>
@@ -333,12 +346,23 @@
                 <label for="id_secondary_completion_year">Secondary School Completion Year</label>
                 <input type="number" name="secondary_completion_year" id="id_secondary_completion_year" min="1950" max="2030" placeholder="e.g., 2010" value="{{ user.secondary_completion_year }}">
                 
-                <label for="id_high_school">High School</label>
-                <input type="text" name="high_school" id="id_high_school" placeholder="Name of your high school" value="{{ user.high_school }}">
-                
-                <label for="id_high_school_completion_year">High School Completion Year</label>
+                <label for="id_high_school">Advanced Level (A-Level)</label>
+                <input type="text" name="high_school" id="id_high_school" placeholder="Name of your A-Level school" value="{{ user.high_school }}">
+
+                <label for="id_high_school_completion_year">Advanced Level (A-Level) Completion Year</label>
                 <input type="number" name="high_school_completion_year" id="id_high_school_completion_year" min="1950" max="2030" placeholder="e.g., 2012" value="{{ user.high_school_completion_year }}">
-                
+
+                <label for="id_tertiary_school">University / Tertiary Institution</label>
+                <select name="tertiary_school" id="id_tertiary_school">
+                    <option value="">-- Select Your University / Tertiary Institution --</option>
+                    {% for school in tertiary_schools %}
+                        <option value="{{ school.id }}" {% if user.tertiary_school == school %}selected{% endif %}>{{ school.name }} ({{ school.region }})</option>
+                    {% endfor %}
+                </select>
+
+                <label for="id_tertiary_completion_year">University / Tertiary Completion Year</label>
+                <input type="number" name="tertiary_completion_year" id="id_tertiary_completion_year" min="1950" max="2030" placeholder="e.g., 2016" value="{{ user.tertiary_completion_year }}">
+
                 <button type="submit">Update Profile</button>
             </form>
             

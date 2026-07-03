@@ -389,7 +389,7 @@
                         </div>
                         <div class="connection-details">
                             <div class="connection-name">{{ connection.requester.full_name }}</div>
-                            <div class="connection-meta">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · Class of {{ connection.requester.secondary_completion_year|default:'N/A' }}</div>
+                            <div class="connection-meta">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · {% if connection.requester.secondary_completion_year %}Class of {{ connection.requester.secondary_completion_year }}{% else %}Class Year Pending{% endif %}</div>
                             <div class="connection-meta">{{ connection.requester.current_role|default:'Alumni member' }}</div>
                         </div>
                         <div class="connection-status">Pending</div>
@@ -429,11 +429,11 @@
                             {% if connection.receiver == user %}
                                 <div class="connection-name">{{ connection.requester.full_name }}</div>
                                 <div class="connection-meta">{{ connection.requester.current_role|default:'Alumni member' }}</div>
-                                <div class="connection-meta">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · Class of {{ connection.requester.secondary_completion_year|default:'N/A' }}</div>
+                                <div class="connection-meta">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · {% if connection.requester.secondary_completion_year %}Class of {{ connection.requester.secondary_completion_year }}{% else %}Class Year Pending{% endif %}</div>
                             {% else %}
                                 <div class="connection-name">{{ connection.receiver.full_name }}</div>
                                 <div class="connection-meta">{{ connection.receiver.current_role|default:'Alumni member' }}</div>
-                                <div class="connection-meta">{{ connection.receiver.secondary_school.name|default:'Unknown school' }} · Class of {{ connection.receiver.secondary_completion_year|default:'N/A' }}</div>
+                                <div class="connection-meta">{{ connection.receiver.secondary_school.name|default:'Unknown school' }} · {% if connection.receiver.secondary_completion_year %}Class of {{ connection.receiver.secondary_completion_year }}{% else %}Class Year Pending{% endif %}</div>
                             {% endif %}
                         </div>
                         <div class="connection-status">Connected</div>
