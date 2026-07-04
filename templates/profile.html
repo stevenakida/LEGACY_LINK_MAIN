@@ -21,15 +21,15 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a2a4a 0%, #2c3e5a 100%);
+            background: linear-gradient(160deg, #070b14 0%, #0b1220 55%, #0d1730 100%);
             min-height: 100vh;
             color: #ffffff;
             overflow-x: hidden;
         }
         
         .header {
-            background: rgba(26, 42, 74, 0.95);
-            border-bottom: 2px solid #d4af37;
+            background: rgba(13, 19, 32, 0.95);
+            border-bottom: 2px solid #E8A63C;
             padding: calc(1.5rem + env(safe-area-inset-top)) 2rem 1.5rem;
             display: flex;
             justify-content: space-between;
@@ -37,14 +37,14 @@
         }
         
         .header h1 {
-            color: #d4af37;
+            color: #E8A63C;
             font-size: 1.8rem;
         }
         
         .btn-back {
             background: transparent;
-            color: #d4af37;
-            border: 2px solid #d4af37;
+            color: #E8A63C;
+            border: 2px solid #E8A63C;
             padding: 0.75rem 1.5rem;
             border-radius: 8px;
             text-decoration: none;
@@ -53,8 +53,8 @@
         }
         
         .btn-back:hover {
-            background: #d4af37;
-            color: #1a2a4a;
+            background: #E8A63C;
+            color: #0B1220;
         }
         
         .container {
@@ -64,8 +64,8 @@
         }
         
         .form-card {
-            background: rgba(30, 45, 74, 0.8);
-            border: 2px solid #3d5a7f;
+            background: rgba(17, 24, 39, 0.8);
+            border: 2px solid #26334D;
             border-radius: 15px;
             padding: 2rem;
         }
@@ -76,7 +76,7 @@
         }
         
         label {
-            color: #d4af37;
+            color: #E8A63C;
             margin-top: 1.5rem;
             margin-bottom: 0.5rem;
             font-weight: 600;
@@ -88,7 +88,7 @@
         input, select, textarea {
             padding: 0.75rem;
             background: rgba(255, 255, 255, 0.05);
-            border: 2px solid #3d5a7f;
+            border: 2px solid #26334D;
             border-radius: 8px;
             color: #ffffff;
             font-size: 1rem;
@@ -102,9 +102,9 @@
         
         input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: #d4af37;
+            border-color: #E8A63C;
             background: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+            box-shadow: 0 0 10px rgba(232, 166, 60, 0.2);
         }
         
         textarea {
@@ -115,9 +115,9 @@
         button {
             margin-top: 2rem;
             padding: 0.75rem;
-            background: #d4af37;
-            color: #1a2a4a;
-            border: 2px solid #d4af37;
+            background: #E8A63C;
+            color: #0B1220;
+            border: 2px solid #E8A63C;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
@@ -126,8 +126,8 @@
         }
         
         button:hover {
-            background: #e5c158;
-            border-color: #e5c158;
+            background: #F2C368;
+            border-color: #F2C368;
             transform: translateY(-2px);
         }
         
@@ -140,21 +140,21 @@
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 1rem;
-            background: rgba(76, 175, 80, 0.2);
-            border-left: 4px solid #4caf50;
+            background: rgba(16, 185, 129, 0.2);
+            border-left: 4px solid #10B981;
             color: #ffffff;
         }
         
         .messages li.error {
-            background: rgba(244, 67, 54, 0.2);
-            border-left-color: #f44336;
+            background: rgba(239, 68, 68, 0.2);
+            border-left-color: #EF4444;
         }
 
         .avatar-preview {
             width: 120px;
             height: 120px;
             border-radius: 50%;
-            border: 3px solid #d4af37;
+            border: 3px solid #E8A63C;
             background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
             display: grid;
             place-items: center;
@@ -169,7 +169,7 @@
         }
 
         .avatar-preview .avatar-placeholder {
-            color: #d4af37;
+            color: #E8A63C;
             font-size: 2.5rem;
             font-weight: 700;
         }
@@ -179,8 +179,8 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            background: rgba(26, 42, 74, 0.98);
-            border-top: 1px solid rgba(212, 175, 55, 0.2);
+            background: rgba(13, 19, 32, 0.98);
+            border-top: 1px solid rgba(232, 166, 60, 0.2);
             display: flex;
             justify-content: center;
             gap: 1rem;
@@ -206,8 +206,8 @@
         
         .nav-link:hover,
         .nav-link.active {
-            background: rgba(212, 175, 55, 0.12);
-            color: #d4af37;
+            background: rgba(232, 166, 60, 0.12);
+            color: #E8A63C;
             transform: translateY(-1px);
         }
         
@@ -218,7 +218,7 @@
         .footer {
             padding: 2rem 0;
             text-align: center;
-            color: #a0a0a0;
+            color: #94A3B8;
             margin-top: 2rem;
         }
         .material-symbols-rounded {
@@ -294,7 +294,7 @@
                 </div>
                 <input type="file" name="avatar" id="id_avatar" accept="image/*" onchange="previewAvatar(event)">
                 {% if user.avatar %}
-                    <p style="color: #a0a0a0; font-size: 0.9rem; margin-top: 0.5rem;">Current photo shown above. Choose a new file to replace it.</p>
+                    <p style="color: #94A3B8; font-size: 0.9rem; margin-top: 0.5rem;">Current photo shown above. Choose a new file to replace it.</p>
                 {% endif %}
                 
                 <label for="id_full_name">Full Name</label>
@@ -306,7 +306,7 @@
                 <label for="id_current_location">Current Location</label>
                 <input type="text" name="current_location" id="id_current_location" placeholder="e.g., Nairobi, Kenya" value="{{ user.current_location }}">
                 
-                <h3 style="color: #d4af37; margin-top: 2rem; margin-bottom: 1rem; font-size: 1.2rem;">Professional Information</h3>
+                <h3 style="color: #E8A63C; margin-top: 2rem; margin-bottom: 1rem; font-size: 1.2rem;">Professional Information</h3>
 
                 <label for="id_current_role">Current Role / Profession</label>
                 <input type="text" name="current_role" id="id_current_role" placeholder="e.g., Software Engineer, Doctor" value="{{ user.current_role }}">
@@ -322,7 +322,7 @@
                 <label for="id_company_name">Company / Organization Name</label>
                 <input type="text" name="company_name" id="id_company_name" placeholder="e.g., LegacyLink Africa" value="{{ user.company_name }}">
 
-                <h3 style="color: #d4af37; margin-top: 2rem; margin-bottom: 1rem; font-size: 1.2rem;">Educational Background</h3>
+                <h3 style="color: #E8A63C; margin-top: 2rem; margin-bottom: 1rem; font-size: 1.2rem;">Educational Background</h3>
                 
                 <label for="id_primary_school">Primary School</label>
                 <select name="primary_school" id="id_primary_school">
