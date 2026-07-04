@@ -4,6 +4,16 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def disable_fk_checks(apps, schema_editor):
+    if schema_editor.connection.vendor == 'sqlite':
+        schema_editor.execute("PRAGMA foreign_keys = OFF;")
+
+
+def enable_fk_checks(apps, schema_editor):
+    if schema_editor.connection.vendor == 'sqlite':
+        schema_editor.execute("PRAGMA foreign_keys = ON;")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -12,9 +22,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Disable foreign key constraints temporarily
-        migrations.RunSQL("PRAGMA foreign_keys = OFF;", "PRAGMA foreign_keys = ON;"),
-        
+        # Disable foreign key constraints temporarily (SQLite only; Postgres doesn't need this)
+        migrations.RunPython(disable_fk_checks, enable_fk_checks),
+
         # Clear school fields
         migrations.RunSQL(
             "UPDATE accounts_user SET primary_school = NULL, secondary_school = NULL;",
@@ -45,6 +55,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(blank=True, limit_choices_to={'school_type': 'secondary'}, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='secondary_alumni', to='alumni.school'),
         ),
         
-        # Re-enable foreign key constraints
-        migrations.RunSQL("PRAGMA foreign_keys = ON;", "PRAGMA foreign_keys = OFF;"),
+        # Re-enable foreign key constraints (SQLite only)
+        migrations.RunPython(enable_fk_checks, disable_fk_checks),
     ]

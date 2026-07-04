@@ -127,6 +127,21 @@ the Android side — everything else requires HTTPS.
 
 ## 6. Known limitations / in-progress work
 
+- **RESOLVED (2026-07-04): Render's `DATABASE_URL` was set to
+  `sqlite:///db.sqlite3` instead of the Postgres instance**, wiping all users,
+  connections, and seeded schools on every deploy. User swapped the env var
+  to the Postgres Internal Database URL in Render's dashboard — confirmed
+  fixed because the next deploy's migration step reached Postgres (raised a
+  Postgres-specific SQL error rather than running against sqlite).
+- **FIXED (2026-07-04): migration `accounts.0004_convert_schools_to_fk` used
+  raw SQLite `PRAGMA foreign_keys = OFF/ON` via `RunSQL`**, which is invalid
+  syntax on Postgres (`psycopg.errors.SyntaxError`) and blocked the first
+  real deploy once `DATABASE_URL` was pointed at Postgres. Postgres wraps
+  migrations in a transaction, so the failed deploy rolled back cleanly with
+  no data loss. Fixed by switching those two `RunSQL` PRAGMA statements to
+  `RunPython` functions that only execute on `schema_editor.connection.vendor
+  == 'sqlite'`, so the migration is a no-op for FK toggling on Postgres but
+  unchanged on SQLite (verified via `sqlmigrate`).
 - Social login (Google/Facebook) UI is present but OAuth isn't fully live —
   blocked historically on the `cryptography` package build on Windows. See
   `SOCIAL_LOGIN_SETUP.md`.
@@ -145,6 +160,27 @@ the Android side — everything else requires HTTPS.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-07-04: Diagnosed the "database keeps erasing on every push" / "login
+  not working" reports down to one cause — Render's `DATABASE_URL` was
+  literally `sqlite:///db.sqlite3`, so it never used the attached Postgres
+  instance; every deploy hit Render's ephemeral disk and started empty. Build
+  command and app code confirmed already correct. User fixed it via the
+  Render dashboard (swapped the env var to the Postgres Internal Database
+  URL) — confirmed resolved (see §6).
+- 2026-07-04: That fix surfaced a second bug — migration
+  `accounts.0004_convert_schools_to_fk` used raw SQLite `PRAGMA` statements
+  that are invalid on Postgres, blocking the first deploy against the real
+  database. Rewrote the FK-toggle steps as `RunPython` guarded by
+  `connection.vendor == 'sqlite'` so the migration works on both backends
+  (see §6).
+- 2026-07-04: Fixed a real bug found during that audit — `alumni/views.py`
+  (`CompleteOnboardingView`, `CohortMatchView`) and `config/views.py`
+  (`select_school`) referenced `user.school`/`user.graduation_year`, fields
+  that don't exist on `accounts.User` (it's `secondary_school` /
+  `secondary_completion_year`). Would have raised `FieldError` if ever hit;
+  currently unreachable from the web UI or the Android WebView client, but
+  fixed for correctness (commit `5a073a4`). Also deduped `.gitignore` and
+  added `staticfiles/` to it.
 - 2026-07-04: Fixed dashboard avatar sitting "pushed down" at desktop widths —
   `.hero-grid` used `align-items: center`, which vertically centered the
   avatar against the whole text column (name + bio + badges) rather than the
