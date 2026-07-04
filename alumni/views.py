@@ -35,12 +35,12 @@ class CompleteOnboardingView(APIView):
             )
 
         try:
-            school = School.objects.get(id=school_id)
+            school = School.objects.get(id=school_id, school_type='secondary')
         except School.DoesNotExist:
             return Response({'error': 'School not found'}, status=404)
 
-        user.school = school
-        user.graduation_year = int(graduation_year)
+        user.secondary_school = school
+        user.secondary_completion_year = int(graduation_year)
         user.onboarding_complete = True
         user.save()
 
@@ -68,8 +68,8 @@ class CohortMatchView(APIView):
 
         # PRIMARY MATCH RULE: same school + same graduation year
         cohort = User.objects.filter(
-            school=user.school,
-            graduation_year=user.graduation_year,
+            secondary_school=user.secondary_school,
+            secondary_completion_year=user.secondary_completion_year,
             onboarding_complete=True
         ).exclude(id=user.id)  # Exclude self
 
@@ -99,8 +99,8 @@ class CohortMatchView(APIView):
             results.append(data)
 
         return Response({
-            'school': user.school.name,
-            'graduation_year': user.graduation_year,
+            'school': user.secondary_school.name,
+            'graduation_year': user.secondary_completion_year,
             'cohort_count': len(results),
             'members': results
         })
