@@ -157,21 +157,25 @@
         }
 
         .avatar-frame {
-            width: 220px;
-            height: 220px;
+            width: 200px;
+            height: 200px;
             border-radius: 50%;
-            border: 3px solid #E8A63C;
-            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
-            display: grid;
-            place-items: center;
+            border: 4px solid #E8A63C;
+            background: #0B1220;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             overflow: hidden;
             margin: 0 auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
         .avatar-frame img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            object-position: center;
+            display: block;
         }
 
         .avatar-placeholder {
@@ -624,8 +628,8 @@
             }
 
             .avatar-frame {
-                width: 180px;
-                height: 180px;
+                width: 160px;
+                height: 160px;
             }
         }
 

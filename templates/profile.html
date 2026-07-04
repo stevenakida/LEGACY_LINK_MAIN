@@ -151,21 +151,25 @@
         }
 
         .avatar-preview {
-            width: 120px;
-            height: 120px;
+            width: 150px;
+            height: 150px;
             border-radius: 50%;
-            border: 3px solid #E8A63C;
-            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
-            display: grid;
-            place-items: center;
+            border: 4px solid #E8A63C;
+            background: #0B1220;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             overflow: hidden;
-            margin: 0.5rem auto 0;
+            margin: 1rem auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
         .avatar-preview img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            object-position: center;
+            display: block;
         }
 
         .avatar-preview .avatar-placeholder {
@@ -292,10 +296,13 @@
                     <img src="{% if user.avatar %}{{ user.avatar.url }}{% endif %}" alt="{{ user.full_name }}" id="avatar-preview-img" {% if not user.avatar %}style="display:none;"{% endif %}>
                     <span class="avatar-placeholder" id="avatar-preview-placeholder" {% if user.avatar %}style="display:none;"{% endif %}>{{ user.full_name|default:user.phone_or_email|first|upper }}</span>
                 </div>
-                <input type="file" name="avatar" id="id_avatar" accept="image/*" onchange="previewAvatar(event)">
-                {% if user.avatar %}
-                    <p style="color: #94A3B8; font-size: 0.9rem; margin-top: 0.5rem;">Current photo shown above. Choose a new file to replace it.</p>
-                {% endif %}
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    <input type="file" name="avatar" id="id_avatar" accept="image/*" onchange="previewAvatar(event)" style="display: none;">
+                    <button type="button" onclick="document.getElementById('id_avatar').click()" style="margin-top: 0; background: rgba(255,255,255,0.1); border-color: #26334D; color: #ffffff; padding: 0.5rem 1rem;">Choose Photo</button>
+                    {% if user.avatar %}
+                        <p style="color: #94A3B8; font-size: 0.85rem; margin-top: 0.5rem;">Current photo shown above.</p>
+                    {% endif %}
+                </div>
                 
                 <label for="id_full_name">Full Name</label>
                 <input type="text" name="full_name" id="id_full_name" value="{{ user.full_name }}" required>
