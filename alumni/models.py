@@ -10,7 +10,7 @@ class School(models.Model):
     ]
 
     name = models.CharField(max_length=300)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(max_length=300, unique=True, blank=True)
     region = models.CharField(max_length=200, blank=True)
     country = models.CharField(max_length=100, default='Tanzania')
     school_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='secondary')

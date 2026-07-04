@@ -142,6 +142,13 @@ the Android side — everything else requires HTTPS.
   `RunPython` functions that only execute on `schema_editor.connection.vendor
   == 'sqlite'`, so the migration is a no-op for FK toggling on Postgres but
   unchanged on SQLite (verified via `sqlmigrate`).
+- **FIXED (2026-07-04): `alumni.School.slug` used Django's default
+  `SlugField` `max_length=50`.** SQLite never enforces varchar length limits,
+  so this went unnoticed locally, but Postgres does — `seed_schools` failed
+  with `DataError: value too long for type character varying(50)` on
+  "Nelson Mandela African Institution of Science and Technology" (slugifies
+  to 60 chars). Widened to `max_length=300` (migration
+  `alumni.0002_alter_school_slug`) to match `name`'s max length.
 - Social login (Google/Facebook) UI is present but OAuth isn't fully live —
   blocked historically on the `cryptography` package build on Windows. See
   `SOCIAL_LOGIN_SETUP.md`.
@@ -173,6 +180,10 @@ in git history.
   database. Rewrote the FK-toggle steps as `RunPython` guarded by
   `connection.vendor == 'sqlite'` so the migration works on both backends
   (see §6).
+- 2026-07-04: Fixing that surfaced a third bug — `alumni.School.slug`'s
+  default `SlugField` `max_length=50` was too short for some seeded school
+  names once slugified; Postgres enforces the limit, SQLite silently didn't.
+  Widened to `max_length=300` (see §6).
 - 2026-07-04: Fixed a real bug found during that audit — `alumni/views.py`
   (`CompleteOnboardingView`, `CohortMatchView`) and `config/views.py`
   (`select_school`) referenced `user.school`/`user.graduation_year`, fields
