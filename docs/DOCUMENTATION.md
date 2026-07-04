@@ -1,7 +1,7 @@
 # LegacyLink Africa — Documentation
 
 > Living document. Update this file whenever a feature, flow, or setup step changes.
-> Last updated: 2026-07-03
+> Last updated: 2026-07-04
 
 ## 1. What the app does
 
@@ -81,6 +81,9 @@ WebView-friendly):
 - `alumni/` — `School` model + schools/cohort/onboarding API.
 - `connections/` — `Connection` model + connection request API.
 - `templates/` — server-rendered HTML pages (mobile/Android-WebView friendly).
+- `../legacy-link-android/` (sibling folder, separate Android Studio project)
+  — the native WebView shell that loads this app on Android. See its README
+  and [section 5](#5-setup--running-locally) for the testing/production split.
 
 ## 5. Setup / running locally
 
@@ -96,6 +99,31 @@ python manage.py runserver
 
 Database: SQLite by default; set `DATABASE_URL` env var to use Postgres
 instead (falls back to SQLite if unset — see commit `36ef5a6`).
+
+### Testing vs. production environments
+
+Two fully separate environments:
+
+| | Testing | Production |
+|---|---|---|
+| Where it runs | Your machine (`runserver`) | Render (`legacy-link-main.onrender.com`) |
+| Database | Local `db.sqlite3` | Render Postgres |
+| `DEBUG` | `True` (local `.env`) | `False` (Render env vars) |
+| Android client | `testing` flavor → `http://10.0.2.2:8000/` | `production` flavor → the Render URL |
+
+The local `.env` (gitignored, never deployed) controls the testing side;
+Render's dashboard env vars control production independently — changing one
+never affects the other.
+
+To test from the Android emulator (see `../legacy-link-android/README.md`),
+bind the dev server to all interfaces so the emulator's virtual network can
+reach it:
+```bash
+python manage.py runserver 0.0.0.0:8000
+```
+`10.0.2.2` (the emulator's alias for your machine's `localhost`) and
+`localhost`/`127.0.0.1` are the only hosts allowed to use cleartext HTTP on
+the Android side — everything else requires HTTPS.
 
 ## 6. Known limitations / in-progress work
 
@@ -117,6 +145,21 @@ instead (falls back to SQLite if unset — see commit `36ef5a6`).
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-07-04: Fixed dashboard avatar sitting "pushed down" at desktop widths —
+  `.hero-grid` used `align-items: center`, which vertically centered the
+  avatar against the whole text column (name + bio + badges) rather than the
+  name at its top. Changed to `align-items: start`. Mobile layout (single
+  column, avatar stacked above the text) was unaffected.
+- 2026-07-04: Recolored all 10 templates to a new dark navy/gold theme
+  (reference: `../LLA New Theme` screenshots) — near-black navy backgrounds,
+  warm amber/gold accents, emerald/teal verification badges, unified
+  slate-gray body text. Colors only; no markup or layout changes.
+- 2026-07-03: Scaffolded a native Android WebView shell app
+  (`../legacy-link-android`) with `testing`/`production` build flavors, so
+  in-progress work can be viewed in the Android Studio emulator against the
+  local dev server without touching the production Render deployment. Local
+  `.env` switched to `DEBUG=True` for this workflow (Render's own env vars,
+  used in production, are unaffected).
 - 2026-07-03: Added the Identity Score profile-completion meter (replaces the
   old ad-hoc trust score) plus the fields it scores: `tertiary_school` /
   `tertiary_completion_year` (University), `employment_status`, and
