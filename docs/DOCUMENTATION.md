@@ -1,7 +1,7 @@
 # LegacyLink Africa — Documentation
 
 > Living document. Update this file whenever a feature, flow, or setup step changes.
-> Last updated: 2026-07-04
+> Last updated: 2026-07-05
 
 ## 1. What the app does
 
@@ -124,6 +124,29 @@ python manage.py runserver 0.0.0.0:8000
 `10.0.2.2` (the emulator's alias for your machine's `localhost`) and
 `localhost`/`127.0.0.1` are the only hosts allowed to use cleartext HTTP on
 the Android side — everything else requires HTTPS.
+
+## 5a. Admin dashboard, superusers & roles
+
+The Django admin (`/admin/`) is the only admin dashboard — no separate
+custom admin UI exists.
+
+- **Superusers** have full unrestricted access regardless of groups/permissions.
+  Created via `python manage.py createsuperuser` (or promoted via
+  `user.is_staff = user.is_superuser = True`).
+- **Staff users without superuser** only see/do what their assigned Groups or
+  individual permissions allow.
+- **Roles = Django Groups.** Create a Group under Admin → Authentication and
+  Authorization → Groups, attach the model permissions that define the role
+  (e.g. "Content Moderator" → add/change/delete on `alumni.School`), then
+  assign users to that group from their User edit page (`accounts/admin.py`
+  `UserAdmin` — the "Permissions" fieldset exposes `groups` and
+  `user_permissions` via a filter_horizontal widget). No custom role model
+  was built; this uses Django's built-in group/permission system as-is.
+- Local dev superuser: `stevenakida@gmail.com` (created 2026-07-05). An
+  older superuser `disheseka@gmail.com` also exists locally and was left
+  untouched.
+- Production (Render) admin accounts are managed separately, via Render's
+  Shell tab running `python manage.py createsuperuser` — not from this repo.
 
 ## 6. Known limitations / in-progress work
 

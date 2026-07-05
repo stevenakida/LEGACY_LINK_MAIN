@@ -11,11 +11,12 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ['full_name', 'phone_or_email']
     ordering = ['-created_at']
     readonly_fields = ['avatar_preview']
+    filter_horizontal = ['groups', 'user_permissions']
     fieldsets = (
         (None, {'fields': ('phone_or_email', 'password')}),
         ('Identity', {'fields': ('avatar_preview', 'avatar', 'full_name', 'bio', 'current_role', 'current_location')}),
         ('Education', {'fields': ('primary_school', 'primary_completion_year', 'secondary_school', 'secondary_completion_year', 'high_school', 'high_school_completion_year')}),
-        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
+        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
     )
     add_fieldsets = (
         (None, {
