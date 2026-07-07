@@ -2,19 +2,16 @@
 # ForeignKey against alumni.School (school_type='high_school'), matching
 # the same pattern used in 0004_convert_schools_to_fk.py for
 # primary_school/secondary_school.
+#
+# Uses RemoveField + AddField rather than AlterField: an in-place
+# CharField -> ForeignKey AlterField makes Postgres rename the column and
+# cast it with `high_school_id::bigint`, which fails for any existing
+# non-numeric text (and even for cleared '' values — '' isn't castable to
+# bigint either). Dropping and re-adding avoids the cast entirely; the new
+# column simply starts NULL for every row.
 
 import django.db.models.deletion
 from django.db import migrations, models
-
-
-def disable_fk_checks(apps, schema_editor):
-    if schema_editor.connection.vendor == 'sqlite':
-        schema_editor.execute("PRAGMA foreign_keys = OFF;")
-
-
-def enable_fk_checks(apps, schema_editor):
-    if schema_editor.connection.vendor == 'sqlite':
-        schema_editor.execute("PRAGMA foreign_keys = ON;")
 
 
 class Migration(migrations.Migration):
@@ -25,28 +22,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(disable_fk_checks, enable_fk_checks),
-
-        # Existing high_school values are free-typed text and cannot map to
-        # a School row. The old column is NOT NULL, so clear it to '' first
-        # (satisfies the pre-migration constraint) — the AlterField below
-        # rebuilds the column as a nullable FK, and the final RunSQL clears
-        # any leftover value once NULL is actually valid.
-        migrations.RunSQL(
-            "UPDATE accounts_user SET high_school = '';",
-            migrations.RunSQL.noop
+        migrations.RemoveField(
+            model_name='user',
+            name='high_school',
         ),
-
-        migrations.AlterField(
+        migrations.AddField(
             model_name='user',
             name='high_school',
             field=models.ForeignKey(blank=True, limit_choices_to={'school_type': 'high_school'}, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='high_school_alumni', to='alumni.school'),
         ),
-
-        migrations.RunSQL(
-            "UPDATE accounts_user SET high_school_id = NULL;",
-            migrations.RunSQL.noop
-        ),
-
-        migrations.RunPython(enable_fk_checks, disable_fk_checks),
     ]
