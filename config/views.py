@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 from django.contrib import messages
 from django.db.models import Q
+from django.http import JsonResponse
+from django.utils import timezone
 from accounts.models import User
 from alumni.models import School
 from connections.models import Connection
@@ -91,6 +93,25 @@ def dashboard(request):
     connections_count = accepted_connections.count()
     pending_count = pending_connections.count()
 
+    hour = timezone.localtime().hour
+    if hour < 12:
+        greeting = 'Good Morning'
+    elif hour < 17:
+        greeting = 'Good Afternoon'
+    else:
+        greeting = 'Good Evening'
+
+    first_name = (user.full_name or user.phone_or_email).split(' ')[0]
+
+    school_confirmed = bool(user.secondary_school and user.secondary_completion_year)
+    community_confirmed = connections_count > 0
+    if school_confirmed:
+        trust_label = 'School Verified'
+    elif community_confirmed:
+        trust_label = 'Community Verified'
+    else:
+        trust_label = 'Getting Started'
+
     return render(request, 'dashboard.html', {
         'user': user,
         'connections_count': connections_count,
@@ -100,6 +121,11 @@ def dashboard(request):
         'identity_score': user.identity_score,
         'identity_score_suggestions': user.identity_score_suggestions[:4],
         'accepted_connections': accepted_connections,
+        'greeting': greeting,
+        'first_name': first_name,
+        'school_confirmed': school_confirmed,
+        'community_confirmed': community_confirmed,
+        'trust_label': trust_label,
     })
 
 def profile(request):
@@ -132,8 +158,15 @@ def profile(request):
         else:
             user.secondary_school = None
         user.secondary_completion_year = request.POST.get('secondary_completion_year') or None
-        
-        user.high_school = request.POST.get('high_school', user.high_school)
+
+        high_school_id = request.POST.get('high_school')
+        if high_school_id:
+            try:
+                user.high_school = School.objects.get(id=high_school_id, school_type='high_school')
+            except School.DoesNotExist:
+                user.high_school = None
+        else:
+            user.high_school = None
         user.high_school_completion_year = request.POST.get('high_school_completion_year') or None
 
         tertiary_school_id = request.POST.get('tertiary_school')
@@ -155,14 +188,8 @@ def profile(request):
         user.save()
         messages.success(request, 'Profile updated successfully!')
         return redirect('dashboard')
-    primary_schools = School.objects.filter(school_type='primary').order_by('name')
-    secondary_schools = School.objects.filter(school_type='secondary').order_by('name')
-    tertiary_schools = School.objects.filter(school_type='university').order_by('name')
     return render(request, 'profile.html', {
         'user': request.user,
-        'primary_schools': primary_schools,
-        'secondary_schools': secondary_schools,
-        'tertiary_schools': tertiary_schools,
         'employment_status_choices': User.EMPLOYMENT_STATUS_CHOICES,
     })
 
@@ -172,6 +199,34 @@ def schools(request):
     # For now, returning empty opportunities list as template has mock data
     # In future, this can be populated from an Opportunities model
     return render(request, 'schools.html', {'user': request.user})
+
+def school_search(request):
+    """GET /schools/search/?type=primary&q=Jangwani — session-authenticated
+    JSON lookup for the school autocomplete fields. Kept as a plain Django
+    view (not the DRF API) since the DRF endpoints are JWT-only and this is
+    called from the browser using the logged-in session."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+
+    query = request.GET.get('q', '').strip()
+    school_type = request.GET.get('type', '').strip()
+    if not query or school_type not in dict(School.TYPE_CHOICES):
+        return JsonResponse({'results': []})
+
+    matches = School.objects.filter(
+        is_active=True, school_type=school_type, name__icontains=query
+    ).order_by('name')[:20]
+
+    results = [
+        {
+            'id': s.id,
+            'name': s.name,
+            'region': s.region,
+            'district': s.district,
+        }
+        for s in matches
+    ]
+    return JsonResponse({'results': results})
 
 def connections(request):
     if not request.user.is_authenticated:
@@ -244,5 +299,4 @@ def onboarding(request):
                 messages.error(request, 'Invalid school or graduation year.')
         else:
             messages.error(request, 'Please fill all fields.')
-    schools = School.objects.filter(school_type='secondary').order_by('name')
-    return render(request, 'onboarding.html', {'schools': schools})
+    return render(request, 'onboarding.html')

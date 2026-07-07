@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -85,13 +86,87 @@
             color: #000000;
             background-color: #ffffff;
         }
-        
+
+        ::placeholder {
+            color: rgba(255, 255, 255, 0.35);
+            font-style: italic;
+        }
+
+        .school-autocomplete {
+            position: relative;
+        }
+
+        .school-autocomplete-input {
+            width: 100%;
+        }
+
+        .school-autocomplete-results {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            max-height: 260px;
+            overflow-y: auto;
+            background: #111827;
+            border: 2px solid #26334D;
+            border-radius: 8px;
+            z-index: 30;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .school-autocomplete-results.open {
+            display: block;
+        }
+
+        .school-autocomplete-option {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            text-align: left;
+            padding: 0.65rem 0.85rem;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 0;
+            color: #ffffff;
+            cursor: pointer;
+            font: inherit;
+            margin: 0;
+        }
+
+        .school-autocomplete-option:last-child {
+            border-bottom: none;
+        }
+
+        .school-autocomplete-option:hover,
+        .school-autocomplete-option:focus {
+            background: rgba(232, 166, 60, 0.15);
+        }
+
+        .school-autocomplete-option .option-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .school-autocomplete-option .option-meta {
+            color: #94A3B8;
+            font-size: 0.8rem;
+            margin-top: 0.15rem;
+        }
+
+        .school-autocomplete-empty {
+            padding: 0.85rem;
+            color: #94A3B8;
+            font-size: 0.9rem;
+        }
+
         select:focus, input:focus {
             outline: none;
             border-color: #E8A63C;
             background: rgba(255, 255, 255, 0.1);
             box-shadow: 0 0 10px rgba(232, 166, 60, 0.2);
-    
+
         }
         
         button {
@@ -184,14 +259,15 @@
         
         <form method="post">
             {% csrf_token %}
-            <label for="id_school">Select Your School</label>
-            <select name="school" id="id_school" required>
-                <option value="">-- Choose your school --</option>
-                {% for school in schools %}
-                    <option value="{{ school.id }}">{{ school.name }} ({{ school.region }})</option>
-                {% endfor %}
-            </select>
-            
+            <label for="id_school_input">Select Your School (Secondary / O-Level)</label>
+            <div class="school-autocomplete" data-type="secondary" data-endpoint="{% url 'school_search' %}">
+                <input type="text" class="school-autocomplete-input" id="id_school_input" autocomplete="off"
+                       placeholder="Start typing to search, then select an option.">
+                <input type="hidden" class="school-autocomplete-hidden" name="school" id="id_school">
+                <div class="school-autocomplete-results"></div>
+            </div>
+
+
             <label for="id_graduation_year">Graduation Year</label>
             <input type="number" name="graduation_year" id="id_graduation_year" min="1950" max="2030" placeholder="e.g., 2020" required>
             
@@ -206,5 +282,6 @@
             </ul>
         {% endif %}
     </div>
+    <script src="{% static 'js/school-autocomplete.js' %}"></script>
 </body>
 </html>

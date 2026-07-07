@@ -43,7 +43,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     secondary_completion_year = models.PositiveIntegerField(null=True, blank=True)
 
-    high_school = models.CharField(max_length=200, blank=True)
+    high_school = models.ForeignKey(
+        'alumni.School', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='high_school_alumni',
+        limit_choices_to={'school_type': 'high_school'}
+    )
     high_school_completion_year = models.PositiveIntegerField(null=True, blank=True)
 
     tertiary_school = models.ForeignKey(

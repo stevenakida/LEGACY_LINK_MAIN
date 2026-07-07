@@ -7,16 +7,21 @@ from .serializers import SchoolSerializer
 
 
 class SchoolSearchView(generics.ListAPIView):
-    """GET /api/alumni/schools/?q=Jangwani — Searchable school list"""
+    """GET /api/alumni/schools/?q=Jangwani&type=secondary — Searchable school list"""
     serializer_class = SchoolSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        query = self.request.query_params.get('q', '')
+        query = self.request.query_params.get('q', '').strip()
+        school_type = self.request.query_params.get('type', '').strip()
         qs = School.objects.filter(is_active=True)
+        if school_type in dict(School.TYPE_CHOICES):
+            qs = qs.filter(school_type=school_type)
         if query:
             qs = qs.filter(name__icontains=query)
-        return qs[:20]  # Limit to 20 suggestions
+        else:
+            return qs.none()
+        return qs.order_by('name')[:20]
 
 
 class CompleteOnboardingView(APIView):

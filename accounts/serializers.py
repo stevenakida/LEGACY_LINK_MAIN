@@ -16,6 +16,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     primary_school_name = serializers.CharField(source='primary_school.name', read_only=True)
     secondary_school_name = serializers.CharField(source='secondary_school.name', read_only=True)
+    high_school_name = serializers.CharField(source='high_school.name', read_only=True)
     cohort_label = serializers.ReadOnlyField()
 
     class Meta:
@@ -25,7 +26,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'current_location', 'current_role',
             'primary_school', 'primary_school_name', 'primary_completion_year',
             'secondary_school', 'secondary_school_name', 'secondary_completion_year',
-            'high_school', 'high_school_completion_year',
+            'high_school', 'high_school_name', 'high_school_completion_year',
             'cohort_label', 'onboarding_complete'
         ]
-        read_only_fields = ['id', 'phone_or_email', 'primary_school_name', 'secondary_school_name']
+        read_only_fields = ['id', 'phone_or_email', 'primary_school_name', 'secondary_school_name', 'high_school_name']

@@ -7,11 +7,12 @@ from .models import User
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     list_display = ['avatar_preview', 'full_name', 'phone_or_email', 'primary_school', 'secondary_school', 'onboarding_complete', 'connections_count']
-    list_filter = ['primary_school', 'secondary_school', 'onboarding_complete']
+    list_filter = ['onboarding_complete']
     search_fields = ['full_name', 'phone_or_email']
     ordering = ['-created_at']
     readonly_fields = ['avatar_preview']
     filter_horizontal = ['groups', 'user_permissions']
+    autocomplete_fields = ['primary_school', 'secondary_school', 'high_school', 'tertiary_school']
     fieldsets = (
         (None, {'fields': ('phone_or_email', 'password')}),
         ('Identity', {'fields': ('avatar_preview', 'avatar', 'full_name', 'bio', 'current_role', 'current_location')}),

@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -99,7 +100,81 @@
             color: #000000;
             background-color: #ffffff;
         }
-        
+
+        ::placeholder {
+            color: rgba(255, 255, 255, 0.35);
+            font-style: italic;
+        }
+
+        .school-autocomplete {
+            position: relative;
+        }
+
+        .school-autocomplete-input {
+            width: 100%;
+        }
+
+        .school-autocomplete-results {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            max-height: 260px;
+            overflow-y: auto;
+            background: #111827;
+            border: 2px solid #26334D;
+            border-radius: 8px;
+            z-index: 30;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .school-autocomplete-results.open {
+            display: block;
+        }
+
+        .school-autocomplete-option {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            text-align: left;
+            padding: 0.65rem 0.85rem;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 0;
+            color: #ffffff;
+            cursor: pointer;
+            font: inherit;
+            margin: 0;
+        }
+
+        .school-autocomplete-option:last-child {
+            border-bottom: none;
+        }
+
+        .school-autocomplete-option:hover,
+        .school-autocomplete-option:focus {
+            background: rgba(232, 166, 60, 0.15);
+        }
+
+        .school-autocomplete-option .option-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .school-autocomplete-option .option-meta {
+            color: #94A3B8;
+            font-size: 0.8rem;
+            margin-top: 0.15rem;
+        }
+
+        .school-autocomplete-empty {
+            padding: 0.85rem;
+            color: #94A3B8;
+            font-size: 0.9rem;
+        }
+
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #E8A63C;
@@ -331,41 +406,50 @@
 
                 <h3 style="color: #E8A63C; margin-top: 2rem; margin-bottom: 1rem; font-size: 1.2rem;">Educational Background</h3>
                 
-                <label for="id_primary_school">Primary School</label>
-                <select name="primary_school" id="id_primary_school">
-                    <option value="">-- Select Your Primary School --</option>
-                    {% for school in primary_schools %}
-                        <option value="{{ school.id }}" {% if user.primary_school == school %}selected{% endif %}>{{ school.name }} ({{ school.region }})</option>
-                    {% endfor %}
-                </select>
-                
+                <label for="id_primary_school_input">Primary School</label>
+                <div class="school-autocomplete" data-type="primary" data-endpoint="{% url 'school_search' %}">
+                    <input type="text" class="school-autocomplete-input" id="id_primary_school_input" autocomplete="off"
+                           placeholder="Start typing to search, then select an option."
+                           value="{% if user.primary_school %}{{ user.primary_school.name }}{% if user.primary_school.region %} ({{ user.primary_school.region }}){% endif %}{% endif %}">
+                    <input type="hidden" class="school-autocomplete-hidden" name="primary_school" id="id_primary_school" value="{{ user.primary_school.id|default:'' }}">
+                    <div class="school-autocomplete-results"></div>
+                </div>
+
                 <label for="id_primary_completion_year">Primary School Completion Year</label>
                 <input type="number" name="primary_completion_year" id="id_primary_completion_year" min="1950" max="2030" placeholder="e.g., 2005" value="{{ user.primary_completion_year }}">
-                
-                <label for="id_secondary_school">Secondary School</label>
-                <select name="secondary_school" id="id_secondary_school">
-                    <option value="">-- Select Your Secondary School --</option>
-                    {% for school in secondary_schools %}
-                        <option value="{{ school.id }}" {% if user.secondary_school == school %}selected{% endif %}>{{ school.name }} ({{ school.region }})</option>
-                    {% endfor %}
-                </select>
-                
+
+                <label for="id_secondary_school_input">Secondary School (O-Level)</label>
+                <div class="school-autocomplete" data-type="secondary" data-endpoint="{% url 'school_search' %}">
+                    <input type="text" class="school-autocomplete-input" id="id_secondary_school_input" autocomplete="off"
+                           placeholder="Start typing to search, then select an option."
+                           value="{% if user.secondary_school %}{{ user.secondary_school.name }}{% if user.secondary_school.region %} ({{ user.secondary_school.region }}){% endif %}{% endif %}">
+                    <input type="hidden" class="school-autocomplete-hidden" name="secondary_school" id="id_secondary_school" value="{{ user.secondary_school.id|default:'' }}">
+                    <div class="school-autocomplete-results"></div>
+                </div>
+
                 <label for="id_secondary_completion_year">Secondary School Completion Year</label>
                 <input type="number" name="secondary_completion_year" id="id_secondary_completion_year" min="1950" max="2030" placeholder="e.g., 2010" value="{{ user.secondary_completion_year }}">
-                
-                <label for="id_high_school">Advanced Level (A-Level)</label>
-                <input type="text" name="high_school" id="id_high_school" placeholder="Name of your A-Level school" value="{{ user.high_school }}">
 
-                <label for="id_high_school_completion_year">Advanced Level (A-Level) Completion Year</label>
+                <label for="id_high_school_input">High School (A-Level)</label>
+                <div class="school-autocomplete" data-type="high_school" data-endpoint="{% url 'school_search' %}">
+                    <input type="text" class="school-autocomplete-input" id="id_high_school_input" autocomplete="off"
+                           placeholder="Start typing to search, then select an option."
+                           value="{% if user.high_school %}{{ user.high_school.name }}{% if user.high_school.region %} ({{ user.high_school.region }}){% endif %}{% endif %}">
+                    <input type="hidden" class="school-autocomplete-hidden" name="high_school" id="id_high_school" value="{{ user.high_school.id|default:'' }}">
+                    <div class="school-autocomplete-results"></div>
+                </div>
+
+                <label for="id_high_school_completion_year">High School (A-Level) Completion Year</label>
                 <input type="number" name="high_school_completion_year" id="id_high_school_completion_year" min="1950" max="2030" placeholder="e.g., 2012" value="{{ user.high_school_completion_year }}">
 
-                <label for="id_tertiary_school">University / Tertiary Institution</label>
-                <select name="tertiary_school" id="id_tertiary_school">
-                    <option value="">-- Select Your University / Tertiary Institution --</option>
-                    {% for school in tertiary_schools %}
-                        <option value="{{ school.id }}" {% if user.tertiary_school == school %}selected{% endif %}>{{ school.name }} ({{ school.region }})</option>
-                    {% endfor %}
-                </select>
+                <label for="id_tertiary_school_input">University / Tertiary Institution</label>
+                <div class="school-autocomplete" data-type="university" data-endpoint="{% url 'school_search' %}">
+                    <input type="text" class="school-autocomplete-input" id="id_tertiary_school_input" autocomplete="off"
+                           placeholder="Start typing to search, then select an option."
+                           value="{% if user.tertiary_school %}{{ user.tertiary_school.name }}{% if user.tertiary_school.region %} ({{ user.tertiary_school.region }}){% endif %}{% endif %}">
+                    <input type="hidden" class="school-autocomplete-hidden" name="tertiary_school" id="id_tertiary_school" value="{{ user.tertiary_school.id|default:'' }}">
+                    <div class="school-autocomplete-results"></div>
+                </div>
 
                 <label for="id_tertiary_completion_year">University / Tertiary Completion Year</label>
                 <input type="number" name="tertiary_completion_year" id="id_tertiary_completion_year" min="1950" max="2030" placeholder="e.g., 2016" value="{{ user.tertiary_completion_year }}">
@@ -418,5 +502,6 @@
             reader.readAsDataURL(file);
         }
     </script>
+    <script src="{% static 'js/school-autocomplete.js' %}"></script>
 </body>
 </html>
