@@ -218,27 +218,31 @@ custom admin UI exists.
   rank yet.
 - **RESOLVED (2026-07-07): Render production school data.** Production now
   has the same 27,007-school dataset as local dev.
-- **NEEDS A DASHBOARD FIX (found 2026-07-07): Render's deploy pipeline
-  appears to run `python manage.py seed_schools` automatically on every
-  deploy** (configured as a build/release/start command in Render's
-  dashboard — not in this repo, so not visible/fixable from a coding
-  session). `seed_schools` predates the real spreadsheet import and is
-  idempotent-but-oblivious to it (`get_or_create` by name, no
-  `external_id`), so every deploy silently re-adds the old ~54-entry seed
+- **RESOLVED (2026-07-07): Render's deploy pipeline was auto-running
+  `python manage.py seed_schools` on every deploy** (chained onto the end
+  of the build command). `seed_schools` predates the real spreadsheet
+  import and is idempotent-but-oblivious to it (`get_or_create` by name, no
+  `external_id`), so every deploy silently re-added the old ~54-entry seed
   list as duplicate rows (e.g. a second "Azania Primary School" alongside
-  the real spreadsheet one). Confirmed twice: two deploys after the manual
-  production import each brought the 54 rows back; both times purged
-  directly (`School.objects.filter(external_id__isnull=True).delete()`).
-  **Someone needs to remove `seed_schools` from Render's build/release
-  command** (via the Render dashboard, Settings → Build & Deploy) — until
-  then, every future deploy re-introduces these duplicates and someone has
-  to purge them again by hand.
+  the real spreadsheet one). Confirmed twice (two deploys after the manual
+  production import each brought the 54 rows back), purged both times.
+  Fixed at the source via Render's REST API (`PATCH /v1/services/{id}`) —
+  build command is now
+  `pip install -r requirements.txt && python manage.py collectstatic
+  --noinput && python manage.py migrate`, `seed_schools` removed. See
+  §7 and the `import_school_database` note above — that command is now the
+  only thing that should ever populate `School` rows in this project.
 
 ## 7. Change log
 
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-07-07: Fixed Render's build command via its REST API (user supplied
+  an API key) to stop auto-running `seed_schools` on every deploy — see §6.
+  Also confirmed via Render's actual build logs that the `47f68bd` auto-deploy
+  had genuinely `build_failed` on the `accounts.0006` cast bug, matching the
+  diagnosis below exactly.
 - 2026-07-07: Verified the school autocomplete live on production (real
   throwaway account via `/register/`, tested `/schools/search/` for all four
   types, deleted the account after). Found Render's deploy pipeline
