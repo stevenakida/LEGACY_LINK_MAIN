@@ -216,14 +216,36 @@ custom admin UI exists.
 - Visibility tiers / search ranking / badges based on Identity Score were
   discussed but explicitly deferred — there's no alumni search feature to
   rank yet.
-- **RESOLVED (2026-07-07): Render production school data.** See change log
-  below — production now has the same 27,007-school dataset as local dev.
+- **RESOLVED (2026-07-07): Render production school data.** Production now
+  has the same 27,007-school dataset as local dev.
+- **NEEDS A DASHBOARD FIX (found 2026-07-07): Render's deploy pipeline
+  appears to run `python manage.py seed_schools` automatically on every
+  deploy** (configured as a build/release/start command in Render's
+  dashboard — not in this repo, so not visible/fixable from a coding
+  session). `seed_schools` predates the real spreadsheet import and is
+  idempotent-but-oblivious to it (`get_or_create` by name, no
+  `external_id`), so every deploy silently re-adds the old ~54-entry seed
+  list as duplicate rows (e.g. a second "Azania Primary School" alongside
+  the real spreadsheet one). Confirmed twice: two deploys after the manual
+  production import each brought the 54 rows back; both times purged
+  directly (`School.objects.filter(external_id__isnull=True).delete()`).
+  **Someone needs to remove `seed_schools` from Render's build/release
+  command** (via the Render dashboard, Settings → Build & Deploy) — until
+  then, every future deploy re-introduces these duplicates and someone has
+  to purge them again by hand.
 
 ## 7. Change log
 
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-07-07: Verified the school autocomplete live on production (real
+  throwaway account via `/register/`, tested `/schools/search/` for all four
+  types, deleted the account after). Found Render's deploy pipeline
+  apparently auto-runs `seed_schools` on every deploy, re-adding 54
+  duplicate legacy rows each time — purged twice, still needs a Render
+  dashboard fix (remove `seed_schools` from the build/release command). See
+  §6.
 - 2026-07-07 (commit `170b0e6`): Ran the production school-data migration
   and import against Render directly (no Render CLI/shell available in the
   dev environment — used `manage.py` locally with `DATABASE_URL` overridden
