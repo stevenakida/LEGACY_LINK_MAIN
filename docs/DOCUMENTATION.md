@@ -181,6 +181,20 @@ custom admin UI exists.
 
 ## 6. Known limitations / in-progress work
 
+- **RESOLVED (2026-07-08): `CORS_ALLOW_ALL_ORIGINS = True` and
+  `ALLOWED_HOSTS` defaulting to `*`** let any website call the JWT API and
+  let the app answer to any Host header. Confirmed there's no legitimate
+  cross-origin caller — the Android app is a WebView that loads
+  `legacy-link-main.onrender.com` directly (same-origin), and the only
+  browser-side `fetch()` (`static/js/school-autocomplete.js`) hits a
+  relative, same-origin endpoint. Replaced with
+  `CORS_ALLOWED_ORIGINS`/`ALLOWED_HOSTS` defaulting to
+  `legacy-link-main.onrender.com` (plus `localhost`/`127.0.0.1` for
+  `ALLOWED_HOSTS`), both still overridable via env var if a real
+  cross-origin frontend shows up later. **Still needed:** confirm Render's
+  dashboard doesn't have its own `ALLOWED_HOSTS=*` env var overriding this
+  default in production (dashboard env vars take precedence over the code
+  default, same as `DATABASE_URL` was in the §6 entry below).
 - **RESOLVED (2026-07-04): Render's `DATABASE_URL` was set to
   `sqlite:///db.sqlite3` instead of the Postgres instance**, wiping all users,
   connections, and seeded schools on every deploy. User swapped the env var
@@ -238,6 +252,7 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-07-08: Tightened `CORS_ALLOW_ALL_ORIGINS`/`ALLOWED_HOSTS` — see §6.
 - 2026-07-07: Fixed Render's build command via its REST API (user supplied
   an API key) to stop auto-running `seed_schools` on every deploy — see §6.
   Also confirmed via Render's actual build logs that the `47f68bd` auto-deploy

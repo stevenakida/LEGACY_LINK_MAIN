@@ -28,7 +28,9 @@ SECRET_KEY = config('SECRET_KEY')
 DEBUG = config("DEBUG", default="False") == "True"
 
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="*").split(",")
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS", default="legacy-link-main.onrender.com,localhost,127.0.0.1"
+).split(",")
 CSRF_TRUSTED_ORIGINS = [
     "https://legacy-link-main.onrender.com",
 ]
@@ -76,7 +78,9 @@ MIDDLEWARE = [
 
 AUTH_USER_MODEL = 'accounts.User'  # Custom user model
 
-CORS_ALLOW_ALL_ORIGINS = True  # Tighten in production
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS", default="https://legacy-link-main.onrender.com"
+).split(",")
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
