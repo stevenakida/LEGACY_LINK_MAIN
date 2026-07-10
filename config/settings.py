@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'storages',
     # Social login disabled due to compatibility with custom User model
     # 'allauth',
     # 'allauth.account',
@@ -85,6 +86,30 @@ CORS_ALLOWED_ORIGINS = config(
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# User-uploaded media (avatars, etc.) — Cloudflare R2 (S3-compatible), so
+# files persist across deploys instead of vanishing when Render's web
+# service disk resets (it's ephemeral; local filesystem storage silently
+# lost every avatar on the last redeploy). Falls back to local filesystem
+# storage when R2 isn't configured, so local dev works without R2 credentials.
+if config('R2_ACCESS_KEY_ID', default=''):
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+    AWS_ACCESS_KEY_ID = config('R2_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = config('R2_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = config('R2_BUCKET_NAME')
+    AWS_S3_ENDPOINT_URL = config('R2_ENDPOINT_URL')
+    AWS_S3_CUSTOM_DOMAIN = config('R2_PUBLIC_DOMAIN')
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_ADDRESSING_STYLE = 'virtual'
+    AWS_S3_FILE_OVERWRITE = False
 
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
