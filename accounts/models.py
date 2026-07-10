@@ -52,7 +52,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     full_name = models.CharField(max_length=200)
     bio = models.TextField(blank=True, max_length=300)
     avatar = models.FileField(upload_to='avatars/', blank=True, null=True)
-    
+
+    # Separate contact fields so we can capture both a phone number and an
+    # email regardless of which one was used to register (phone_or_email is
+    # whichever the user signed up with — these two let them fill in the
+    # other one from their profile).
+    phone_number = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True)
+
     # Location
     current_location = models.CharField(max_length=200, blank=True)
     

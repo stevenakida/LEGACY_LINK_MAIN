@@ -4,10 +4,13 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from accounts.models import User, normalize_identifier
 from alumni.models import School
 from connections.models import Connection
@@ -31,6 +34,27 @@ def _send_feedback_notification(subject, message, from_email, recipient_list, fe
         # Feedback is already saved; a broken/misconfigured mail server
         # shouldn't fail the user-facing submission.
         logger.exception('Failed to send feedback notification email for Feedback %s', feedback_id)
+
+
+def _send_password_reset_email(to_email, full_name, reset_url):
+    """Runs on a background thread — same reasoning as _send_feedback_notification:
+    never let a slow Gmail SMTP call block the HTTP response."""
+    try:
+        send_mail(
+            subject='Reset your LegacyLink Africa password',
+            message=(
+                f'Hi {full_name},\n\n'
+                f'We received a request to reset your LegacyLink Africa password. '
+                f'Click the link below to choose a new one:\n\n'
+                f'{reset_url}\n\n'
+                f"If you didn't request this, you can safely ignore this email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[to_email],
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception('Failed to send password reset email to %s', to_email)
 
 def home(request):
     # If user is already authenticated, redirect to dashboard
@@ -63,6 +87,63 @@ def login_view(request):
                 messages.error(request, f'No account found for {phone_or_email}. Please register first.')
     
     return render(request, 'login.html')
+
+def forgot_password(request):
+    """GET shows the request form; POST sends a reset link if the entered
+    address matches an email-registered account. Only works for accounts
+    registered with an email for now (phone-only accounts have no channel
+    to deliver a reset link to yet — SMS OTP is a future addition)."""
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        identifier = normalize_identifier(request.POST.get('email', '').strip())
+        if '@' in identifier:
+            try:
+                user = User.objects.get(phone_or_email__iexact=identifier)
+                if user.has_usable_password():
+                    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+                    token = default_token_generator.make_token(user)
+                    reset_url = request.build_absolute_uri(f'/reset-password/{uidb64}/{token}/')
+                    threading.Thread(
+                        target=_send_password_reset_email,
+                        kwargs=dict(to_email=user.phone_or_email, full_name=user.full_name, reset_url=reset_url),
+                        daemon=True,
+                    ).start()
+            except User.DoesNotExist:
+                pass
+        # Same message regardless of whether the account exists, so this
+        # form can't be used to check which emails are registered.
+        messages.success(request, "If that email is registered with us, we've sent a link to reset your password.")
+        return redirect('login')
+
+    return render(request, 'forgot_password.html')
+
+def reset_password_confirm(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+        user = None
+
+    if user is None or not default_token_generator.check_token(user, token):
+        messages.error(request, 'This password reset link is invalid or has expired. Please request a new one.')
+        return redirect('forgot_password')
+
+    if request.method == 'POST':
+        password = request.POST.get('password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+        if len(password) < 8:
+            messages.error(request, 'Password must be at least 8 characters.')
+        elif password != confirm_password:
+            messages.error(request, 'Passwords do not match.')
+        else:
+            user.set_password(password)
+            user.save()
+            messages.success(request, 'Your password has been reset. Please sign in.')
+            return redirect('login')
+
+    return render(request, 'reset_password_confirm.html', {'uidb64': uidb64, 'token': token})
 
 def register(request):
     if request.user.is_authenticated:
@@ -159,6 +240,8 @@ def profile(request):
         user = request.user
         user.full_name = request.POST.get('full_name', user.full_name)
         user.bio = request.POST.get('bio', user.bio)
+        user.phone_number = request.POST.get('phone_number', user.phone_number)
+        user.email = request.POST.get('email', user.email)
         user.current_role = request.POST.get('current_role', user.current_role)
         user.current_location = request.POST.get('current_location', user.current_location)
         
@@ -212,8 +295,16 @@ def profile(request):
         user.save()
         messages.success(request, 'Profile updated successfully!')
         return redirect('dashboard')
+    user = request.user
+    # If the user hasn't filled in phone_number/email yet, default whichever
+    # one matches what they registered with (phone_or_email) — they only
+    # need to type the one they didn't already give us at signup.
+    phone_number_value = user.phone_number or ('' if '@' in user.phone_or_email else user.phone_or_email)
+    email_value = user.email or (user.phone_or_email if '@' in user.phone_or_email else '')
     return render(request, 'profile.html', {
         'user': request.user,
+        'phone_number_value': phone_number_value,
+        'email_value': email_value,
         'employment_status_choices': User.EMPLOYMENT_STATUS_CHOICES,
     })
 
