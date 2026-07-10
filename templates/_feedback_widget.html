@@ -1,0 +1,275 @@
+<style>
+    .feedback-fab {
+        position: fixed;
+        right: 1.25rem;
+        bottom: calc(6.5rem + env(safe-area-inset-bottom));
+        z-index: 40;
+        width: 52px;
+        height: 52px;
+        border-radius: 999px;
+        border: 1px solid rgba(232, 166, 60, 0.35);
+        background: #E8A63C;
+        color: #0B1220;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        transition: transform 0.2s ease;
+    }
+
+    .feedback-fab:hover {
+        transform: translateY(-2px);
+    }
+
+    .feedback-fab .material-symbols-rounded {
+        font-size: 1.6rem;
+    }
+
+    .feedback-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(5, 8, 14, 0.72);
+        z-index: 50;
+        align-items: flex-end;
+        justify-content: center;
+    }
+
+    .feedback-overlay.open {
+        display: flex;
+    }
+
+    .feedback-modal {
+        width: 100%;
+        max-width: 480px;
+        background: rgba(17, 24, 39, 0.98);
+        border: 1px solid rgba(232, 166, 60, 0.2);
+        border-radius: 22px 22px 0 0;
+        padding: 1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
+    }
+
+    @media (min-width: 640px) {
+        .feedback-overlay {
+            align-items: center;
+        }
+
+        .feedback-modal {
+            border-radius: 22px;
+        }
+    }
+
+    .feedback-modal h3 {
+        color: #ffffff;
+        font-size: 1.25rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .feedback-modal p.feedback-sub {
+        color: #94A3B8;
+        font-size: 0.9rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .feedback-categories {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .feedback-category {
+        border: 1px solid rgba(232, 166, 60, 0.25);
+        background: rgba(255, 255, 255, 0.05);
+        color: #CBD5E1;
+        border-radius: 999px;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .feedback-category.active {
+        background: #E8A63C;
+        color: #0B1220;
+        border-color: #E8A63C;
+    }
+
+    .feedback-modal textarea {
+        width: 100%;
+        min-height: 110px;
+        resize: vertical;
+        background: rgba(9, 13, 22, 0.9);
+        border: 1px solid rgba(232, 166, 60, 0.18);
+        border-radius: 14px;
+        padding: 0.9rem 1rem;
+        color: #ffffff;
+        font-family: inherit;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+
+    .feedback-modal textarea:focus {
+        outline: none;
+        border-color: rgba(232, 166, 60, 0.5);
+    }
+
+    .feedback-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    .feedback-cancel,
+    .feedback-submit {
+        border-radius: 999px;
+        padding: 0.75rem 1.4rem;
+        font-weight: 700;
+        cursor: pointer;
+        border: 1px solid rgba(232, 166, 60, 0.25);
+    }
+
+    .feedback-cancel {
+        background: transparent;
+        color: #CBD5E1;
+    }
+
+    .feedback-submit {
+        background: #E8A63C;
+        color: #0B1220;
+        border-color: #E8A63C;
+    }
+
+    .feedback-submit:disabled {
+        opacity: 0.6;
+        cursor: default;
+    }
+
+    .feedback-status {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        display: none;
+    }
+
+    .feedback-status.error {
+        color: #F87171;
+        display: block;
+    }
+
+    .feedback-status.success {
+        color: #34D399;
+        display: block;
+    }
+</style>
+
+<button type="button" class="feedback-fab" id="feedbackFab" aria-label="Send feedback">
+    <span class="material-symbols-rounded" aria-hidden="true">chat_bubble</span>
+</button>
+
+<div class="feedback-overlay" id="feedbackOverlay">
+    <div class="feedback-modal">
+        <h3>Send Feedback</h3>
+        <p class="feedback-sub">You're a pilot user — tell us what's working, what's broken, or what's missing.</p>
+
+        <div class="feedback-categories" id="feedbackCategories">
+            <div class="feedback-category active" data-value="suggestion">Suggestion</div>
+            <div class="feedback-category" data-value="bug">Bug</div>
+            <div class="feedback-category" data-value="praise">Praise</div>
+            <div class="feedback-category" data-value="other">Other</div>
+        </div>
+
+        <p class="feedback-status" id="feedbackStatus"></p>
+
+        <textarea id="feedbackMessage" placeholder="What would you like to tell us?" maxlength="2000"></textarea>
+
+        <div class="feedback-actions">
+            <button type="button" class="feedback-cancel" id="feedbackCancel">Cancel</button>
+            <button type="button" class="feedback-submit" id="feedbackSubmit">Send</button>
+        </div>
+        {% csrf_token %}
+    </div>
+</div>
+
+<script>
+(function () {
+    var fab = document.getElementById('feedbackFab');
+    var overlay = document.getElementById('feedbackOverlay');
+    var cancel = document.getElementById('feedbackCancel');
+    var submit = document.getElementById('feedbackSubmit');
+    var textarea = document.getElementById('feedbackMessage');
+    var status = document.getElementById('feedbackStatus');
+    var categories = document.getElementById('feedbackCategories');
+    var selectedCategory = 'suggestion';
+
+    function openModal() {
+        overlay.classList.add('open');
+        status.className = 'feedback-status';
+        status.textContent = '';
+    }
+
+    function closeModal() {
+        overlay.classList.remove('open');
+    }
+
+    fab.addEventListener('click', openModal);
+    cancel.addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) closeModal();
+    });
+
+    categories.addEventListener('click', function (e) {
+        var el = e.target.closest('.feedback-category');
+        if (!el) return;
+        selectedCategory = el.dataset.value;
+        categories.querySelectorAll('.feedback-category').forEach(function (c) {
+            c.classList.toggle('active', c === el);
+        });
+    });
+
+    submit.addEventListener('click', function () {
+        var message = textarea.value.trim();
+        if (!message) {
+            status.className = 'feedback-status error';
+            status.textContent = 'Please enter a message before sending.';
+            return;
+        }
+
+        submit.disabled = true;
+        submit.textContent = 'Sending…';
+
+        var csrftoken = document.querySelector('#feedbackOverlay input[name=csrfmiddlewaretoken]').value;
+        var body = new URLSearchParams();
+        body.set('category', selectedCategory);
+        body.set('message', message);
+        body.set('page_path', window.location.pathname);
+
+        fetch('/feedback/submit/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body.toString(),
+        })
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (result) {
+                submit.disabled = false;
+                submit.textContent = 'Send';
+                if (result.ok) {
+                    status.className = 'feedback-status success';
+                    status.textContent = 'Thanks — your feedback has been sent!';
+                    textarea.value = '';
+                    setTimeout(closeModal, 1400);
+                } else {
+                    status.className = 'feedback-status error';
+                    status.textContent = result.data.error || 'Something went wrong. Please try again.';
+                }
+            })
+            .catch(function () {
+                submit.disabled = false;
+                submit.textContent = 'Send';
+                status.className = 'feedback-status error';
+                status.textContent = 'Network error. Please try again.';
+            });
+    });
+})();
+</script>

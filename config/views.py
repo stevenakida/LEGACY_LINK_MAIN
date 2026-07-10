@@ -1,3 +1,6 @@
+import logging
+from django.conf import settings
+from django.core.mail import send_mail
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 from django.contrib import messages
@@ -7,6 +10,9 @@ from django.utils import timezone
 from accounts.models import User
 from alumni.models import School
 from connections.models import Connection
+from feedback.models import Feedback
+
+logger = logging.getLogger(__name__)
 
 def home(request):
     # If user is already authenticated, redirect to dashboard
@@ -227,6 +233,52 @@ def school_search(request):
         for s in matches
     ]
     return JsonResponse({'results': results})
+
+def submit_feedback(request):
+    """POST /feedback/submit/ — session-authenticated JSON endpoint used by the
+    floating feedback widget on the main app pages. Kept as a plain Django
+    view (like school_search) since it's called from in-page JS using the
+    logged-in session, not the JWT-only DRF API."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    message = request.POST.get('message', '').strip()
+    if not message:
+        return JsonResponse({'error': 'Please enter a message before sending.'}, status=400)
+
+    category = request.POST.get('category', 'other')
+    if category not in dict(Feedback.CATEGORY_CHOICES):
+        category = 'other'
+
+    entry = Feedback.objects.create(
+        user=request.user,
+        category=category,
+        message=message[:2000],
+        page_path=request.POST.get('page_path', '')[:300],
+    )
+
+    if settings.FEEDBACK_NOTIFY_EMAIL:
+        try:
+            send_mail(
+                subject=f'[LegacyLink Feedback] {entry.get_category_display()} from {request.user.full_name}',
+                message=(
+                    f'{entry.get_category_display()} from {request.user.full_name} '
+                    f'({request.user.phone_or_email})\n'
+                    f'Page: {entry.page_path or "unknown"}\n\n'
+                    f'{entry.message}'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[settings.FEEDBACK_NOTIFY_EMAIL],
+                fail_silently=False,
+            )
+        except Exception:
+            # Feedback is already saved; a broken/misconfigured mail server
+            # shouldn't fail the user-facing submission.
+            logger.exception('Failed to send feedback notification email for Feedback %s', entry.id)
+
+    return JsonResponse({'ok': True})
 
 def connections(request):
     if not request.user.is_authenticated:
