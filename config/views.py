@@ -1,4 +1,5 @@
 import logging
+import threading
 from django.conf import settings
 from django.core.mail import send_mail
 from django.shortcuts import render, redirect
@@ -7,12 +8,29 @@ from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
-from accounts.models import User
+from accounts.models import User, normalize_identifier
 from alumni.models import School
 from connections.models import Connection
 from feedback.models import Feedback
 
 logger = logging.getLogger(__name__)
+
+
+def _send_feedback_notification(subject, message, from_email, recipient_list, feedback_id):
+    """Runs on a background thread so a slow/stalled Gmail SMTP call never
+    blocks the feedback-submission HTTP response (see submit_feedback)."""
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=from_email,
+            recipient_list=recipient_list,
+            fail_silently=False,
+        )
+    except Exception:
+        # Feedback is already saved; a broken/misconfigured mail server
+        # shouldn't fail the user-facing submission.
+        logger.exception('Failed to send feedback notification email for Feedback %s', feedback_id)
 
 def home(request):
     # If user is already authenticated, redirect to dashboard
@@ -39,7 +57,7 @@ def login_view(request):
         else:
             # Check if user exists for better error messaging
             try:
-                User.objects.get(phone_or_email=phone_or_email)
+                User.objects.get(phone_or_email__iexact=normalize_identifier(phone_or_email))
                 messages.error(request, 'Invalid password. Please check your password and try again.')
             except User.DoesNotExist:
                 messages.error(request, f'No account found for {phone_or_email}. Please register first.')
@@ -260,8 +278,9 @@ def submit_feedback(request):
     )
 
     if settings.FEEDBACK_NOTIFY_EMAIL:
-        try:
-            send_mail(
+        threading.Thread(
+            target=_send_feedback_notification,
+            kwargs=dict(
                 subject=f'[LegacyLink Feedback] {entry.get_category_display()} from {request.user.full_name}',
                 message=(
                     f'{entry.get_category_display()} from {request.user.full_name} '
@@ -271,12 +290,10 @@ def submit_feedback(request):
                 ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[settings.FEEDBACK_NOTIFY_EMAIL],
-                fail_silently=False,
-            )
-        except Exception:
-            # Feedback is already saved; a broken/misconfigured mail server
-            # shouldn't fail the user-facing submission.
-            logger.exception('Failed to send feedback notification email for Feedback %s', entry.id)
+                feedback_id=entry.id,
+            ),
+            daemon=True,
+        ).start()
 
     return JsonResponse({'ok': True})
 

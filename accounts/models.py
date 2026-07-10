@@ -1,12 +1,37 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
+import re
 import uuid
+
+
+def normalize_identifier(value):
+    """Collapse the many equivalent ways a Tanzanian phone number gets typed
+    (with/without +255, with/without the leading 0, with spaces or dashes)
+    into one canonical form, so the same number always maps to one account.
+    Emails are just trimmed/lowercased. Anything that doesn't look like a
+    local 10-digit (0xxxxxxxxx) or +255/255-prefixed number is left as-is —
+    better to under-normalize an unfamiliar format than mangle it."""
+    if not value:
+        return value
+    value = value.strip()
+    if '@' in value:
+        return value.lower()
+
+    digits_only = re.sub(r'[\s\-().]', '', value)
+    if digits_only.startswith('+255') and len(digits_only) == 13:
+        return digits_only
+    if digits_only.startswith('255') and len(digits_only) == 12:
+        return '+' + digits_only
+    if digits_only.startswith('0') and len(digits_only) == 10:
+        return '+255' + digits_only[1:]
+    return digits_only
 
 
 class UserManager(BaseUserManager):
     def create_user(self, phone_or_email, password=None, **extra_fields):
         if not phone_or_email:
             raise ValueError('Phone or email is required')
+        phone_or_email = normalize_identifier(phone_or_email)
         user = self.model(phone_or_email=phone_or_email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -16,6 +41,9 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(phone_or_email, password, **extra_fields)
+
+    def get_by_natural_key(self, username):
+        return self.get(**{f"{self.model.USERNAME_FIELD}__iexact": normalize_identifier(username)})
 
 
 class User(AbstractBaseUser, PermissionsMixin):
