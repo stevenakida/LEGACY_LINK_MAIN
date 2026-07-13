@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        rel="stylesheet"
+    >
+    <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+    <title>{% block title %}LegacyLink Africa{% endblock %}</title>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% block header %}{% endblock %}
+
+    <main class="main-content">
+        {% if messages %}
+            <ul class="page-messages">
+                {% for message in messages %}
+                    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    {% include 'partials/bottom_nav.html' %}
+    {% block extra_body %}{% endblock %}
+    {% include '_feedback_widget.html' %}
+</body>
+</html>

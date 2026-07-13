@@ -120,7 +120,49 @@ class User(AbstractBaseUser, PermissionsMixin):
     def cohort_label(self):
         if self.secondary_school and self.secondary_completion_year:
             return f"{self.secondary_school.name} · Class of {self.secondary_completion_year}"
+        if self.high_school and self.high_school_completion_year:
+            return f"{self.high_school.name} · Class of {self.high_school_completion_year}"
+        if self.tertiary_school and self.tertiary_completion_year:
+            return f"{self.tertiary_school.name} · Class of {self.tertiary_completion_year}"
+        if self.primary_school and self.primary_completion_year:
+            return f"{self.primary_school.name} · Class of {self.primary_completion_year}"
         return ""
+
+    def cohort_queryset(self):
+        """Other users who share this user's school+year at ANY of the four
+        education levels (primary, secondary/O-level, high school/A-level,
+        university/tertiary). Any single match is enough — a shared primary
+        class counts even without a shared secondary school, and so on for
+        every level."""
+        match = models.Q(pk__in=[])
+        has_criteria = False
+        if self.primary_school and self.primary_completion_year:
+            match |= models.Q(
+                primary_school=self.primary_school,
+                primary_completion_year=self.primary_completion_year,
+            )
+            has_criteria = True
+        if self.secondary_school and self.secondary_completion_year:
+            match |= models.Q(
+                secondary_school=self.secondary_school,
+                secondary_completion_year=self.secondary_completion_year,
+            )
+            has_criteria = True
+        if self.high_school and self.high_school_completion_year:
+            match |= models.Q(
+                high_school=self.high_school,
+                high_school_completion_year=self.high_school_completion_year,
+            )
+            has_criteria = True
+        if self.tertiary_school and self.tertiary_completion_year:
+            match |= models.Q(
+                tertiary_school=self.tertiary_school,
+                tertiary_completion_year=self.tertiary_completion_year,
+            )
+            has_criteria = True
+        if not has_criteria:
+            return User.objects.none()
+        return User.objects.filter(match).exclude(id=self.id)
 
     # Weights for the Identity Score (profile completion meter). Education is
     # split across the three school levels; together they total 35%.

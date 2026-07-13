@@ -1,514 +1,95 @@
-<!DOCTYPE html>
-{% load static %}
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+{% extends 'base.html' %}
+{% block title %}Profile - LegacyLink Africa{% endblock %}
 
-<link
-    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
-    rel="stylesheet"
->
-    <title>Edit Profile - LegacyLink Africa</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(160deg, #070b14 0%, #0b1220 55%, #0d1730 100%);
-            min-height: 100vh;
-            color: #ffffff;
-            overflow-x: hidden;
-        }
-        
-        .header {
-            background: rgba(13, 19, 32, 0.95);
-            border-bottom: 2px solid #E8A63C;
-            padding: calc(1.5rem + env(safe-area-inset-top)) 2rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .header h1 {
-            color: #E8A63C;
-            font-size: 1.8rem;
-        }
-        
-        .btn-back {
-            background: transparent;
-            color: #E8A63C;
-            border: 2px solid #E8A63C;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-        
-        .btn-back:hover {
-            background: #E8A63C;
-            color: #0B1220;
-        }
-        
-        .container {
-            max-width: 600px;
-            margin: 2rem auto;
-            padding: 2rem 2rem 7rem;
-        }
-        
-        .form-card {
-            background: rgba(17, 24, 39, 0.8);
-            border: 2px solid #26334D;
-            border-radius: 15px;
-            padding: 2rem;
-        }
-        
-        form {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        label {
-            color: #E8A63C;
-            margin-top: 1.5rem;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.9rem;
-            letter-spacing: 1px;
-        }
-        
-        input, select, textarea {
-            padding: 0.75rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid #26334D;
-            border-radius: 8px;
-            color: #ffffff;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        select option {
-            color: #000000;
-            background-color: #ffffff;
-        }
-
-        ::placeholder {
-            color: rgba(255, 255, 255, 0.35);
-            font-style: italic;
-        }
-
-        .school-autocomplete {
-            position: relative;
-        }
-
-        .school-autocomplete-input {
-            width: 100%;
-        }
-
-        .school-autocomplete-results {
-            display: none;
-            position: absolute;
-            top: calc(100% + 4px);
-            left: 0;
-            right: 0;
-            max-height: 260px;
-            overflow-y: auto;
-            background: #111827;
-            border: 2px solid #26334D;
-            border-radius: 8px;
-            z-index: 30;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-        }
-
-        .school-autocomplete-results.open {
-            display: block;
-        }
-
-        .school-autocomplete-option {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            text-align: left;
-            padding: 0.65rem 0.85rem;
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 0;
-            color: #ffffff;
-            cursor: pointer;
-            font: inherit;
-            margin: 0;
-        }
-
-        .school-autocomplete-option:last-child {
-            border-bottom: none;
-        }
-
-        .school-autocomplete-option:hover,
-        .school-autocomplete-option:focus {
-            background: rgba(232, 166, 60, 0.15);
-        }
-
-        .school-autocomplete-option .option-name {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        .school-autocomplete-option .option-meta {
-            color: #94A3B8;
-            font-size: 0.8rem;
-            margin-top: 0.15rem;
-        }
-
-        .school-autocomplete-empty {
-            padding: 0.85rem;
-            color: #94A3B8;
-            font-size: 0.9rem;
-        }
-
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: #E8A63C;
-            background: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 0 10px rgba(232, 166, 60, 0.2);
-        }
-        
-        textarea {
-            resize: vertical;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        button {
-            margin-top: 2rem;
-            padding: 0.75rem;
-            background: #E8A63C;
-            color: #0B1220;
-            border: 2px solid #E8A63C;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-        
-        button:hover {
-            background: #F2C368;
-            border-color: #F2C368;
-            transform: translateY(-2px);
-        }
-        
-        .messages {
-            list-style: none;
-            margin-top: 1.5rem;
-        }
-        
-        .messages li {
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            background: rgba(16, 185, 129, 0.2);
-            border-left: 4px solid #10B981;
-            color: #ffffff;
-        }
-        
-        .messages li.error {
-            background: rgba(239, 68, 68, 0.2);
-            border-left-color: #EF4444;
-        }
-
-        .avatar-preview {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            border: 4px solid #E8A63C;
-            background: #0B1220;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            margin: 1rem auto;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .avatar-preview img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center;
-            display: block;
-        }
-
-        .avatar-preview .avatar-placeholder {
-            color: #E8A63C;
-            font-size: 2.5rem;
-            font-weight: 700;
-        }
-        
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: rgba(13, 19, 32, 0.98);
-            border-top: 1px solid rgba(232, 166, 60, 0.2);
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
-            z-index: 100;
-            backdrop-filter: blur(12px);
-        }
-        
-        .nav-link {
-            color: #ffffff;
-            text-decoration: none;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 0.4rem;
-            padding: 0.5rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.82rem;
-            min-width: 80px;
-            transition: all 0.3s ease;
-        }
-        
-        .nav-link:hover,
-        .nav-link.active {
-            background: rgba(232, 166, 60, 0.12);
-            color: #E8A63C;
-            transform: translateY(-1px);
-        }
-        
-        .bottom-nav-icon {
-            font-size: 1.2rem;
-        }
-        
-        .footer {
-            padding: 2rem 0;
-            text-align: center;
-            color: #94A3B8;
-            margin-top: 2rem;
-        }
-        .material-symbols-rounded {
-    font-family: 'Material Symbols Rounded';
-    font-weight: normal;
-    font-style: normal;
-    font-size: 1.25rem;
-    line-height: 1;
-    letter-spacing: normal;
-    text-transform: none;
-    display: inline-block;
-    white-space: nowrap;
-    word-wrap: normal;
-    direction: ltr;
-    -webkit-font-feature-settings: 'liga';
-    -webkit-font-smoothing: antialiased;
-    font-feature-settings: 'liga';
-
-    font-variation-settings:
-        'FILL' 1,
-        'wght' 500,
-        'GRAD' 0,
-        'opsz' 24;
-}
-
-.nav-icon {
-    font-size: 1.45rem;
-}
-
-.header-actions a,
-.header-actions button,
-.brand .action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.45rem;
-}
-
-.logout-form {
-    margin: 0;
-}
-
-.logout-form button {
-    font: inherit;
-}
-        
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                gap: 1rem;
-            }
-            
-            .container {
-                padding: 1rem 1rem 7rem;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Edit Profile</h1>
-        <a href="/dashboard/" class="btn-back">← Back to Dashboard</a>
+{% block header %}
+<div class="simple-header">
+    <div>
+        <h1>Profile</h1>
     </div>
-    
-    <div class="container">
-        <div class="form-card">
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <label for="id_avatar">Profile Picture</label>
-                <div class="avatar-preview" id="avatar-preview">
-                    <img src="{% if user.avatar %}{{ user.avatar.url }}{% endif %}" alt="{{ user.full_name }}" id="avatar-preview-img" {% if not user.avatar %}style="display:none;"{% endif %}>
-                    <span class="avatar-placeholder" id="avatar-preview-placeholder" {% if user.avatar %}style="display:none;"{% endif %}>{{ user.full_name|default:user.phone_or_email|first|upper }}</span>
-                </div>
-                <div style="text-align: center; margin-bottom: 1rem;">
-                    <input type="file" name="avatar" id="id_avatar" accept="image/*" onchange="previewAvatar(event)" style="display: none;">
-                    <button type="button" onclick="document.getElementById('id_avatar').click()" style="margin-top: 0; background: rgba(255,255,255,0.1); border-color: #26334D; color: #ffffff; padding: 0.5rem 1rem;">Choose Photo</button>
-                    {% if user.avatar %}
-                        <p style="color: #94A3B8; font-size: 0.85rem; margin-top: 0.5rem;">Current photo shown above.</p>
-                    {% endif %}
-                </div>
-                
-                <label for="id_full_name">Full Name</label>
-                <input type="text" name="full_name" id="id_full_name" value="{{ user.full_name }}" required>
-                
-                <label for="id_bio">Bio</label>
-                <textarea name="bio" id="id_bio" rows="4" placeholder="Tell us about yourself...">{{ user.bio }}</textarea>
-                
-                <label for="id_current_location">Current Location</label>
-                <input type="text" name="current_location" id="id_current_location" placeholder="e.g., Nairobi, Kenya" value="{{ user.current_location }}">
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-line">Logout</button>
+    </form>
+</div>
+{% endblock %}
 
-                <label for="id_phone_number">Phone Number</label>
-                <input type="text" name="phone_number" id="id_phone_number" placeholder="e.g., 0712 345 678" value="{{ phone_number_value }}">
+{% block content %}
+<div class="prof-head">
+    <div class="avatar-circle">
+        {% if user.avatar %}
+            <img src="{{ user.avatar.url }}" alt="{{ user.full_name|default:user.phone_or_email }}">
+        {% else %}
+            <span>{{ user.full_name|default:user.phone_or_email|first|upper }}</span>
+        {% endif %}
+    </div>
+    <div class="nm">{{ user.full_name|default:user.phone_or_email }}</div>
+    {% if school_confirmed or community_confirmed %}
+        <div class="verify-badge">✓ {{ trust_label }}</div>
+    {% endif %}
+    <div class="bio">{{ user.bio|default:'Add a short bio to help classmates recognize you.' }}</div>
+    <div style="margin-top:0.85rem;display:flex;gap:0.5rem;justify-content:center;">
+        <a href="/profile/edit/" class="btn btn-gold">✎ Edit profile</a>
+    </div>
+</div>
 
-                <label for="id_email">Email</label>
-                <input type="email" name="email" id="id_email" placeholder="e.g., you@example.com" value="{{ email_value }}">
-
-                <h3 style="color: #E8A63C; margin-top: 2rem; margin-bottom: 1rem; font-size: 1.2rem;">Professional Information</h3>
-
-                <label for="id_current_role">Current Role / Profession</label>
-                <input type="text" name="current_role" id="id_current_role" placeholder="e.g., Software Engineer, Doctor" value="{{ user.current_role }}">
-
-                <label for="id_employment_status">Employment Status</label>
-                <select name="employment_status" id="id_employment_status">
-                    <option value="">-- Select Employment Status --</option>
-                    {% for value, label in employment_status_choices %}
-                        <option value="{{ value }}" {% if user.employment_status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-
-                <label for="id_company_name">Company / Organization Name</label>
-                <input type="text" name="company_name" id="id_company_name" placeholder="e.g., LegacyLink Africa" value="{{ user.company_name }}">
-
-                <h3 style="color: #E8A63C; margin-top: 2rem; margin-bottom: 1rem; font-size: 1.2rem;">Educational Background</h3>
-                
-                <label for="id_primary_school_input">Primary School</label>
-                <div class="school-autocomplete" data-type="primary" data-endpoint="{% url 'school_search' %}">
-                    <input type="text" class="school-autocomplete-input" id="id_primary_school_input" autocomplete="off"
-                           placeholder="Start typing to search, then select an option."
-                           value="{% if user.primary_school %}{{ user.primary_school.name }}{% if user.primary_school.region %} ({{ user.primary_school.region }}){% endif %}{% endif %}">
-                    <input type="hidden" class="school-autocomplete-hidden" name="primary_school" id="id_primary_school" value="{{ user.primary_school.id|default:'' }}">
-                    <div class="school-autocomplete-results"></div>
-                </div>
-
-                <label for="id_primary_completion_year">Primary School Completion Year</label>
-                <input type="number" name="primary_completion_year" id="id_primary_completion_year" min="1950" max="2030" placeholder="e.g., 2005" value="{{ user.primary_completion_year }}">
-
-                <label for="id_secondary_school_input">Secondary School (O-Level)</label>
-                <div class="school-autocomplete" data-type="secondary" data-endpoint="{% url 'school_search' %}">
-                    <input type="text" class="school-autocomplete-input" id="id_secondary_school_input" autocomplete="off"
-                           placeholder="Start typing to search, then select an option."
-                           value="{% if user.secondary_school %}{{ user.secondary_school.name }}{% if user.secondary_school.region %} ({{ user.secondary_school.region }}){% endif %}{% endif %}">
-                    <input type="hidden" class="school-autocomplete-hidden" name="secondary_school" id="id_secondary_school" value="{{ user.secondary_school.id|default:'' }}">
-                    <div class="school-autocomplete-results"></div>
-                </div>
-
-                <label for="id_secondary_completion_year">Secondary School Completion Year</label>
-                <input type="number" name="secondary_completion_year" id="id_secondary_completion_year" min="1950" max="2030" placeholder="e.g., 2010" value="{{ user.secondary_completion_year }}">
-
-                <label for="id_high_school_input">High School (A-Level)</label>
-                <div class="school-autocomplete" data-type="high_school" data-endpoint="{% url 'school_search' %}">
-                    <input type="text" class="school-autocomplete-input" id="id_high_school_input" autocomplete="off"
-                           placeholder="Start typing to search, then select an option."
-                           value="{% if user.high_school %}{{ user.high_school.name }}{% if user.high_school.region %} ({{ user.high_school.region }}){% endif %}{% endif %}">
-                    <input type="hidden" class="school-autocomplete-hidden" name="high_school" id="id_high_school" value="{{ user.high_school.id|default:'' }}">
-                    <div class="school-autocomplete-results"></div>
-                </div>
-
-                <label for="id_high_school_completion_year">High School (A-Level) Completion Year</label>
-                <input type="number" name="high_school_completion_year" id="id_high_school_completion_year" min="1950" max="2030" placeholder="e.g., 2012" value="{{ user.high_school_completion_year }}">
-
-                <label for="id_tertiary_school_input">University / Tertiary Institution</label>
-                <div class="school-autocomplete" data-type="university" data-endpoint="{% url 'school_search' %}">
-                    <input type="text" class="school-autocomplete-input" id="id_tertiary_school_input" autocomplete="off"
-                           placeholder="Start typing to search, then select an option."
-                           value="{% if user.tertiary_school %}{{ user.tertiary_school.name }}{% if user.tertiary_school.region %} ({{ user.tertiary_school.region }}){% endif %}{% endif %}">
-                    <input type="hidden" class="school-autocomplete-hidden" name="tertiary_school" id="id_tertiary_school" value="{{ user.tertiary_school.id|default:'' }}">
-                    <div class="school-autocomplete-results"></div>
-                </div>
-
-                <label for="id_tertiary_completion_year">University / Tertiary Completion Year</label>
-                <input type="number" name="tertiary_completion_year" id="id_tertiary_completion_year" min="1950" max="2030" placeholder="e.g., 2016" value="{{ user.tertiary_completion_year }}">
-
-                <button type="submit">Update Profile</button>
-            </form>
-            
-            {% if messages %}
-                <ul class="messages">
-                    {% for message in messages %}
-                        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-                    {% endfor %}
-                </ul>
+<section class="card">
+    <div class="score-row">
+        <div class="score-ring" style="--score: {{ identity_score }};">
+            <div class="score-ring-inner">{{ identity_score }}%</div>
+        </div>
+        <div class="score-copy">
+            <strong>Profile strength</strong>
+            {% if identity_score_suggestions %}
+                <p>{{ identity_score_suggestions.0.label }} to reach {{ identity_score|add:identity_score_suggestions.0.points }}% and appear in more classmate searches.</p>
+            {% else %}
+                <p>Your profile is fully complete — nice work!</p>
             {% endif %}
         </div>
     </div>
-    
-    <div class="bottom-nav">
-    <a href="/dashboard/" class="nav-link">
-        <span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">home</span>
-        <span>Home</span>
-    </a>
+</section>
 
-    <a href="/connections/" class="nav-link">
-        <span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">groups</span>
-        <span>Connections</span>
-    </a>
-
-    <a href="/profile/" class="nav-link active">
-        <span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">person</span>
-        <span>Profile</span>
-    </a>
+<div class="section-heading">
+    <h2>Education timeline</h2>
 </div>
-    
-    <div class="footer">
-        <p>&copy; 2026 LegacyLink Africa. All rights reserved.</p>
+<div class="card timeline">
+    <div class="step">
+        <div class="ico">🏫</div>
+        <div>
+            <div class="t">Primary school</div>
+            <div class="s">{% if user.primary_school %}{{ user.primary_school.name }} · {{ user.primary_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+        </div>
     </div>
-    <script>
-        function previewAvatar(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = document.getElementById('avatar-preview-img');
-                const placeholder = document.getElementById('avatar-preview-placeholder');
-                img.src = e.target.result;
-                img.style.display = 'block';
-                placeholder.style.display = 'none';
-            };
-            reader.readAsDataURL(file);
-        }
-    </script>
-    <script src="{% static 'js/school-autocomplete.js' %}"></script>
-{% include '_feedback_widget.html' %}
-</body>
-</html>
+    <div class="step">
+        <div class="ico">🎓</div>
+        <div>
+            <div class="t">Secondary school</div>
+            <div class="s">{% if user.secondary_school %}{{ user.secondary_school.name }} · Class of {{ user.secondary_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+        </div>
+    </div>
+    <div class="step">
+        <div class="ico">📘</div>
+        <div>
+            <div class="t">High school (A-Level)</div>
+            <div class="s">{% if user.high_school %}{{ user.high_school.name }} · Class of {{ user.high_school_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+        </div>
+    </div>
+    <div class="step">
+        <div class="ico">🏛️</div>
+        <div>
+            <div class="t">University / Tertiary</div>
+            <div class="s">{% if user.tertiary_school %}{{ user.tertiary_school.name }} · {{ user.tertiary_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+<div class="section-heading">
+    <h2>About</h2>
+</div>
+<div class="card">
+    <div class="info-tags" style="display:flex;flex-wrap:wrap;gap:0.6rem;">
+        <span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ user.current_location|default:'Location not set' }}</span>
+        <span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ user.current_role|default:'Alumni member' }}</span>
+        {% if user.company_name %}<span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ user.company_name }}</span>{% endif %}
+    </div>
+</div>
+{% endblock %}

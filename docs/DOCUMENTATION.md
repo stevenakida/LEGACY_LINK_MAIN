@@ -1,7 +1,7 @@
 # LegacyLink Africa — Documentation
 
 > Living document. Update this file whenever a feature, flow, or setup step changes.
-> Last updated: 2026-07-07
+> Last updated: 2026-07-12
 
 ## 1. What the app does
 
@@ -40,25 +40,41 @@ Core concepts:
 2. **Onboarding** at `/onboarding/` — pick your secondary school and
    graduation year. This sets `onboarding_complete = True` and is what powers
    cohort matching.
-3. **Dashboard** at `/dashboard/` — greeting header with time-of-day message,
-   circular Identity Score ring, 4 stat tiles (Connections, Pending,
-   Opportunities, Events — the latter two are static placeholders, no backend
-   model yet), a "Suggested for You" cohort carousel, placeholder Upcoming
-   Event / Latest Opportunities cards, and a "Verified Identity" panel showing
-   3 trust tiers (Community, School, Document — Document is always "Coming
-   soon", no verification flow exists yet). Below that, the original
-   profile-hero/About sections are preserved.
-4. **Profile** at `/profile/` — edit name, bio, profile picture, current
-   location, professional info (current role, employment status, company/org
-   name), and education history (Primary, Secondary O-Level, High School
-   A-Level, and University/Tertiary — all four are now searchable autocomplete
-   fields backed by `/schools/search/`, not `<select>` dropdowns, since the
-   school table has 27k+ rows).
-5. **Schools** at `/schools/` — browse/search schools (also has a section
-   reserved for future "opportunities" content, currently empty/mock).
-6. **Cohort** at `/cohort/` — see all alumni who match your school + year.
-7. **Connections** at `/connections/` — view pending and accepted connection
-   requests; send/accept/decline.
+3. **Dashboard (Home)** at `/dashboard/` — compact greeting header, a compact
+   Identity Score card (ring + top profile-completion suggestion), a 4-stat
+   row (Connections, Pending, Opportunities, Events — all four now backed by
+   real querysets, see §6 history), a "Suggested for You" cohort carousel, and
+   an Upcoming Events list drawn from real `Opportunity` rows. The old
+   profile-hero/About/Verified-Identity sections that used to live on this
+   page moved to the redesigned Profile page (item 6 below).
+4. **Connections** at `/connections/` — one page, three tabs: **Pending**
+   (accept/decline inline), **Connected** (with a Message button per person,
+   opens a chat thread), and **Discover** (cohort matches — same school +
+   graduation year — with mutual-connection counts and an actionable
+   WhatsApp-invite empty state when no classmates have joined yet). This page
+   absorbed the old standalone `/cohort/` page, which now just redirects to
+   `/connections/?tab=discover`.
+5. **Messages** at `/messages/` — conversation list (unread badges, last
+   message preview) and a chat thread per conversation
+   (`/messages/<conversation_id>/`). Starting a conversation
+   (`/messages/start/<user_id>/`) is only allowed between users with an
+   **accepted** Connection — enforced server-side, not just hidden in the UI.
+   New messages arrive via 4-second polling (`/messages/<id>/poll/`), not
+   WebSockets/Channels (this project has no channels/redis infra) — this
+   matches the product roadmap's own recommendation for a first messaging
+   MVP. Block/report is not built yet (see §6).
+6. **Profile** at `/profile/` — view-mode by default (avatar, verified badge,
+   bio, education timeline across all four school levels, profile-strength
+   ring). Editing moved to `/profile/edit/` (name, bio, profile picture,
+   current location, professional info, and the four searchable school
+   autocomplete fields backed by `/schools/search/`).
+7. **Opportunities** at `/opportunities/` (renamed from the old, confusingly-named
+   `/schools/` URL — `/schools/` now just redirects here) — real `Opportunity`
+   rows (Job / Mentorship / Event), filterable by type and by "My school".
+   Apply/Join/RSVP records a lightweight `OpportunityInterest` row per user
+   (not a full application workflow with resumes/review states — that's a
+   later phase per the roadmap). Opportunities are posted via `/admin/` for
+   now; no in-app posting flow yet.
 8. **Login/Logout** at `/login/` and `/logout/`. Social login (Google/Facebook
    via django-allauth) is scaffolded in the UI but not fully wired for
    production OAuth yet — see `SOCIAL_LOGIN_SETUP.md` for status and setup
@@ -82,6 +98,9 @@ WebView-friendly):
 | POST | `/api/connections/send/{user_id}/` | Send connection request |
 | PATCH | `/api/connections/{id}/respond/` | Accept/decline request |
 | GET | `/api/connections/?tab=pending` | List connections |
+| GET | `/api/opportunities/?type=job\|mentorship\|event` | List active opportunities |
+| GET | `/api/messaging/conversations/` | List the JWT user's conversations |
+| GET/POST | `/api/messaging/conversations/{id}/messages/` | Read/send within a conversation |
 
 `/api/auth/login/` was completely broken until 2026-07-07 (see §6/§7) — every
 login attempt returned 401 regardless of credentials, for every user. Fixed.
@@ -92,16 +111,35 @@ browser-rendered school autocomplete widget, not part of the JWT API surface:
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/schools/search/?type=&q=` | Session-auth school search (profile/onboarding autocomplete) |
+| GET | `/messages/{id}/poll/?after={message_id}` | Session-auth chat polling (4s interval from the thread page) |
+| POST | `/messages/{id}/send/` | Session-auth send a chat message |
 
 ## 4. Project structure
 
 - `config/` — Django project settings, root URLconf, and the server-rendered
-  views (home, login, register, dashboard, profile, schools, connections,
-  cohort, onboarding, terms).
+  views (home, login, register, dashboard, profile, opportunities,
+  connections, messages/chat, onboarding, terms). All template-facing view
+  logic lives here by convention — each app's own `views.py` is DRF-only, so
+  the two never share (and can't collide on) URL names.
 - `accounts/` — custom `User` model + auth API (register/login/JWT).
 - `alumni/` — `School` model + schools/cohort/onboarding API.
 - `connections/` — `Connection` model + connection request API.
-- `templates/` — server-rendered HTML pages (mobile/Android-WebView friendly).
+- `opportunities/` — `Opportunity` + `OpportunityInterest` models (Jobs /
+  Mentorship / Events) + a DRF list API.
+- `messaging/` — `Conversation` / `Participant` / `Message` models (1:1
+  messaging, restricted to accepted connections) + a DRF API for the Android
+  app. Also provides `messaging.context_processors.unread_message_count` so
+  the bottom nav's Messages badge works on every page.
+- `templates/` — server-rendered HTML pages (mobile/Android-WebView
+  friendly). `base.html` + `partials/bottom_nav.html` are the shared app
+  shell (single 5-tab bottom nav: Home / Network / Messages / Opportunities /
+  Profile) that `dashboard.html`, `connections.html`, `opportunities.html`,
+  `profile.html`, `profile_edit.html`, `messages.html`, and `chat.html` all
+  extend. Pre-auth pages (login/register/onboarding/terms) stay standalone.
+  `static/css/theme.css` holds the one shared stylesheet (dark navy / gold /
+  teal design system) — previously every page duplicated its own inline
+  `<style>` block, which had already drifted (3 vs. 4 bottom-nav tabs across
+  pages before this).
 - `../legacy-link-android/` (sibling folder, separate Android Studio project)
   — the native WebView shell that loads this app on Android. See its README
   and [section 5](#5-setup--running-locally) for the testing/production split.
@@ -220,9 +258,22 @@ custom admin UI exists.
 - Social login (Google/Facebook) UI is present but OAuth isn't fully live —
   blocked historically on the `cryptography` package build on Windows. See
   `SOCIAL_LOGIN_SETUP.md`.
-- Schools page has a placeholder "opportunities" section with no backing model yet.
-- Dashboard's "Opportunities" and "Events" stat tiles and cards are static
-  placeholders (no backend model yet) — see change log 2026-07-07.
+- **RESOLVED (2026-07-12): Opportunities now has a real backend model** — see
+  change log entry below. `/schools/` (confusingly named) redirected to the
+  new `/opportunities/`.
+- **RESOLVED (2026-07-12): Dashboard's Opportunities/Events stat tiles are now real**,
+  backed by `Opportunity` querysets — see change log below.
+- **Kiswahili (EN/SW) toggle is not built.** No i18n scaffolding exists at
+  all yet (no `LANGUAGES`, `LocaleMiddleware`, or `{% trans %}` anywhere) —
+  every string is hardcoded English. Deliberately deferred as its own later
+  pass (matches the roadmap doc's framing of translation as "parallel,
+  ongoing," not a blocker) rather than bundled into the 2026-07-12 redesign.
+- **Messaging has no block/report yet.** 1:1 messaging restricted to accepted
+  connections shipped 2026-07-12; block/report was explicitly deferred as a
+  fast-follow, not built in the same pass.
+- **No general "view another alum's public profile" route.** `/profile/` is
+  self-view only; Connect/Message entry points work from Connections list
+  rows, but there's no `/profile/<user_id>/` page yet.
 - Identity Score has no "Verification Status" component yet — deferred until
   there's an actual identity-verification flow (see product discussion in
   change log 2026-07-03). The dashboard's new "Confirmed by document" trust
@@ -252,6 +303,27 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-07-12: Major redesign driven by a user-supplied interactive mockup +
+  product roadmap doc. Introduced a real shared app shell (`base.html` +
+  `static/css/theme.css` + `partials/bottom_nav.html`) replacing 5 pages'
+  worth of duplicated inline CSS/nav markup that had already drifted (3 vs 4
+  bottom-nav tabs across pages). Rebuilt Dashboard, Connections (merged
+  `/cohort/` into a Pending/Connected/Discover 3-tab page, added
+  mutual-connection counts and actionable empty states), and Profile (split
+  into view-mode `/profile/` + `/profile/edit/`). Shipped two new apps: 
+  **`opportunities`** (real `Opportunity`/`OpportunityInterest` models —
+  Jobs/Mentorship/Events with type + "My school" filters and lightweight
+  Apply/Join/RSVP tracking, replacing the hardcoded mock data that used to
+  live in `schools.html`) and **`messaging`** (real 1:1 messaging —
+  `Conversation`/`Participant`/`Message` models, restricted to accepted
+  connections, 4-second polling per the roadmap's own recommendation since
+  this project has no channels/websocket infra). Renamed the confusingly-named
+  `/schools/` URL to `/opportunities/` (old URL now redirects). Verified
+  end-to-end with Playwright against a live local server: full nav/page
+  render check, a two-user Connect → Message → send → poll → reply flow, and
+  a security check that a non-participant is blocked from a conversation
+  thread. Kiswahili i18n and messaging block/report were deliberately scoped
+  out as later passes — see §6.
 - 2026-07-08: Tightened `CORS_ALLOW_ALL_ORIGINS`/`ALLOWED_HOSTS` — see §6.
 - 2026-07-07: Fixed Render's build command via its REST API (user supplied
   an API key) to stop auto-running `seed_schools` on every deploy — see §6.

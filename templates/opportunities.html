@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Opportunities - LegacyLink Africa{% endblock %}
+
+{% block header %}
+<div class="simple-header">
+    <div>
+        <h1>Opportunities</h1>
+        <div class="sub">Jobs, mentorship &amp; events from your alumni network</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="filter-chips">
+    <a href="?type=all{% if school_only %}&school=mine{% endif %}" class="chip{% if opp_type == 'all' %} on{% endif %}">All</a>
+    <a href="?type=job{% if school_only %}&school=mine{% endif %}" class="chip{% if opp_type == 'job' %} on{% endif %}">Jobs</a>
+    <a href="?type=mentorship{% if school_only %}&school=mine{% endif %}" class="chip{% if opp_type == 'mentorship' %} on{% endif %}">Mentorship</a>
+    <a href="?type=event{% if school_only %}&school=mine{% endif %}" class="chip{% if opp_type == 'event' %} on{% endif %}">Events</a>
+    <a href="?type={{ opp_type }}{% if not school_only %}&school=mine{% endif %}" class="chip{% if school_only %} on{% endif %}">My school</a>
+</div>
+
+{% if opportunities %}
+    {% for opp in opportunities %}
+        <div class="card opp-card">
+            <span class="tag {{ opp.type }}">{{ opp.get_type_display|upper }}</span>
+            <div class="t">{{ opp.title }}</div>
+            <div class="s">{{ opp.description }}</div>
+            <div class="row">
+                <div class="src">
+                    {% if opp.school_scope %}🎓 Posted by an {{ opp.school_scope.name }} alum{% else %}{{ opp.organization|default:'Open to all alumni' }}{% endif %}
+                    {% if opp.type == 'event' and opp.event_date %} · {{ opp.event_date|date:'d M' }}{% endif %}
+                </div>
+                <form method="post" action="{% url 'toggle_opportunity_interest' opp.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'opportunities' %}?type={{ opp_type }}{% if school_only %}&school=mine{% endif %}">
+                    {% if opp.type == 'job' %}
+                        <button type="submit" class="btn {% if opp.user_interested %}btn-line{% else %}btn-gold{% endif %}">{% if opp.user_interested %}Applied ✓{% else %}Apply{% endif %}</button>
+                    {% elif opp.type == 'mentorship' %}
+                        <button type="submit" class="btn {% if opp.user_interested %}btn-line{% else %}btn-gold{% endif %}">{% if opp.user_interested %}Joined ✓{% else %}Join{% endif %}</button>
+                    {% else %}
+                        <button type="submit" class="btn {% if opp.user_interested %}btn-line{% else %}btn-gold{% endif %}">{% if opp.user_interested %}Going ✓{% else %}RSVP{% endif %}</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    {% endfor %}
+{% else %}
+    <div class="card empty-state">
+        <div class="ico">💼</div>
+        <div class="t">Nothing here yet</div>
+        <div class="s">Check back soon, or try a different filter.</div>
+    </div>
+{% endif %}
+{% endblock %}

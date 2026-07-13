@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Edit Profile - LegacyLink Africa{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-card { background: rgba(17, 24, 39, 0.8); border: 1px solid var(--border); border-radius: 20px; padding: 1.5rem; }
+    form { display: flex; flex-direction: column; }
+    label { color: var(--gold); margin-top: 1.25rem; margin-bottom: 0.4rem; font-weight: 600; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.6px; }
+    input, select, textarea {
+        padding: 0.65rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border);
+        border-radius: 8px; color: var(--ink); font-size: 0.95rem; font-family: inherit;
+    }
+    select option { color: #000; background-color: #fff; }
+    ::placeholder { color: rgba(255, 255, 255, 0.35); font-style: italic; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); background: rgba(255, 255, 255, 0.1); }
+    textarea { resize: vertical; font-family: inherit; }
+    .school-autocomplete { position: relative; }
+    .school-autocomplete-results {
+        display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px;
+        overflow-y: auto; background: #111827; border: 1px solid var(--border); border-radius: 8px; z-index: 30;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+    }
+    .school-autocomplete-results.open { display: block; }
+    .school-autocomplete-option {
+        display: flex; flex-direction: column; width: 100%; text-align: left; padding: 0.6rem 0.8rem;
+        background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--ink); cursor: pointer; font: inherit;
+    }
+    .school-autocomplete-option:last-child { border-bottom: none; }
+    .school-autocomplete-option:hover, .school-autocomplete-option:focus { background: rgba(232, 166, 60, 0.15); }
+    .school-autocomplete-option .option-name { font-weight: 600; font-size: 0.92rem; }
+    .school-autocomplete-option .option-meta { color: var(--muted); font-size: 0.78rem; margin-top: 0.1rem; }
+    .school-autocomplete-empty { padding: 0.8rem; color: var(--muted); font-size: 0.88rem; }
+    .avatar-preview {
+        width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--gold); background: #0B1220;
+        display: flex; justify-content: center; align-items: center; overflow: hidden; margin: 0.5rem auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-preview .avatar-placeholder { color: var(--gold); font-size: 2.2rem; font-weight: 700; }
+    .section-h3 { color: var(--gold); margin-top: 1.75rem; margin-bottom: 0.75rem; font-size: 1.05rem; }
+    button[type="submit"] { margin-top: 1.75rem; }
+</style>
+{% endblock %}
+
+{% block header %}
+<div class="simple-header">
+    <div><h1>Edit Profile</h1></div>
+    <a href="/profile/" class="btn btn-line">← Back</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label for="id_avatar">Profile Picture</label>
+        <div class="avatar-preview" id="avatar-preview">
+            <img src="{% if user.avatar %}{{ user.avatar.url }}{% endif %}" alt="{{ user.full_name }}" id="avatar-preview-img" {% if not user.avatar %}style="display:none;"{% endif %}>
+            <span class="avatar-placeholder" id="avatar-preview-placeholder" {% if user.avatar %}style="display:none;"{% endif %}>{{ user.full_name|default:user.phone_or_email|first|upper }}</span>
+        </div>
+        <div style="text-align: center; margin-bottom: 1rem;">
+            <input type="file" name="avatar" id="id_avatar" accept="image/*" onchange="previewAvatar(event)" style="display: none;">
+            <button type="button" class="btn btn-line" onclick="document.getElementById('id_avatar').click()">Choose Photo</button>
+        </div>
+
+        <label for="id_full_name">Full Name</label>
+        <input type="text" name="full_name" id="id_full_name" value="{{ user.full_name }}" required>
+
+        <label for="id_bio">Bio</label>
+        <textarea name="bio" id="id_bio" rows="4" placeholder="Tell us about yourself...">{{ user.bio }}</textarea>
+
+        <label for="id_current_location">Current Location</label>
+        <input type="text" name="current_location" id="id_current_location" placeholder="e.g., Nairobi, Kenya" value="{{ user.current_location }}">
+
+        <label for="id_phone_number">Phone Number</label>
+        <input type="text" name="phone_number" id="id_phone_number" placeholder="e.g., 0712 345 678" value="{{ phone_number_value }}">
+
+        <label for="id_email">Email</label>
+        <input type="email" name="email" id="id_email" placeholder="e.g., you@example.com" value="{{ email_value }}">
+
+        <h3 class="section-h3">Professional Information</h3>
+
+        <label for="id_current_role">Current Role / Profession</label>
+        <input type="text" name="current_role" id="id_current_role" placeholder="e.g., Software Engineer, Doctor" value="{{ user.current_role }}">
+
+        <label for="id_employment_status">Employment Status</label>
+        <select name="employment_status" id="id_employment_status">
+            <option value="">-- Select Employment Status --</option>
+            {% for value, label in employment_status_choices %}
+                <option value="{{ value }}" {% if user.employment_status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="id_company_name">Company / Organization Name</label>
+        <input type="text" name="company_name" id="id_company_name" placeholder="e.g., LegacyLink Africa" value="{{ user.company_name }}">
+
+        <h3 class="section-h3">Educational Background</h3>
+
+        <label for="id_primary_school_input">Primary School</label>
+        <div class="school-autocomplete" data-type="primary" data-endpoint="{% url 'school_search' %}">
+            <input type="text" class="school-autocomplete-input" id="id_primary_school_input" autocomplete="off"
+                   placeholder="Start typing to search, then select an option."
+                   value="{% if user.primary_school %}{{ user.primary_school.name }}{% if user.primary_school.region %} ({{ user.primary_school.region }}){% endif %}{% endif %}">
+            <input type="hidden" class="school-autocomplete-hidden" name="primary_school" id="id_primary_school" value="{{ user.primary_school.id|default:'' }}">
+            <div class="school-autocomplete-results"></div>
+        </div>
+
+        <label for="id_primary_completion_year">Primary School Completion Year</label>
+        <input type="number" name="primary_completion_year" id="id_primary_completion_year" min="1950" max="2030" placeholder="e.g., 2005" value="{{ user.primary_completion_year }}">
+
+        <label for="id_secondary_school_input">Secondary School (O-Level)</label>
+        <div class="school-autocomplete" data-type="secondary" data-endpoint="{% url 'school_search' %}">
+            <input type="text" class="school-autocomplete-input" id="id_secondary_school_input" autocomplete="off"
+                   placeholder="Start typing to search, then select an option."
+                   value="{% if user.secondary_school %}{{ user.secondary_school.name }}{% if user.secondary_school.region %} ({{ user.secondary_school.region }}){% endif %}{% endif %}">
+            <input type="hidden" class="school-autocomplete-hidden" name="secondary_school" id="id_secondary_school" value="{{ user.secondary_school.id|default:'' }}">
+            <div class="school-autocomplete-results"></div>
+        </div>
+
+        <label for="id_secondary_completion_year">Secondary School Completion Year</label>
+        <input type="number" name="secondary_completion_year" id="id_secondary_completion_year" min="1950" max="2030" placeholder="e.g., 2010" value="{{ user.secondary_completion_year }}">
+
+        <label for="id_high_school_input">High School (A-Level)</label>
+        <div class="school-autocomplete" data-type="high_school" data-endpoint="{% url 'school_search' %}">
+            <input type="text" class="school-autocomplete-input" id="id_high_school_input" autocomplete="off"
+                   placeholder="Start typing to search, then select an option."
+                   value="{% if user.high_school %}{{ user.high_school.name }}{% if user.high_school.region %} ({{ user.high_school.region }}){% endif %}{% endif %}">
+            <input type="hidden" class="school-autocomplete-hidden" name="high_school" id="id_high_school" value="{{ user.high_school.id|default:'' }}">
+            <div class="school-autocomplete-results"></div>
+        </div>
+
+        <label for="id_high_school_completion_year">High School (A-Level) Completion Year</label>
+        <input type="number" name="high_school_completion_year" id="id_high_school_completion_year" min="1950" max="2030" placeholder="e.g., 2012" value="{{ user.high_school_completion_year }}">
+
+        <label for="id_tertiary_school_input">University / Tertiary Institution</label>
+        <div class="school-autocomplete" data-type="university" data-endpoint="{% url 'school_search' %}">
+            <input type="text" class="school-autocomplete-input" id="id_tertiary_school_input" autocomplete="off"
+                   placeholder="Start typing to search, then select an option."
+                   value="{% if user.tertiary_school %}{{ user.tertiary_school.name }}{% if user.tertiary_school.region %} ({{ user.tertiary_school.region }}){% endif %}{% endif %}">
+            <input type="hidden" class="school-autocomplete-hidden" name="tertiary_school" id="id_tertiary_school" value="{{ user.tertiary_school.id|default:'' }}">
+            <div class="school-autocomplete-results"></div>
+        </div>
+
+        <label for="id_tertiary_completion_year">University / Tertiary Completion Year</label>
+        <input type="number" name="tertiary_completion_year" id="id_tertiary_completion_year" min="1950" max="2030" placeholder="e.g., 2016" value="{{ user.tertiary_completion_year }}">
+
+        <button type="submit" class="btn btn-gold btn-full">Update Profile</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+    function previewAvatar(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.getElementById('avatar-preview-img');
+            const placeholder = document.getElementById('avatar-preview-placeholder');
+            img.src = e.target.result;
+            img.style.display = 'block';
+            placeholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+</script>
+<script src="{% static 'js/school-autocomplete.js' %}"></script>
+{% endblock %}

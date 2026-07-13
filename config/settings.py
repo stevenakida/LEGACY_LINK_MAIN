@@ -62,6 +62,8 @@ INSTALLED_APPS = [
     'alumni',
     'connections',
     'feedback',
+    'opportunities',
+    'messaging',
 ]
 
 SITE_ID = 1
@@ -135,6 +137,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'messaging.context_processors.unread_message_count',
             ],
         },
     },

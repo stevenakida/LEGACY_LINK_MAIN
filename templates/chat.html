@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% block title %}{{ other.full_name }} - LegacyLink Africa{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* The feedback FAB shares this same bottom-right corner as the chat
+       send button — stacking two floating round buttons there is bad UX
+       regardless of z-index, so this screen only doesn't show it. */
+    .feedback-fab { display: none !important; }
+</style>
+{% endblock %}
+
+{% block header %}
+<div class="chat-head">
+    <a href="{% url 'messages_inbox' %}" class="back">‹</a>
+    <div class="person-avatar" style="width:38px;height:38px;">
+        {% if other.avatar %}<img src="{{ other.avatar.url }}" alt="{{ other.full_name }}">{% else %}{{ other.full_name|first }}{% endif %}
+    </div>
+    <div>
+        <div class="nm">{{ other.full_name }}</div>
+        {% if other.secondary_school %}<div class="st">{{ other.secondary_school.name }}{% if other.secondary_completion_year %} · Class of {{ other.secondary_completion_year }}{% endif %}</div>{% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+<div class="chat-body" id="chat-body" data-conversation-id="{{ conversation.id }}" data-has-earlier="{{ has_earlier|yesno:'1,0' }}">
+    <p class="suggested-empty" id="chat-load-earlier" style="{% if not has_earlier %}display:none;{% endif %}cursor:pointer;text-align:center;">Load earlier messages</p>
+    {% for message in thread_messages %}
+        <div class="bubble {% if message.sender_id == user.id %}me{% else %}them{% endif %}" data-message-id="{{ message.id }}">
+            {{ message.body }}<span class="tm">{{ message.sent_at|date:'H:i' }}</span>
+        </div>
+    {% empty %}
+        <p class="suggested-empty">Say hello 👋 — you're now connected, start the conversation.</p>
+    {% endfor %}
+</div>
+<div class="chat-scroll-pad"></div>
+{% endblock %}
+
+{% block extra_body %}
+<div class="chat-input-row">
+    <input type="text" id="chat-text" placeholder="Type a message…" autocomplete="off">
+    <button type="button" id="chat-send">➤</button>
+</div>
+<script>
+(function () {
+    var body = document.getElementById('chat-body');
+    var loadEarlierEl = document.getElementById('chat-load-earlier');
+    var conversationId = body.dataset.conversationId;
+    var hasEarlier = body.dataset.hasEarlier === '1';
+    var csrfToken = document.getElementById('csrf-token').value;
+    var input = document.getElementById('chat-text');
+    var sendBtn = document.getElementById('chat-send');
+    var loadingEarlier = false;
+
+    function lastMessageId() {
+        var bubbles = body.querySelectorAll('.bubble');
+        return bubbles.length ? bubbles[bubbles.length - 1].dataset.messageId : '';
+    }
+    function firstMessageId() {
+        var bubble = body.querySelector('.bubble');
+        return bubble ? bubble.dataset.messageId : '';
+    }
+
+    function scrollToBottom() { window.scrollTo(0, document.body.scrollHeight); }
+    scrollToBottom();
+
+    function buildBubble(msg) {
+        var el = document.createElement('div');
+        el.className = 'bubble ' + (msg.is_me ? 'me' : 'them');
+        el.dataset.messageId = msg.id;
+        el.textContent = msg.body;
+        var tm = document.createElement('span');
+        tm.className = 'tm';
+        tm.textContent = msg.sent_at;
+        el.appendChild(tm);
+        return el;
+    }
+
+    function appendMessage(msg) {
+        body.appendChild(buildBubble(msg));
+        scrollToBottom();
+    }
+
+    function loadEarlier() {
+        if (loadingEarlier || !hasEarlier) return;
+        loadingEarlier = true;
+        var before = firstMessageId();
+        fetch('/messages/' + conversationId + '/earlier/?before=' + encodeURIComponent(before))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var prevHeight = document.body.scrollHeight;
+                (data.messages || []).slice().reverse().forEach(function (msg) {
+                    body.insertBefore(buildBubble(msg), loadEarlierEl.nextSibling);
+                });
+                hasEarlier = !!data.has_earlier;
+                loadEarlierEl.style.display = hasEarlier ? '' : 'none';
+                window.scrollTo(0, document.body.scrollHeight - prevHeight);
+                loadingEarlier = false;
+            })
+            .catch(function () { loadingEarlier = false; });
+    }
+    loadEarlierEl.addEventListener('click', loadEarlier);
+    window.addEventListener('scroll', function () {
+        if (hasEarlier && window.scrollY < 40) loadEarlier();
+    });
+
+    function poll() {
+        var after = lastMessageId();
+        fetch('/messages/' + conversationId + '/poll/?after=' + encodeURIComponent(after))
+            .then(function (r) { return r.json(); })
+            .then(function (data) { (data.messages || []).forEach(appendMessage); });
+    }
+
+    function send() {
+        var text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        var form = new FormData();
+        form.append('body', text);
+        fetch('/messages/' + conversationId + '/send/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            body: form,
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (msg) { if (!msg.error) appendMessage(msg); });
+    }
+
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
+
+    setInterval(poll, 4000);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% load static %}
+<footer class="bottom-nav">
+    <a href="/dashboard/" class="nav-link{% if active_tab == 'home' %} active{% endif %}">
+        <span class="material-symbols-rounded" aria-hidden="true">home</span>
+        <span>Home</span>
+    </a>
+    <a href="/connections/" class="nav-link{% if active_tab == 'network' %} active{% endif %}">
+        <span class="material-symbols-rounded" aria-hidden="true">groups</span>
+        <span>Network</span>
+    </a>
+    <a href="/messages/" class="nav-link{% if active_tab == 'messages' %} active{% endif %}">
+        <span class="material-symbols-rounded" aria-hidden="true">chat</span>
+        <span>Messages</span>
+        {% if unread_message_count %}<span class="nav-badge">{{ unread_message_count }}</span>{% endif %}
+    </a>
+    <a href="/opportunities/" class="nav-link{% if active_tab == 'opportunities' %} active{% endif %}">
+        <span class="material-symbols-rounded" aria-hidden="true">work</span>
+        <span>Opportunities</span>
+    </a>
+    <a href="/profile/" class="nav-link{% if active_tab == 'profile' %} active{% endif %}">
+        <span class="material-symbols-rounded" aria-hidden="true">person</span>
+        <span>Profile</span>
+    </a>
+</footer>

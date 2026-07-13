@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Messages - LegacyLink Africa{% endblock %}
+
+{% block header %}
+<div class="simple-header">
+    <div>
+        <h1>Messages</h1>
+        <div class="sub">Chat with your accepted connections</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if conversation_rows %}
+    <div class="card">
+        {% for row in conversation_rows %}
+            <a href="{% url 'messages_thread' row.conversation.id %}" class="msg-row{% if row.unread_count %} unread{% endif %}">
+                <div class="person-avatar">
+                    {% if row.other.avatar %}
+                        <img src="{{ row.other.avatar.url }}" alt="{{ row.other.full_name }}">
+                    {% else %}
+                        {{ row.other.full_name|first }}
+                    {% endif %}
+                </div>
+                <div class="info">
+                    <div class="nm">
+                        {{ row.other.full_name }}
+                        {% if row.last_message %}<span class="time">{{ row.last_message.sent_at|date:'H:i' }}</span>{% endif %}
+                    </div>
+                    <div class="prev">{% if row.last_message %}{{ row.last_message.body|truncatechars:60 }}{% else %}Say hello 👋{% endif %}</div>
+                </div>
+                {% if row.unread_count %}<div class="unread-badge">{{ row.unread_count }}</div>{% endif %}
+            </a>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card empty-state">
+        <div class="ico">💬</div>
+        <div class="t">No conversations yet</div>
+        <div class="s">Only people you've connected with can message you. Start one from your Connected tab.</div>
+        <a href="/connections/?tab=connected" class="btn btn-gold">Go to Connections</a>
+    </div>
+{% endif %}
+{% endblock %}
