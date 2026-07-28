@@ -419,7 +419,9 @@ a { color: inherit; }
 /* ---------- messages banner (Django messages framework) ---------- */
 
 .page-messages { list-style: none; margin-bottom: 1rem; }
-.page-messages li { padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 0.6rem; background: rgba(16, 185, 129, 0.2); border-left: 4px solid var(--success); color: var(--ink); font-size: 0.88rem; }
+.page-messages li { padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 0.6rem; background: var(--card); border-left: 4px solid var(--border); color: var(--ink); font-size: 0.88rem; }
+.page-messages li.success { background: rgba(16, 185, 129, 0.2); border-left-color: var(--success); }
+.page-messages li.success::before { content: '\2713'; display: inline-block; margin-right: 0.4rem; color: var(--success); font-weight: 800; }
 .page-messages li.error { background: rgba(239, 68, 68, 0.2); border-left-color: var(--danger); }
 
 /* ---------- status grid (connections summary) ---------- */

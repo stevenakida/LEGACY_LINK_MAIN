@@ -108,7 +108,12 @@ def login_view(request):
                 messages.error(request, 'Invalid password. Please check your password and try again.')
             except User.DoesNotExist:
                 messages.error(request, f'No account found for {phone_or_email}. Please register first.')
-    
+
+        return render(request, 'login.html', {
+            'submitted_username': phone_or_email,
+            'submitted_password': password,
+        })
+
     return render(request, 'login.html')
 
 def forgot_password(request):
@@ -602,6 +607,75 @@ def respond_connection_web(request, connection_id):
         messages.info(request, f'Declined the request from {conn.requester.full_name}.')
     else:
         messages.error(request, 'Invalid action.')
+
+    return redirect(next_url)
+
+def remove_connection_web(request, connection_id):
+    """POST-only: remove an existing (accepted) connection — used by the
+    'Remove' button on the Connected tab, e.g. when someone turns out not to
+    be who they claimed. Scoped to requester-or-receiver so only the two
+    people in the connection can remove it. This deletes the Connection row
+    outright rather than adding a new status, so the two can reconnect later
+    if it was a mistake; it does not touch or hide the message thread between
+    them, if any."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method != 'POST':
+        return redirect('connections')
+
+    next_url = request.POST.get('next', '')
+    if not next_url.startswith('/') or next_url.startswith('//'):
+        next_url = 'connections'
+
+    try:
+        conn = Connection.objects.get(
+            Q(id=connection_id) & (Q(requester=request.user) | Q(receiver=request.user)),
+            status='accepted',
+        )
+    except Connection.DoesNotExist:
+        messages.error(request, 'That connection could not be found.')
+        return redirect(next_url)
+
+    other = conn.receiver if conn.requester == request.user else conn.requester
+    conn.delete()
+    messages.info(request, f'Removed your connection with {other.full_name}.')
+
+    return redirect(next_url)
+
+def dismiss_discover_web(request, user_id):
+    """POST-only: dismiss a suggested classmate on the Discover tab ('not
+    interested in connecting') — the red X next to Connect. Recorded as a
+    one-sided 'declined' Connection (no request was ever sent, so nothing is
+    sent to the other person / no notification), which reuses the same
+    filter that already hides declined connections from Discover."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method != 'POST':
+        return redirect('connections')
+
+    next_url = request.POST.get('next', '')
+    if not next_url.startswith('/') or next_url.startswith('//'):
+        next_url = 'connections'
+
+    try:
+        other = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return redirect(next_url)
+
+    if other.id == request.user.id:
+        return redirect(next_url)
+
+    # Check both directions, not just requester=me — a row could already
+    # exist the other way round (e.g. they'd sent me a request), and
+    # get_or_create only matching one direction would create a duplicate
+    # row for the same pair instead of respecting the existing one.
+    existing = Connection.objects.filter(
+        (Q(requester=request.user) & Q(receiver=other)) | (Q(requester=other) & Q(receiver=request.user))
+    ).first()
+    if not existing:
+        Connection.objects.create(requester=request.user, receiver=other, status='declined')
+
+    messages.info(request, f'{other.full_name} removed from Discover.')
 
     return redirect(next_url)
 

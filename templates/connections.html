@@ -103,10 +103,17 @@
                             <div class="nm">{{ connection.requester.full_name }}</div>
                             <div class="mt">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · {% if connection.requester.secondary_completion_year %}Class of {{ connection.requester.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
                         </div>
-                        <form method="post" action="{% url 'messages_start' connection.requester.id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-line">Message</button>
-                        </form>
+                        <div class="person-actions">
+                            <form method="post" action="{% url 'messages_start' connection.requester.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-line">Message</button>
+                            </form>
+                            <form method="post" action="{% url 'remove_connection_web' connection.id %}" onsubmit="return confirm('Remove your connection with {{ connection.requester.full_name|escapejs }}?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{% url 'connections' %}?tab=connected">
+                                <button type="submit" class="btn btn-decline">Remove</button>
+                            </form>
+                        </div>
                     </div>
                 {% else %}
                     <div class="person-row">
@@ -117,10 +124,17 @@
                             <div class="nm">{{ connection.receiver.full_name }}</div>
                             <div class="mt">{{ connection.receiver.secondary_school.name|default:'Unknown school' }} · {% if connection.receiver.secondary_completion_year %}Class of {{ connection.receiver.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
                         </div>
-                        <form method="post" action="{% url 'messages_start' connection.receiver.id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-line">Message</button>
-                        </form>
+                        <div class="person-actions">
+                            <form method="post" action="{% url 'messages_start' connection.receiver.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-line">Message</button>
+                            </form>
+                            <form method="post" action="{% url 'remove_connection_web' connection.id %}" onsubmit="return confirm('Remove your connection with {{ connection.receiver.full_name|escapejs }}?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{% url 'connections' %}?tab=connected">
+                                <button type="submit" class="btn btn-decline">Remove</button>
+                            </form>
+                        </div>
                     </div>
                 {% endif %}
             {% endfor %}
@@ -163,11 +177,18 @@
                             {{ person.current_role|default:'Alumni member' }}{% if person.mutual_count %} · <span class="mutual">{{ person.mutual_count }} mutual</span>{% endif %}
                         </div>
                     </div>
-                    <form method="post" action="{% url 'send_connection_web' person.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{% url 'connections' %}?tab=discover">
-                        <button type="submit" class="btn btn-gold">Connect</button>
-                    </form>
+                    <div class="person-actions">
+                        <form method="post" action="{% url 'send_connection_web' person.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{% url 'connections' %}?tab=discover">
+                            <button type="submit" class="btn btn-gold">Connect</button>
+                        </form>
+                        <form method="post" action="{% url 'dismiss_discover_web' person.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{% url 'connections' %}?tab=discover">
+                            <button type="submit" class="btn btn-decline" aria-label="Not interested in {{ person.full_name }}">✕</button>
+                        </form>
+                    </div>
                 </div>
             {% endfor %}
         </div>
