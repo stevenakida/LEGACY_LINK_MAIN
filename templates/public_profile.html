@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}{{ profile_user.full_name }} - LegacyLink Africa{% endblock %}
+
+{% block header %}
+<div class="chat-head">
+    <a href="{{ next_url }}" class="back">‹</a>
+    <div>
+        <div class="nm">Profile</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="prof-head">
+    <div class="avatar-circle">
+        {% if profile_user.avatar %}
+            <img src="{{ profile_user.avatar.url }}" alt="{{ profile_user.full_name }}">
+        {% else %}
+            <span>{{ profile_user.full_name|default:profile_user.phone_or_email|first|upper }}</span>
+        {% endif %}
+    </div>
+    <div class="nm">{{ profile_user.full_name|default:profile_user.phone_or_email }}</div>
+    {% if school_confirmed or community_confirmed %}
+        <div class="verify-badge">✓ {{ trust_label }}</div>
+    {% endif %}
+    <div class="bio">{{ profile_user.bio|default:'This alumnus has not added a bio yet.' }}</div>
+    <div class="mt" style="margin-top:0.5rem;">
+        Joined {{ profile_user.created_at|date:'M Y' }}
+        {% if mutual_count %} · <span class="mutual">{{ mutual_count }} mutual connection{{ mutual_count|pluralize }}</span>{% endif %}
+    </div>
+
+    <div style="margin-top:0.85rem;display:flex;gap:0.5rem;justify-content:center;">
+        {% if incoming_pending %}
+            <form method="post" action="{% url 'respond_connection_web' incoming_pending.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <input type="hidden" name="action" value="accept">
+                <button type="submit" class="btn btn-gold">Accept</button>
+            </form>
+            <form method="post" action="{% url 'respond_connection_web' incoming_pending.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <input type="hidden" name="action" value="decline">
+                <button type="submit" class="btn btn-decline">Decline</button>
+            </form>
+        {% elif connection_status == 'accepted' %}
+            <form method="post" action="{% url 'messages_start' profile_user.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-line">Message</button>
+            </form>
+            <form method="post" action="{% url 'remove_connection_web' connection.id %}" onsubmit="return confirm('Remove your connection with {{ profile_user.full_name|escapejs }}?');">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <button type="submit" class="btn btn-decline">Remove</button>
+            </form>
+        {% elif connection_status == 'pending' %}
+            <span class="btn btn-line is-disabled">Request pending</span>
+        {% elif connection_status == 'none' %}
+            <form method="post" action="{% url 'send_connection_web' profile_user.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <button type="submit" class="btn btn-gold">Connect</button>
+            </form>
+            <form method="post" action="{% url 'dismiss_discover_web' profile_user.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <button type="submit" class="btn btn-decline" aria-label="Not interested in {{ profile_user.full_name }}">✕</button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="section-heading">
+    <h2>Education timeline</h2>
+</div>
+<div class="card timeline">
+    <div class="step">
+        <div class="ico">🏫</div>
+        <div>
+            <div class="t">Primary school</div>
+            <div class="s">{% if profile_user.primary_school %}{{ profile_user.primary_school.name }} · {{ profile_user.primary_completion_year|default:'—' }}{% else %}Not added{% endif %}</div>
+        </div>
+    </div>
+    <div class="step">
+        <div class="ico">🎓</div>
+        <div>
+            <div class="t">Secondary school</div>
+            <div class="s">{% if profile_user.secondary_school %}{{ profile_user.secondary_school.name }} · Class of {{ profile_user.secondary_completion_year|default:'—' }}{% else %}Not added{% endif %}</div>
+        </div>
+    </div>
+    <div class="step">
+        <div class="ico">📘</div>
+        <div>
+            <div class="t">High school (A-Level)</div>
+            <div class="s">{% if profile_user.high_school %}{{ profile_user.high_school.name }} · Class of {{ profile_user.high_school_completion_year|default:'—' }}{% else %}Not added{% endif %}</div>
+        </div>
+    </div>
+    <div class="step">
+        <div class="ico">🏛️</div>
+        <div>
+            <div class="t">University / Tertiary</div>
+            <div class="s">{% if profile_user.tertiary_school %}{{ profile_user.tertiary_school.name }} · {{ profile_user.tertiary_completion_year|default:'—' }}{% else %}Not added{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+<div class="section-heading">
+    <h2>About</h2>
+</div>
+<div class="card">
+    <div class="info-tags" style="display:flex;flex-wrap:wrap;gap:0.6rem;">
+        <span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ profile_user.current_location|default:'Location not set' }}</span>
+        <span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ profile_user.current_role|default:'Alumni member' }}</span>
+        {% if profile_user.company_name %}<span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ profile_user.company_name }}</span>{% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -251,6 +251,62 @@ def dashboard(request):
         'active_tab': 'home',
     })
 
+def view_profile(request, user_id):
+    """Read-only preview of another user's profile — reachable from any of
+    the Connections tabs (Pending/Connected/Discover) so someone can check a
+    person's education history, bio, join date, and mutual connections
+    before deciding to accept/send a request. No editing, and no contact
+    info (phone/email) is shown here regardless of connection status."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if str(user_id) == str(request.user.id):
+        return redirect('profile')
+
+    try:
+        profile_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        messages.error(request, 'That profile could not be found.')
+        return redirect('connections')
+
+    school_confirmed = bool(profile_user.secondary_school and profile_user.secondary_completion_year)
+    accepted_count = Connection.objects.filter(
+        (Q(requester=profile_user) | Q(receiver=profile_user)) & Q(status='accepted')
+    ).count()
+    community_confirmed = accepted_count > 0
+    if school_confirmed:
+        trust_label = 'School Verified'
+    elif community_confirmed:
+        trust_label = 'Community Verified'
+    else:
+        trust_label = 'Getting Started'
+
+    mutual_count = len(_mutual_connection_ids(request.user) & _mutual_connection_ids(profile_user))
+
+    conn = Connection.objects.filter(
+        (Q(requester=request.user) & Q(receiver=profile_user)) | (Q(requester=profile_user) & Q(receiver=request.user))
+    ).first()
+    connection_status = conn.status if conn else 'none'
+    # Only surface Accept/Decline here when *this* user is the one who needs
+    # to respond — i.e. the pending request was sent TO them, not BY them.
+    incoming_pending = conn if (conn and conn.status == 'pending' and conn.receiver_id == request.user.id) else None
+
+    next_url = request.GET.get('next', '')
+    if not next_url.startswith('/') or next_url.startswith('//'):
+        next_url = '/connections/'
+
+    return render(request, 'public_profile.html', {
+        'profile_user': profile_user,
+        'trust_label': trust_label,
+        'school_confirmed': school_confirmed,
+        'community_confirmed': community_confirmed,
+        'mutual_count': mutual_count,
+        'connection': conn,
+        'connection_status': connection_status,
+        'incoming_pending': incoming_pending,
+        'next_url': next_url,
+        'active_tab': 'network',
+    })
+
 def profile(request):
     """View-mode: how the user's own profile looks to others (avatar, bio,
     verified badge, education timeline, profile-strength ring). Editing

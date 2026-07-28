@@ -36,18 +36,20 @@
             {% for connection in pending_connections %}
                 {% if connection.receiver == user %}
                     <div class="person-row">
-                        <div class="person-avatar">
-                            {% if connection.requester.avatar %}
-                                <img src="{{ connection.requester.avatar.url }}" alt="{{ connection.requester.full_name }}">
-                            {% else %}
-                                {{ connection.requester.full_name|first }}
-                            {% endif %}
-                        </div>
-                        <div class="person-info">
-                            <div class="nm">{{ connection.requester.full_name }}</div>
-                            <div class="mt">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · {% if connection.requester.secondary_completion_year %}Class of {{ connection.requester.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
-                            <div class="mt">{{ connection.requester.current_role|default:'Alumni member' }}</div>
-                        </div>
+                        <a class="person-link" href="{% url 'view_profile' connection.requester.id %}?next={% url 'connections' %}?tab=pending">
+                            <div class="person-avatar">
+                                {% if connection.requester.avatar %}
+                                    <img src="{{ connection.requester.avatar.url }}" alt="{{ connection.requester.full_name }}">
+                                {% else %}
+                                    {{ connection.requester.full_name|first }}
+                                {% endif %}
+                            </div>
+                            <div class="person-info">
+                                <div class="nm">{{ connection.requester.full_name }}</div>
+                                <div class="mt">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · {% if connection.requester.secondary_completion_year %}Class of {{ connection.requester.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
+                                <div class="mt">{{ connection.requester.current_role|default:'Alumni member' }}</div>
+                            </div>
+                        </a>
                         <div class="person-actions">
                             <form method="post" action="{% url 'respond_connection_web' connection.id %}">
                                 {% csrf_token %}
@@ -65,17 +67,19 @@
                     </div>
                 {% else %}
                     <div class="person-row">
-                        <div class="person-avatar">
-                            {% if connection.receiver.avatar %}
-                                <img src="{{ connection.receiver.avatar.url }}" alt="{{ connection.receiver.full_name }}">
-                            {% else %}
-                                {{ connection.receiver.full_name|first }}
-                            {% endif %}
-                        </div>
-                        <div class="person-info">
-                            <div class="nm">{{ connection.receiver.full_name }}</div>
-                            <div class="mt">{{ connection.receiver.secondary_school.name|default:'Unknown school' }} · {% if connection.receiver.secondary_completion_year %}Class of {{ connection.receiver.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
-                        </div>
+                        <a class="person-link" href="{% url 'view_profile' connection.receiver.id %}?next={% url 'connections' %}?tab=pending">
+                            <div class="person-avatar">
+                                {% if connection.receiver.avatar %}
+                                    <img src="{{ connection.receiver.avatar.url }}" alt="{{ connection.receiver.full_name }}">
+                                {% else %}
+                                    {{ connection.receiver.full_name|first }}
+                                {% endif %}
+                            </div>
+                            <div class="person-info">
+                                <div class="nm">{{ connection.receiver.full_name }}</div>
+                                <div class="mt">{{ connection.receiver.secondary_school.name|default:'Unknown school' }} · {% if connection.receiver.secondary_completion_year %}Class of {{ connection.receiver.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
+                            </div>
+                        </a>
                         <span class="btn btn-line is-disabled">Request sent</span>
                     </div>
                 {% endif %}
@@ -96,13 +100,15 @@
             {% for connection in connections %}
                 {% if connection.receiver == user %}
                     <div class="person-row">
-                        <div class="person-avatar">
-                            {% if connection.requester.avatar %}<img src="{{ connection.requester.avatar.url }}" alt="{{ connection.requester.full_name }}">{% else %}{{ connection.requester.full_name|first }}{% endif %}
-                        </div>
-                        <div class="person-info">
-                            <div class="nm">{{ connection.requester.full_name }}</div>
-                            <div class="mt">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · {% if connection.requester.secondary_completion_year %}Class of {{ connection.requester.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
-                        </div>
+                        <a class="person-link" href="{% url 'view_profile' connection.requester.id %}?next={% url 'connections' %}?tab=connected">
+                            <div class="person-avatar">
+                                {% if connection.requester.avatar %}<img src="{{ connection.requester.avatar.url }}" alt="{{ connection.requester.full_name }}">{% else %}{{ connection.requester.full_name|first }}{% endif %}
+                            </div>
+                            <div class="person-info">
+                                <div class="nm">{{ connection.requester.full_name }}</div>
+                                <div class="mt">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · {% if connection.requester.secondary_completion_year %}Class of {{ connection.requester.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
+                            </div>
+                        </a>
                         <div class="person-actions">
                             <form method="post" action="{% url 'messages_start' connection.requester.id %}">
                                 {% csrf_token %}
@@ -117,13 +123,15 @@
                     </div>
                 {% else %}
                     <div class="person-row">
-                        <div class="person-avatar">
-                            {% if connection.receiver.avatar %}<img src="{{ connection.receiver.avatar.url }}" alt="{{ connection.receiver.full_name }}">{% else %}{{ connection.receiver.full_name|first }}{% endif %}
-                        </div>
-                        <div class="person-info">
-                            <div class="nm">{{ connection.receiver.full_name }}</div>
-                            <div class="mt">{{ connection.receiver.secondary_school.name|default:'Unknown school' }} · {% if connection.receiver.secondary_completion_year %}Class of {{ connection.receiver.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
-                        </div>
+                        <a class="person-link" href="{% url 'view_profile' connection.receiver.id %}?next={% url 'connections' %}?tab=connected">
+                            <div class="person-avatar">
+                                {% if connection.receiver.avatar %}<img src="{{ connection.receiver.avatar.url }}" alt="{{ connection.receiver.full_name }}">{% else %}{{ connection.receiver.full_name|first }}{% endif %}
+                            </div>
+                            <div class="person-info">
+                                <div class="nm">{{ connection.receiver.full_name }}</div>
+                                <div class="mt">{{ connection.receiver.secondary_school.name|default:'Unknown school' }} · {% if connection.receiver.secondary_completion_year %}Class of {{ connection.receiver.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
+                            </div>
+                        </a>
                         <div class="person-actions">
                             <form method="post" action="{% url 'messages_start' connection.receiver.id %}">
                                 {% csrf_token %}
@@ -153,30 +161,32 @@
         <div class="card">
             {% for person in discover_users %}
                 <div class="person-row">
-                    <div class="person-avatar">
-                        {% if person.avatar %}
-                            <img src="{{ person.avatar.url }}" alt="{{ person.full_name }}">
-                        {% else %}
-                            {{ person.full_name|first }}
-                        {% endif %}
-                    </div>
-                    <div class="person-info">
-                        <div class="nm">{{ person.full_name }}</div>
-                        <div class="mt">
-                            {% if user.secondary_school and person.secondary_school == user.secondary_school and person.secondary_completion_year == user.secondary_completion_year %}
-                                {{ person.secondary_school.name }} · Class of {{ person.secondary_completion_year }}
-                            {% elif user.high_school and person.high_school == user.high_school and person.high_school_completion_year == user.high_school_completion_year %}
-                                {{ person.high_school.name }} (A-Level) · Class of {{ person.high_school_completion_year }}
-                            {% elif user.tertiary_school and person.tertiary_school == user.tertiary_school and person.tertiary_completion_year == user.tertiary_completion_year %}
-                                {{ person.tertiary_school.name }} · Class of {{ person.tertiary_completion_year }}
-                            {% elif user.primary_school and person.primary_school == user.primary_school and person.primary_completion_year == user.primary_completion_year %}
-                                {{ person.primary_school.name }} (Primary) · Class of {{ person.primary_completion_year }}
+                    <a class="person-link" href="{% url 'view_profile' person.id %}?next={% url 'connections' %}?tab=discover">
+                        <div class="person-avatar">
+                            {% if person.avatar %}
+                                <img src="{{ person.avatar.url }}" alt="{{ person.full_name }}">
                             {% else %}
-                                {{ person.secondary_school.name|default:'School' }}{% if person.secondary_completion_year %} · Class of {{ person.secondary_completion_year }}{% endif %}
-                            {% endif %}<br>
-                            {{ person.current_role|default:'Alumni member' }}{% if person.mutual_count %} · <span class="mutual">{{ person.mutual_count }} mutual</span>{% endif %}
+                                {{ person.full_name|first }}
+                            {% endif %}
                         </div>
-                    </div>
+                        <div class="person-info">
+                            <div class="nm">{{ person.full_name }}</div>
+                            <div class="mt">
+                                {% if user.secondary_school and person.secondary_school == user.secondary_school and person.secondary_completion_year == user.secondary_completion_year %}
+                                    {{ person.secondary_school.name }} · Class of {{ person.secondary_completion_year }}
+                                {% elif user.high_school and person.high_school == user.high_school and person.high_school_completion_year == user.high_school_completion_year %}
+                                    {{ person.high_school.name }} (A-Level) · Class of {{ person.high_school_completion_year }}
+                                {% elif user.tertiary_school and person.tertiary_school == user.tertiary_school and person.tertiary_completion_year == user.tertiary_completion_year %}
+                                    {{ person.tertiary_school.name }} · Class of {{ person.tertiary_completion_year }}
+                                {% elif user.primary_school and person.primary_school == user.primary_school and person.primary_completion_year == user.primary_completion_year %}
+                                    {{ person.primary_school.name }} (Primary) · Class of {{ person.primary_completion_year }}
+                                {% else %}
+                                    {{ person.secondary_school.name|default:'School' }}{% if person.secondary_completion_year %} · Class of {{ person.secondary_completion_year }}{% endif %}
+                                {% endif %}<br>
+                                {{ person.current_role|default:'Alumni member' }}{% if person.mutual_count %} · <span class="mutual">{{ person.mutual_count }} mutual</span>{% endif %}
+                            </div>
+                        </div>
+                    </a>
                     <div class="person-actions">
                         <form method="post" action="{% url 'send_connection_web' person.id %}">
                             {% csrf_token %}
