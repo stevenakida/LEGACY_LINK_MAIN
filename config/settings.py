@@ -108,7 +108,11 @@ if config('R2_ACCESS_KEY_ID', default=''):
     AWS_STORAGE_BUCKET_NAME = config('R2_BUCKET_NAME')
     AWS_S3_ENDPOINT_URL = config('R2_ENDPOINT_URL')
     AWS_S3_CUSTOM_DOMAIN = config('R2_PUBLIC_DOMAIN')
-    AWS_DEFAULT_ACL = None
+    # Objects must be explicitly made public on upload — the bucket itself
+    # doesn't grant public read by default (unlike the original R2 bucket),
+    # so leaving this unset (None) uploaded files that returned 403 on their
+    # public URL even though the upload itself succeeded.
+    AWS_DEFAULT_ACL = 'public-read'
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_ADDRESSING_STYLE = 'virtual'
     AWS_S3_FILE_OVERWRITE = False
