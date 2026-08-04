@@ -59,6 +59,7 @@ path('register/', views.register, name='register'),
     path('api/connections/', include('connections.urls')),
     path('api/opportunities/', include('opportunities.urls')),
     path('api/messaging/', include('messaging.urls')),
+    path('api/media/', include('media_assets.urls')),
     # Serve user-uploaded media (avatars, etc.) unconditionally — Django's
     # static() helper only wires this up when DEBUG=True, which left avatars
     # 404ing in production and falling back to the initials placeholder.
