@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'feedback',
     'opportunities',
     'messaging',
+    'media_assets',
 ]
 
 SITE_ID = 1
@@ -116,6 +117,70 @@ if config('R2_ACCESS_KEY_ID', default=''):
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_ADDRESSING_STYLE = 'virtual'
     AWS_S3_FILE_OVERWRITE = False
+
+# ---------------------------------------------------------------------------
+# Media assets (Phase 1) — private pipeline for message/post attachments,
+# separate from the public-read avatar storage above. Reuses the same
+# R2/Spaces bucket + credentials (no duplicate secrets) but writes under its
+# own private prefixes and talks to S3 directly via boto3 (not through
+# django-storages), because the STORAGES default above is globally
+# public-read/unsigned and shared with avatars — changing that global config
+# to be private would break avatar serving. When no bucket credentials are
+# configured (local dev), falls back to filesystem storage under a directory
+# Django never serves publicly, with signed local URLs standing in for
+# presigned S3 URLs — same fallback pattern already used for the default
+# storage above, so local dev keeps working without cloud credentials.
+MEDIA_ASSETS_S3_ENABLED = bool(config('R2_ACCESS_KEY_ID', default=''))
+MEDIA_ASSETS_S3_ACCESS_KEY_ID = config('R2_ACCESS_KEY_ID', default='')
+MEDIA_ASSETS_S3_SECRET_ACCESS_KEY = config('R2_SECRET_ACCESS_KEY', default='')
+MEDIA_ASSETS_S3_BUCKET_NAME = config('R2_BUCKET_NAME', default='')
+MEDIA_ASSETS_S3_ENDPOINT_URL = config('R2_ENDPOINT_URL', default='')
+MEDIA_ASSETS_S3_REGION = config('MEDIA_ASSETS_S3_REGION', default='us-east-1')
+
+MEDIA_ASSETS_LOCAL_ROOT = BASE_DIR / 'private_media'  # never added to MEDIA_ROOT/served publicly
+
+MEDIA_ASSETS_QUARANTINE_PREFIX = 'private/quarantine/'
+MEDIA_ASSETS_READY_PREFIX = 'private/ready/'
+MEDIA_ASSETS_THUMBNAIL_PREFIX = 'private/thumbnails/'
+
+MEDIA_ASSETS_UPLOAD_URL_TTL_SECONDS = config('MEDIA_UPLOAD_URL_TTL_SECONDS', default=600, cast=int)
+MEDIA_ASSETS_SIGNED_URL_TTL_SECONDS = config('MEDIA_SIGNED_URL_TTL_SECONDS', default=300, cast=int)
+
+MEDIA_ASSETS_IMAGE_MAX_BYTES = config('MEDIA_IMAGE_MAX_MB', default=10, cast=int) * 1024 * 1024
+MEDIA_ASSETS_VIDEO_MAX_BYTES = config('MEDIA_VIDEO_MAX_MB', default=50, cast=int) * 1024 * 1024
+MEDIA_ASSETS_DOCUMENT_MAX_BYTES = config('MEDIA_PDF_MAX_MB', default=10, cast=int) * 1024 * 1024
+MEDIA_ASSETS_VIDEO_MAX_DURATION_SECONDS = config('MEDIA_VIDEO_MAX_DURATION_SECONDS', default=60, cast=int)
+MEDIA_ASSETS_IMAGE_MAX_DIMENSION = config('MEDIA_IMAGE_MAX_DIMENSION', default=2048, cast=int)
+# Guards against decompression bombs: reject images whose *decoded* pixel
+# count would exceed this, checked before any resize/re-encode is attempted.
+MEDIA_ASSETS_IMAGE_MAX_PIXELS = config('MEDIA_IMAGE_MAX_PIXELS', default=40_000_000, cast=int)
+
+# How long an unattached (orphan) asset survives before the cleanup command
+# purges it — also applies to stuck INITIALIZED uploads and terminal
+# FAILED/REJECTED rows.
+MEDIA_ASSETS_RETENTION_HOURS = config('MEDIA_ORPHAN_RETENTION_HOURS', default=72, cast=int)
+
+# Master switch for the whole init-upload endpoint. Per-category switches
+# below let ops disable just video or just documents (e.g. if ffprobe/clamd
+# aren't provisioned on a given host yet) without disabling images too.
+FEATURE_MEDIA_UPLOADS_ENABLED = config('FEATURE_MEDIA_UPLOADS_ENABLED', default='False') == 'True'
+FEATURE_VIDEO_MEDIA_ENABLED = config('FEATURE_VIDEO_MEDIA_ENABLED', default='False') == 'True'
+# Required by spec: a dedicated flag for document (PDF) media specifically,
+# since PDFs are the only category needing AV scanning.
+FEATURE_DOCUMENT_MEDIA_ENABLED = config('FEATURE_DOCUMENT_MEDIA_ENABLED', default='False') == 'True'
+
+# ClamAV (clamd) — new infra, not currently provisioned anywhere in this
+# project. Left blank, document uploads fail closed (see
+# media_assets/scanning.py::NullScanner) rather than being marked safe.
+MEDIA_ASSETS_CLAMD_HOST = config('CLAMD_HOST', default='')
+MEDIA_ASSETS_CLAMD_PORT = config('CLAMD_PORT', default=3310, cast=int)
+MEDIA_ASSETS_CLAMD_TIMEOUT_SECONDS = config('CLAMD_TIMEOUT_SECONDS', default=15, cast=int)
+
+# ffprobe/ffmpeg — new infra, not currently provisioned anywhere in this
+# project. Video uploads fail closed if the binaries aren't found (see
+# media_assets/validation.py).
+MEDIA_ASSETS_FFPROBE_PATH = config('FFPROBE_PATH', default='ffprobe')
+MEDIA_ASSETS_FFMPEG_PATH = config('FFMPEG_PATH', default='ffmpeg')
 
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
