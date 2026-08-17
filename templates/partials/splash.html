@@ -1,9 +1,11 @@
 {% load static %}
-{# Branded launch splash — shown once per browser session (i.e. once per app
-   open in the Android WebView), covering the first seconds while fonts and
-   icons finish loading so users never see the half-styled page. Included by
-   base.html and login.html right after <body>; self-contained (no theme.css
-   dependency) because login.html doesn't load the shared stylesheet. #}
+{% comment %}
+Branded launch splash — shown once per browser session (i.e. once per app
+open in the Android WebView), covering the first seconds while fonts and
+icons finish loading so users never see the half-styled page. Included by
+base.html and login.html right after <body>; self-contained (no theme.css
+dependency) because login.html doesn't load the shared stylesheet.
+{% endcomment %}
 <div id="lla-splash" aria-hidden="true">
     <div class="lla-splash-inner">
         <div class="lla-splash-logo-wrap">

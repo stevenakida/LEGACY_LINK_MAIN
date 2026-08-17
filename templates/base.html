@@ -11,10 +11,12 @@
         rel="stylesheet"
     >
     <link rel="stylesheet" href="{% static 'css/theme.css' %}">
-    {# Icon FOUC guard: Material Symbols render as raw ligature text (e.g.
-       "groups") until the font file arrives, so keep icons invisible until
-       fonts are ready. The splash covers first load; this covers every
-       in-app navigation after it. #}
+    {% comment %}
+    Icon FOUC guard: Material Symbols render as raw ligature text (e.g.
+    "groups") until the font file arrives, so keep icons invisible until
+    fonts are ready. The splash covers first load; this covers every
+    in-app navigation after it.
+    {% endcomment %}
     <style>
         .material-symbols-rounded { opacity: 0; transition: opacity 0.15s ease; }
         html.lla-fonts .material-symbols-rounded { opacity: 1; }
