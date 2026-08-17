@@ -29,11 +29,11 @@ DEBUG = config("DEBUG", default="False") == "True"
 
 
 ALLOWED_HOSTS = config(
-    "ALLOWED_HOSTS", default="legacy-link-main.onrender.com,localhost,127.0.0.1"
+    "ALLOWED_HOSTS", default="legacylink-app-qs7gl.ondigitalocean.app,localhost,127.0.0.1"
 ).split(",")
-CSRF_TRUSTED_ORIGINS = [
-    "https://legacy-link-main.onrender.com",
-]
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS", default="https://legacylink-app-qs7gl.ondigitalocean.app"
+).split(",")
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
@@ -84,7 +84,7 @@ MIDDLEWARE = [
 AUTH_USER_MODEL = 'accounts.User'  # Custom user model
 
 CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS", default="https://legacy-link-main.onrender.com"
+    "CORS_ALLOWED_ORIGINS", default="https://legacylink-app-qs7gl.ondigitalocean.app"
 ).split(",")
 
 MEDIA_URL = '/media/'
@@ -218,9 +218,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# Read DATABASE_URL via decouple (checks OS env first, then .env) instead of
+# dj_database_url.config(), which only reads the OS environment — a .env
+# DATABASE_URL line was silently ignored before this.
 DATABASES = {
-    'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+    'default': dj_database_url.parse(
+        config('DATABASE_URL', default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
         conn_max_age=600,
     )
 }

@@ -1,7 +1,7 @@
 # LegacyLink Africa — Documentation
 
 > Living document. Update this file whenever a feature, flow, or setup step changes.
-> Last updated: 2026-07-12
+> Last updated: 2026-08-17
 
 ## 1. What the app does
 
@@ -169,20 +169,35 @@ be recreated as name-collision duplicates alongside the real data.
 Database: SQLite by default; set `DATABASE_URL` env var to use Postgres
 instead (falls back to SQLite if unset — see commit `36ef5a6`).
 
-### Testing vs. production environments
+### Staging vs. production environments
 
-Two fully separate environments:
+Two fully separate environments. As of 2026-08-17, staging is a local
+**replica of production's shape**: same database engine (PostgreSQL), same
+`DEBUG=False`, same env-var keys — new features get built and verified here
+before they ship.
 
-| | Testing | Production |
+| | Staging | Production |
 |---|---|---|
-| Where it runs | Your machine (`runserver`) | Render (`legacy-link-main.onrender.com`) |
-| Database | Local `db.sqlite3` | Render Postgres |
-| `DEBUG` | `True` (local `.env`) | `False` (Render env vars) |
-| Android client | `testing` flavor → `http://10.0.2.2:8000/` | `production` flavor → the Render URL |
+| Where it runs | Your machine (`runserver`) | DigitalOcean App Platform (`legacylink-app-qs7gl.ondigitalocean.app`) |
+| Database | Local PostgreSQL 18, db `legacylink_staging` (role `legacylink`) | DigitalOcean managed Postgres (`legacy-link-postgres-production`) |
+| `DEBUG` | `False` (local `.env`) | `False` (DigitalOcean env vars) |
+| Static files | WhiteNoise — run `manage.py collectstatic` after static changes | WhiteNoise (collectstatic in build command) |
+| Media uploads | Local filesystem (R2_* blank) | DigitalOcean Spaces bucket `legacy-link-production-media` |
+| Email | Console backend (EMAIL_HOST_USER blank) | Gmail SMTP |
+| Android client | `staging` flavor → `http://10.0.2.2:8000/` | `production` flavor → the DigitalOcean URL |
 
-The local `.env` (gitignored, never deployed) controls the testing side;
-Render's dashboard env vars control production independently — changing one
-never affects the other.
+The local `.env` (gitignored, never deployed) controls the staging side —
+see `.env.staging.example` for its documented shape; the old SQLite dev
+config is preserved in `.env.sqlite.backup`. DigitalOcean's dashboard env
+vars control production independently — changing one never affects the
+other. (Moved off Render onto DigitalOcean on 2026-08-04; media storage
+also moved from Cloudflare R2 to DigitalOcean Spaces, though env vars are
+still named `R2_*` for historical reasons.)
+
+Because `DEBUG=False` in staging, remember: static-file edits need
+`manage.py collectstatic` before they show up, and error pages are the real
+500/404 templates, not Django debug pages. Check the runserver console for
+tracebacks instead.
 
 To test from the Android emulator (see `../legacy-link-android/README.md`),
 bind the dev server to all interfaces so the emulator's virtual network can
@@ -214,25 +229,34 @@ custom admin UI exists.
 - Local dev superuser: `stevenakida@gmail.com` (created 2026-07-05). An
   older superuser `disheseka@gmail.com` also exists locally and was left
   untouched.
-- Production (Render) admin accounts are managed separately, via Render's
-  Shell tab running `python manage.py createsuperuser` — not from this repo.
+- Production (DigitalOcean) admin accounts are managed separately, via the
+  App Platform console's Console tab running `python manage.py
+  createsuperuser` — not from this repo.
 
 ## 6. Known limitations / in-progress work
 
 - **RESOLVED (2026-07-08): `CORS_ALLOW_ALL_ORIGINS = True` and
   `ALLOWED_HOSTS` defaulting to `*`** let any website call the JWT API and
   let the app answer to any Host header. Confirmed there's no legitimate
-  cross-origin caller — the Android app is a WebView that loads
-  `legacy-link-main.onrender.com` directly (same-origin), and the only
-  browser-side `fetch()` (`static/js/school-autocomplete.js`) hits a
-  relative, same-origin endpoint. Replaced with
-  `CORS_ALLOWED_ORIGINS`/`ALLOWED_HOSTS` defaulting to
-  `legacy-link-main.onrender.com` (plus `localhost`/`127.0.0.1` for
+  cross-origin caller — the Android app is a WebView that loads the
+  production host directly (same-origin), and the only browser-side
+  `fetch()` (`static/js/school-autocomplete.js`) hits a relative,
+  same-origin endpoint. Replaced with `CORS_ALLOWED_ORIGINS`/`ALLOWED_HOSTS`
+  defaulting to the production host (plus `localhost`/`127.0.0.1` for
   `ALLOWED_HOSTS`), both still overridable via env var if a real
-  cross-origin frontend shows up later. **Still needed:** confirm Render's
-  dashboard doesn't have its own `ALLOWED_HOSTS=*` env var overriding this
-  default in production (dashboard env vars take precedence over the code
-  default, same as `DATABASE_URL` was in the §6 entry below).
+  cross-origin frontend shows up later.
+- **RESOLVED (2026-08-17): stale Render references throughout
+  `config/settings.py`, `.env.example`, and both READMEs**, left over from
+  the 2026-08-04 move to DigitalOcean. `ALLOWED_HOSTS`/`CORS_ALLOWED_ORIGINS`
+  defaults now point at `legacylink-app-qs7gl.ondigitalocean.app`.
+  `CSRF_TRUSTED_ORIGINS` was previously a hardcoded list with **no env-var
+  override** (unlike the other two) — fixed to read from a `CSRF_TRUSTED_ORIGINS`
+  env var, same pattern as the others, defaulting to the DigitalOcean host.
+  **Still needed:** confirm DigitalOcean's app console doesn't have its own
+  `ALLOWED_HOSTS=*`-style override (dashboard env vars take precedence over
+  code defaults, same as `DATABASE_URL` was in the entry below) — no
+  DigitalOcean API/dashboard access has been set up from this environment to
+  verify directly.
 - **RESOLVED (2026-07-04): Render's `DATABASE_URL` was set to
   `sqlite:///db.sqlite3` instead of the Postgres instance**, wiping all users,
   connections, and seeded schools on every deploy. User swapped the env var
