@@ -252,11 +252,12 @@ custom admin UI exists.
   `CSRF_TRUSTED_ORIGINS` was previously a hardcoded list with **no env-var
   override** (unlike the other two) — fixed to read from a `CSRF_TRUSTED_ORIGINS`
   env var, same pattern as the others, defaulting to the DigitalOcean host.
-  **Still needed:** confirm DigitalOcean's app console doesn't have its own
-  `ALLOWED_HOSTS=*`-style override (dashboard env vars take precedence over
-  code defaults, same as `DATABASE_URL` was in the entry below) — no
-  DigitalOcean API/dashboard access has been set up from this environment to
-  verify directly.
+  Follow-up same day: DigitalOcean's dashboard DID have its own
+  `ALLOWED_HOSTS=*` env var overriding the code default (confirmed via the
+  DO API) — user changed it to `legacylink-app-qs7gl.ondigitalocean.app` in
+  the dashboard. Verified live: forged `Host:` headers now get 403, the real
+  domain serves 200, and the login form POST passes CSRF (reaches the auth
+  backend) after both fixes deployed.
 - **RESOLVED (2026-07-04): Render's `DATABASE_URL` was set to
   `sqlite:///db.sqlite3` instead of the Postgres instance**, wiping all users,
   connections, and seeded schools on every deploy. User swapped the env var
