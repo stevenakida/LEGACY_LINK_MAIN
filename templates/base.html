@@ -11,10 +11,31 @@
         rel="stylesheet"
     >
     <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+    {# Icon FOUC guard: Material Symbols render as raw ligature text (e.g.
+       "groups") until the font file arrives, so keep icons invisible until
+       fonts are ready. The splash covers first load; this covers every
+       in-app navigation after it. #}
+    <style>
+        .material-symbols-rounded { opacity: 0; transition: opacity 0.15s ease; }
+        html.lla-fonts .material-symbols-rounded { opacity: 1; }
+    </style>
+    <noscript><style>.material-symbols-rounded { opacity: 1; }</style></noscript>
+    <script>
+        (function () {
+            function show() { document.documentElement.classList.add('lla-fonts'); }
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(show, show);
+                setTimeout(show, 2500); /* never leave icons hidden */
+            } else {
+                show();
+            }
+        })();
+    </script>
     <title>{% block title %}LegacyLink Africa{% endblock %}</title>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
+    {% include 'partials/splash.html' %}
     {% block header %}{% endblock %}
 
     <main class="main-content">

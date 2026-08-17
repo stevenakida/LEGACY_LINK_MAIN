@@ -328,6 +328,11 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-08-17: Branded launch splash (`partials/splash.html`, included by
+  `base.html` + `login.html`): animated logo, welcome note, loading dots
+  shown once per session while fonts load, then fades out; plus an icon
+  FOUC guard in `base.html` hiding Material Symbols ligature text until the
+  font is ready. Kills the "crude" half-styled flash on app open.
 - 2026-07-12: Major redesign driven by a user-supplied interactive mockup +
   product roadmap doc. Introduced a real shared app shell (`base.html` +
   `static/css/theme.css` + `partials/bottom_nav.html`) replacing 5 pages'
