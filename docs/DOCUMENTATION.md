@@ -235,6 +235,47 @@ custom admin UI exists.
 
 ## 6. Known limitations / in-progress work
 
+- **RESOLVED (2026-08-18, second bug in the same flow): after the CORS fix
+  below, uploads still failed — real code bug this time.**
+  `S3MediaBackend.generate_upload_url` (`media_assets/storage.py`) included
+  `'ACL': 'private'` in the presigned `put_object` params. boto3 turns that
+  into a required *signed header* (`X-Amz-SignedHeaders` includes
+  `x-amz-acl`) — meaning the actual PUT request must carry an
+  `x-amz-acl: private` header or DO Spaces rejects it. Neither browser call
+  site (`static/js/chat.js` nor `static/js/composer.js`) sends that header
+  (`fetch(url, {method: 'PUT', body: file})`, no `headers`), so every real
+  upload got `400 InvalidArgument: Missing one or more required signed
+  header`. Never caught locally because `LocalMediaBackend` (the no-bucket
+  dev/test fallback) doesn't do real S3 signing at all. Fixed by dropping
+  `ACL` from the presigned params entirely rather than patching header
+  lists in every current/future JS call site — verified the bucket's
+  default object ACL is already private-only-owner (anonymous GET on a
+  no-ACL test upload returned `403`), so this doesn't change the privacy
+  posture. Confirmed end-to-end with a real presigned PUT mirroring the
+  exact browser request (no extra headers) → `200`. `media_assets.tests.test_upload_flow`
+  (5 tests) still pass.
+- **RESOLVED (2026-08-18): production chat image uploads failed with
+  browser "Failed to fetch"** — not a Django bug. The composer/chat upload
+  flow (`static/js/chat.js`, `media_assets/storage.py:S3MediaBackend.generate_upload_url`)
+  does a direct-to-storage presigned `PUT` from the browser straight to the
+  DigitalOcean Spaces bucket (`legacy-link-production-media.fra1.digitaloceanspaces.com`),
+  bypassing the Django server entirely for the actual file bytes. That's a
+  cross-origin `PUT` from `legacylink-app-qs7gl.ondigitalocean.app`, which
+  always triggers a CORS preflight — and the bucket had no CORS rule at all,
+  so the preflight had no `Access-Control-Allow-Origin` and the browser
+  blocked it. **This is a Spaces bucket setting, not the Django
+  `CORS_ALLOWED_ORIGINS` setting** — that only governs the app's own API,
+  it has no effect on the object-storage bucket. Fixed by applying a bucket
+  CORS rule (`AllowedOrigins: [legacylink-app-qs7gl.ondigitalocean.app]`,
+  `AllowedMethods: [GET, HEAD, PUT]`, `AllowedHeaders: [*]`) via
+  `put_bucket_cors` (boto3, using a full-access Spaces key — the app's own
+  `R2_ACCESS_KEY_ID` is a scoped key without bucket-admin permissions, confirmed
+  by `AccessDenied` on `get_bucket_cors`/`get_bucket_acl` with it). Verified
+  live: an `OPTIONS` preflight against the bucket now returns
+  `access-control-allow-origin` matching the app. No code change and no
+  deploy needed — bucket CORS applies immediately. If the bucket is ever
+  recreated or a new Spaces bucket is provisioned, this rule must be
+  reapplied.
 - **RESOLVED (2026-07-08): `CORS_ALLOW_ALL_ORIGINS = True` and
   `ALLOWED_HOSTS` defaulting to `*`** let any website call the JWT API and
   let the app answer to any Host header. Confirmed there's no legitimate

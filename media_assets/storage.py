@@ -53,13 +53,19 @@ class S3MediaBackend:
         )
 
     def generate_upload_url(self, key: str, content_type: str, ttl_seconds: int) -> str:
+        # Deliberately no 'ACL' param: including it makes boto3 require an
+        # `x-amz-acl` header on the actual PUT (SignedHeaders), which the
+        # browser-side fetch() callers (chat.js/composer.js) don't send,
+        # causing DO Spaces to reject the upload with 400 InvalidArgument
+        # "Missing one or more required signed header". The bucket's default
+        # object ACL is already private-only-owner (verified: anonymous GET
+        # on a no-ACL upload returns 403), so this doesn't change privacy.
         return self._client.generate_presigned_url(
             'put_object',
             Params={
                 'Bucket': self._bucket,
                 'Key': key,
                 'ContentType': content_type,
-                'ACL': 'private',
             },
             ExpiresIn=ttl_seconds,
         )
