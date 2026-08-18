@@ -36,6 +36,25 @@ CSRF_TRUSTED_ORIGINS = config(
 ).split(",")
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# HTTPS enforcement / secure cookies — all default OFF so local dev and the
+# local staging replica (both plain HTTP on 127.0.0.1) keep working without
+# any .env changes. Production (DigitalOcean, HTTPS-terminated at the edge,
+# already covered by SECURE_PROXY_SSL_HEADER above) needs these explicitly
+# turned on via its own env vars — see docs/DOCUMENTATION.md deploy notes.
+# Not enabling SECURE_SSL_REDIRECT/cookie-secure by default here is the
+# whole point: flipping them on for a plain-HTTP context would make every
+# session/CSRF cookie silently stop being sent, breaking login outright.
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default='False') == 'True'
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default='False') == 'True'
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default='False') == 'True'
+# 0 = HSTS disabled (Django only sends the header when this is nonzero).
+# Start small in production (e.g. 3600) and ramp up over time once confirmed
+# working — HSTS is sticky in the browser and hard to walk back quickly if
+# misconfigured, unlike the other settings here.
+SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=0, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default='False') == 'True'
+SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default='False') == 'True'
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -65,6 +84,7 @@ INSTALLED_APPS = [
     'opportunities',
     'messaging',
     'media_assets',
+    'posts',
 ]
 
 SITE_ID = 1
@@ -74,6 +94,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -204,9 +225,11 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
+                'django.template.context_processors.i18n',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'messaging.context_processors.unread_message_count',
+                'messaging.context_processors.total_unread_messages',
             ],
         },
     },
@@ -252,6 +275,13 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
+
+LANGUAGES = [
+    ('en', 'English'),
+    ('sw', 'Kiswahili'),
+]
+
+LOCALE_PATHS = [BASE_DIR / 'locale']
 
 TIME_ZONE = 'Africa/Dar_es_Salaam'
 

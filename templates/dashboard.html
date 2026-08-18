@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static i18n %}
 {% block title %}Home - LegacyLink Africa{% endblock %}
 
 {% block header %}
+{% include 'partials/topnav.html' %}
 <div class="header">
     <div class="greeting-row">
         <div class="greeting-avatar">
@@ -15,12 +16,12 @@
         <div class="greeting-copy">
             <div class="hi">{{ greeting }}, {{ first_name }} 👋</div>
             <div class="sub">
-                {% if user.secondary_school %}{{ user.secondary_school.name }} · Class of {{ user.secondary_completion_year|default:'—' }}{% else %}Welcome back to your network{% endif %}
+                {% if user.secondary_school %}{{ user.secondary_school.name }} · Class of {{ user.secondary_completion_year|default:'—' }}{% else %}{% trans "Welcome back to your network" %}{% endif %}
             </div>
         </div>
     </div>
-    <a href="/connections/" class="icon-btn" aria-label="Notifications">
-        <span class="material-symbols-rounded">notifications</span>
+    <a href="/connections/?tab=pending" class="icon-btn" aria-label="{% trans 'Pending connection requests' %}">
+        <span class="material-symbols-rounded">person_add</span>
         {% if pending_count > 0 %}<span class="badge-dot"></span>{% endif %}
     </a>
 </div>
@@ -33,8 +34,8 @@
             <div class="score-ring-inner">{{ identity_score }}%</div>
         </div>
         <div class="score-copy">
-            <strong>Identity Score</strong>
-            <p>Complete your profile to increase your visibility and unlock more opportunities.</p>
+            <strong>{% trans "Identity Score" %}</strong>
+            <p>{% trans "Complete your profile to increase your visibility and unlock more opportunities." %}</p>
             {% if identity_score_suggestions %}
                 <a href="/profile/" class="chip-action">+ {{ identity_score_suggestions.0.label }} · +{{ identity_score_suggestions.0.points }}%</a>
             {% endif %}
@@ -46,28 +47,112 @@
     <a href="/connections/" class="stats-card teal">
         <span class="material-symbols-rounded">groups</span>
         <strong>{{ connections_count }}</strong>
-        <span>Connections</span>
+        <span>{% trans "Connections" %}</span>
     </a>
     <a href="/connections/?tab=pending" class="stats-card gold">
         <span class="material-symbols-rounded">person_add</span>
         <strong>{{ pending_count }}</strong>
-        <span>Pending</span>
+        <span>{% trans "Pending" %}</span>
     </a>
     <a href="/opportunities/" class="stats-card teal">
         <span class="material-symbols-rounded">work</span>
         <strong>{{ opportunities_count|default:0 }}</strong>
-        <span>Opportunities</span>
+        <span>{% trans "Opportunities" %}</span>
     </a>
     <a href="/opportunities/?type=event" class="stats-card gold">
         <span class="material-symbols-rounded">event</span>
         <strong>{{ events_count|default:0 }}</strong>
-        <span>Events</span>
+        <span>{% trans "Events" %}</span>
     </a>
 </section>
 
 <div class="section-heading">
-    <h2>Suggested for you</h2>
-    <a href="/connections/?tab=discover">See all</a>
+    <h2>{% trans "Home feed" %}</h2>
+</div>
+
+<section class="feed-composer card" id="feed-composer">
+    <div class="feed-composer-row">
+        <div class="greeting-avatar feed-composer-avatar">
+            {% if user.avatar %}
+                <img src="{{ user.avatar.url }}" alt="{{ user.full_name }}">
+            {% else %}
+                <span>{{ user.full_name|default:user.phone_or_email|first }}</span>
+            {% endif %}
+        </div>
+        <textarea id="post-body-input" class="feed-composer-input" rows="2" maxlength="2000"
+            placeholder="{% trans 'Share news with your cohort…' %}"></textarea>
+    </div>
+    <div class="feed-composer-photo" id="post-photo-preview" hidden>
+        <img id="post-photo-preview-img" alt="">
+        <button type="button" class="feed-composer-photo-remove" id="post-photo-remove" aria-label="{% trans 'Remove photo' %}">✕</button>
+    </div>
+
+    <div class="tab-switch feed-audience-switch" id="post-audience-switch">
+        <button type="button" class="tab-pill on" data-audience="connections">{% trans "Connections" %}</button>
+        <button type="button" class="tab-pill" data-audience="cohort">{% trans "Cohort" %}</button>
+        <button type="button" class="tab-pill" data-audience="public">{% trans "Public" %}</button>
+    </div>
+    <p class="feed-composer-hint" id="post-audience-hint" hidden>{% trans "Public posts are reviewed before everyone can see them." %}</p>
+
+    <p class="feed-composer-error" id="post-error" hidden></p>
+    <div class="feed-composer-actions">
+        <button type="button" class="btn btn-line feed-composer-photo-btn" id="post-photo-btn">
+            <span class="material-symbols-rounded">add_photo_alternate</span>
+            {% trans "Add photo" %}
+        </button>
+        <input type="file" id="post-photo-input" accept="image/jpeg,image/png,image/webp" hidden>
+        <button type="button" class="btn btn-gold" id="post-submit-btn">{% trans "Post" %}</button>
+    </div>
+</section>
+
+<div class="feed-list" id="feed-list">
+    {% for post in feed_posts %}
+        <article class="card feed-post">
+            <div class="feed-post-head">
+                <div class="greeting-avatar">
+                    {% if post.author.avatar %}
+                        <img src="{{ post.author.avatar.url }}" alt="{{ post.author.full_name }}">
+                    {% else %}
+                        <span>{{ post.author.full_name|first }}</span>
+                    {% endif %}
+                </div>
+                <div class="feed-post-who">
+                    <strong>{{ post.author.full_name }}</strong>
+                    {% if post.author.cohort_label %}<span class="feed-post-tag">{{ post.author.cohort_label }}</span>{% endif %}
+                    <span class="feed-post-time">{{ post.created_at|timesince }} {% trans "ago" %}</span>
+                </div>
+                {% if post.audience == 'cohort' %}
+                    <span class="feed-post-audience-badge" title="{% trans 'Cohort' %}">
+                        <span class="material-symbols-rounded">school</span>
+                    </span>
+                {% elif post.audience == 'public' %}
+                    <span class="feed-post-audience-badge" title="{% trans 'Public' %}">
+                        <span class="material-symbols-rounded">public</span>
+                    </span>
+                {% endif %}
+            </div>
+            {% if post.approval_status == 'pending' %}
+                <p class="feed-post-pending">{% trans "Pending review — only you can see this until it's approved." %}</p>
+            {% elif post.approval_status == 'rejected' %}
+                <p class="feed-post-pending is-rejected">{% trans "Not approved for Public — only you can see this." %}</p>
+            {% endif %}
+            {% if post.body %}<p class="feed-post-body">{{ post.body }}</p>{% endif %}
+            {% if post.media_asset_id %}
+                <img class="feed-post-image" src="{% url 'post_image' post.id %}" alt="" loading="lazy">
+            {% endif %}
+        </article>
+    {% empty %}
+        <div class="empty-state">
+            <div class="ico">📰</div>
+            <div class="t">{% trans "No posts yet" %}</div>
+            <div class="s">{% trans "Be the first to share news with your cohort." %}</div>
+        </div>
+    {% endfor %}
+</div>
+
+<div class="section-heading">
+    <h2>{% trans "Suggested for you" %}</h2>
+    <a href="/connections/?tab=discover">{% trans "See all" %}</a>
 </div>
 {% if cohort_users %}
     <div class="suggested-scroller">
@@ -82,39 +167,40 @@
                 </div>
                 <strong>{{ person.full_name }}</strong>
                 <p>
+                    {% trans "School" as school_label %}
                     {% if user.secondary_school and person.secondary_school == user.secondary_school and person.secondary_completion_year == user.secondary_completion_year %}
                         {{ person.secondary_school.name }} · {{ person.secondary_completion_year }}
                     {% elif user.high_school and person.high_school == user.high_school and person.high_school_completion_year == user.high_school_completion_year %}
-                        {{ person.high_school.name }} (A-Level) · {{ person.high_school_completion_year }}
+                        {{ person.high_school.name }} ({% trans "A-Level" %}) · {{ person.high_school_completion_year }}
                     {% elif user.tertiary_school and person.tertiary_school == user.tertiary_school and person.tertiary_completion_year == user.tertiary_completion_year %}
                         {{ person.tertiary_school.name }} · {{ person.tertiary_completion_year }}
                     {% elif user.primary_school and person.primary_school == user.primary_school and person.primary_completion_year == user.primary_completion_year %}
-                        {{ person.primary_school.name }} (Primary) · {{ person.primary_completion_year }}
+                        {{ person.primary_school.name }} ({% trans "Primary" %}) · {{ person.primary_completion_year }}
                     {% else %}
-                        {{ person.secondary_school.name|default:'School' }}{% if person.secondary_completion_year %} · {{ person.secondary_completion_year }}{% endif %}
+                        {{ person.secondary_school.name|default:school_label }}{% if person.secondary_completion_year %} · {{ person.secondary_completion_year }}{% endif %}
                     {% endif %}
                 </p>
                 {% if person.connection_status == 'accepted' %}
-                    <span class="suggested-connect is-disabled">Connected</span>
+                    <span class="suggested-connect is-disabled">{% trans "Connected" %}</span>
                 {% elif person.connection_status == 'pending' %}
-                    <span class="suggested-connect is-disabled">Pending</span>
+                    <span class="suggested-connect is-disabled">{% trans "Pending" %}</span>
                 {% else %}
                     <form method="post" action="{% url 'send_connection_web' person.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="next" value="{% url 'dashboard' %}">
-                        <button type="submit" class="suggested-connect">Connect</button>
+                        <button type="submit" class="suggested-connect">{% trans "Connect" %}</button>
                     </form>
                 {% endif %}
             </div>
         {% endfor %}
     </div>
 {% else %}
-    <p class="suggested-empty">Complete your school and graduation year to see classmate suggestions.</p>
+    <p class="suggested-empty">{% trans "Complete your school and graduation year to see classmate suggestions." %}</p>
 {% endif %}
 
 <div class="section-heading">
-    <h2>Upcoming events</h2>
-    <a href="/opportunities/?type=event">See all</a>
+    <h2>{% trans "Upcoming events" %}</h2>
+    <a href="/opportunities/?type=event">{% trans "See all" %}</a>
 </div>
 {% if upcoming_events %}
     {% for event in upcoming_events %}
@@ -123,10 +209,11 @@
                 <span class="material-symbols-rounded">event</span>
             </div>
             <div class="info-card-body">
+                {% trans "Online" as online_label %}
                 <strong>{{ event.title }}</strong>
-                <div class="meta">{{ event.location|default:'Online' }}{% if event.event_date %} · {{ event.event_date|date:'d M' }}{% endif %}</div>
+                <div class="meta">{{ event.location|default:online_label }}{% if event.event_date %} · {{ event.event_date|date:'d M' }}{% endif %}</div>
             </div>
-            <a href="/opportunities/?type=event" class="btn btn-gold btn-small">Details</a>
+            <a href="/opportunities/?type=event" class="btn btn-gold btn-small">{% trans "Details" %}</a>
         </div>
     {% endfor %}
 {% else %}
@@ -135,12 +222,16 @@
             <span class="material-symbols-rounded">event</span>
         </div>
         <div class="info-card-body">
-            <strong>No events yet</strong>
+            <strong>{% trans "No events yet" %}</strong>
             <div class="status-line">
                 <span class="material-symbols-rounded" style="font-size:1rem;">schedule</span>
-                Check back soon
+                {% trans "Check back soon" %}
             </div>
         </div>
     </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_body %}
+<script src="{% static 'js/composer.js' %}" defer></script>
 {% endblock %}

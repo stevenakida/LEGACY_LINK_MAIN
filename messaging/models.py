@@ -1,5 +1,6 @@
 import uuid
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
 
@@ -57,11 +58,28 @@ class Message(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_messages')
-    body = models.TextField(max_length=4000)
+    # blank=True: a message can be image-only (see MessageAttachment) — the
+    # "text or attachment" requirement is enforced in config.views.messages_send,
+    # not here, same split posts.models.Post uses for body/media_asset.
+    body = models.TextField(max_length=4000, blank=True)
     sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
     # Soft delete so moderation actions are auditable — render as "message
     # removed" rather than losing the row.
     is_deleted = models.BooleanField(default=False)
+    # Quoted reply — must belong to the same conversation, enforced in
+    # config.views.messages_send, not here (same split as everything else
+    # authorization-shaped in this app).
+    reply_to = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies'
+    )
+    # Set when this message was created by config.views.messages_forward
+    # from another message — drives the "Forwarded" label. Points at the
+    # original message forwarded from, not a chain (forwarding a forward
+    # still points at the immediate source, matching WhatsApp's own
+    # behavior of not chaining "forwarded from a forward" labels).
+    forwarded_from = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='forwards'
+    )
 
     class Meta:
         ordering = ['sent_at']
@@ -69,3 +87,48 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.sender.full_name}: {self.body[:40]}"
+
+    @property
+    def has_attachment(self):
+        """Safe to call even when `attachment` wasn't select_related — just
+        costs a query in that case, same tradeoff as any reverse OneToOne
+        access."""
+        try:
+            return self.attachment is not None
+        except ObjectDoesNotExist:
+            return False
+
+
+class MessageAttachment(models.Model):
+    """One image per message (pilot constraint), reusing the same private
+    media_assets pipeline the posts composer uses. Named/shaped per the
+    Phase 0 media/posts audit's plan for Phase 2. Authorization for viewing
+    the image lives in config.views.message_attachment_image — "conversation
+    participant", the same check messages_thread/poll/earlier already use —
+    per MediaAsset's own documented owner-only-until-attached contract."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message = models.OneToOneField(Message, on_delete=models.CASCADE, related_name='attachment')
+    media_asset = models.ForeignKey(
+        'media_assets.MediaAsset', on_delete=models.SET_NULL, null=True, related_name='+'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Attachment on message {self.message_id}"
+
+
+class MessageHiddenFor(models.Model):
+    """Per-user 'delete for me' — deliberately separate from
+    Message.is_deleted, which is a global moderation flag ("message
+    removed" for everyone). Hiding a message here only affects what this
+    one user sees; every other participant's view is untouched. Views
+    that list messages (messages_thread/poll/earlier, and messages_inbox's
+    last-message/unread-count) exclude rows referenced here for the
+    requesting user."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='hidden_for')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='hidden_messages')
+    hidden_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('message', 'user')

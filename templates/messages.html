@@ -27,7 +27,11 @@
                         {{ row.other.full_name }}
                         {% if row.last_message %}<span class="time">{{ row.last_message.sent_at|date:'H:i' }}</span>{% endif %}
                     </div>
-                    <div class="prev">{% if row.last_message %}{{ row.last_message.body|truncatechars:60 }}{% else %}Say hello 👋{% endif %}</div>
+                    <div class="prev">
+                        {% if row.last_message.body %}{{ row.last_message.body|truncatechars:60 }}
+                        {% elif row.last_message.has_attachment %}📷 Photo
+                        {% else %}Say hello 👋{% endif %}
+                    </div>
                 </div>
                 {% if row.unread_count %}<div class="unread-badge">{{ row.unread_count }}</div>{% endif %}
             </a>

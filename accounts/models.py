@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 import re
@@ -52,6 +53,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     full_name = models.CharField(max_length=200)
     bio = models.TextField(blank=True, max_length=300)
     avatar = models.FileField(upload_to='avatars/', blank=True, null=True)
+
+    # Persists the EN/SW toggle across sessions/devices — set from the top
+    # nav language switch (see config.views.set_language_web).
+    preferred_language = models.CharField(
+        max_length=5, choices=settings.LANGUAGES, default='en'
+    )
 
     # Separate contact fields so we can capture both a phone number and an
     # email regardless of which one was used to register (phone_or_email is

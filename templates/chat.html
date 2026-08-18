@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}{{ other.full_name }} - LegacyLink Africa{% endblock %}
 
 {% block extra_head %}
@@ -25,10 +26,21 @@
 
 {% block content %}
 <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
-<div class="chat-body" id="chat-body" data-conversation-id="{{ conversation.id }}" data-has-earlier="{{ has_earlier|yesno:'1,0' }}">
+{{ other_conversations|json_script:"other-conversations-data" }}
+<div class="chat-body" id="chat-body" data-conversation-id="{{ conversation.id }}" data-has-earlier="{{ has_earlier|yesno:'1,0' }}" data-other-name="{{ other.full_name }}">
     <p class="suggested-empty" id="chat-load-earlier" style="{% if not has_earlier %}display:none;{% endif %}cursor:pointer;text-align:center;">Load earlier messages</p>
     {% for message in thread_messages %}
-        <div class="bubble {% if message.sender_id == user.id %}me{% else %}them{% endif %}" data-message-id="{{ message.id }}">
+        <div class="bubble {% if message.sender_id == user.id %}me{% else %}them{% endif %}"
+             data-message-id="{{ message.id }}" data-body="{{ message.body }}"
+             data-has-image="{{ message.has_attachment|yesno:'1,0' }}">
+            {% if message.forwarded_from_id %}<div class="bubble-forwarded-label">➦ Forwarded</div>{% endif %}
+            {% if message.reply_to %}
+                <div class="bubble-reply-quote">
+                    <strong>{{ message.reply_to.sender.full_name }}</strong>
+                    <span>{% if message.reply_to.body %}{{ message.reply_to.body|truncatechars:60 }}{% else %}📷 Photo{% endif %}</span>
+                </div>
+            {% endif %}
+            {% if message.has_attachment %}<img class="bubble-img" src="{% url 'message_attachment_image' message.id %}" alt="" loading="lazy">{% endif %}
             {{ message.body }}<span class="tm">{{ message.sent_at|date:'H:i' }}</span>
         </div>
     {% empty %}
@@ -39,99 +51,46 @@
 {% endblock %}
 
 {% block extra_body %}
-<div class="chat-input-row">
-    <input type="text" id="chat-text" placeholder="Type a message…" autocomplete="off">
-    <button type="button" id="chat-send">➤</button>
+<!-- Deliberately outside <main class="main-content"> — that element has
+     its own position:relative + z-index:1, which traps any z-index used
+     inside it below sibling fixed elements (the composer, bottom nav)
+     that live outside it. These overlays need to be true page-level
+     siblings of those to actually render on top and stay clickable. -->
+<div id="chat-lightbox" class="chat-lightbox" hidden>
+    <button type="button" id="chat-lightbox-close" class="chat-lightbox-close" aria-label="Close">✕</button>
+    <img id="chat-lightbox-img" src="" alt="">
+    <a id="chat-lightbox-download" href="#" class="btn btn-gold chat-lightbox-download">Download</a>
 </div>
-<script>
-(function () {
-    var body = document.getElementById('chat-body');
-    var loadEarlierEl = document.getElementById('chat-load-earlier');
-    var conversationId = body.dataset.conversationId;
-    var hasEarlier = body.dataset.hasEarlier === '1';
-    var csrfToken = document.getElementById('csrf-token').value;
-    var input = document.getElementById('chat-text');
-    var sendBtn = document.getElementById('chat-send');
-    var loadingEarlier = false;
 
-    function lastMessageId() {
-        var bubbles = body.querySelectorAll('.bubble');
-        return bubbles.length ? bubbles[bubbles.length - 1].dataset.messageId : '';
-    }
-    function firstMessageId() {
-        var bubble = body.querySelector('.bubble');
-        return bubble ? bubble.dataset.messageId : '';
-    }
+<div id="chat-forward-modal" class="forward-modal" hidden>
+    <div class="forward-modal-inner">
+        <h3>Forward to…</h3>
+        <div id="forward-modal-list" class="forward-modal-list"></div>
+        <button type="button" id="forward-modal-cancel" class="btn btn-line btn-full">Cancel</button>
+    </div>
+</div>
 
-    function scrollToBottom() { window.scrollTo(0, document.body.scrollHeight); }
-    scrollToBottom();
-
-    function buildBubble(msg) {
-        var el = document.createElement('div');
-        el.className = 'bubble ' + (msg.is_me ? 'me' : 'them');
-        el.dataset.messageId = msg.id;
-        el.textContent = msg.body;
-        var tm = document.createElement('span');
-        tm.className = 'tm';
-        tm.textContent = msg.sent_at;
-        el.appendChild(tm);
-        return el;
-    }
-
-    function appendMessage(msg) {
-        body.appendChild(buildBubble(msg));
-        scrollToBottom();
-    }
-
-    function loadEarlier() {
-        if (loadingEarlier || !hasEarlier) return;
-        loadingEarlier = true;
-        var before = firstMessageId();
-        fetch('/messages/' + conversationId + '/earlier/?before=' + encodeURIComponent(before))
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                var prevHeight = document.body.scrollHeight;
-                (data.messages || []).slice().reverse().forEach(function (msg) {
-                    body.insertBefore(buildBubble(msg), loadEarlierEl.nextSibling);
-                });
-                hasEarlier = !!data.has_earlier;
-                loadEarlierEl.style.display = hasEarlier ? '' : 'none';
-                window.scrollTo(0, document.body.scrollHeight - prevHeight);
-                loadingEarlier = false;
-            })
-            .catch(function () { loadingEarlier = false; });
-    }
-    loadEarlierEl.addEventListener('click', loadEarlier);
-    window.addEventListener('scroll', function () {
-        if (hasEarlier && window.scrollY < 40) loadEarlier();
-    });
-
-    function poll() {
-        var after = lastMessageId();
-        fetch('/messages/' + conversationId + '/poll/?after=' + encodeURIComponent(after))
-            .then(function (r) { return r.json(); })
-            .then(function (data) { (data.messages || []).forEach(appendMessage); });
-    }
-
-    function send() {
-        var text = input.value.trim();
-        if (!text) return;
-        input.value = '';
-        var form = new FormData();
-        form.append('body', text);
-        fetch('/messages/' + conversationId + '/send/', {
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken },
-            body: form,
-        })
-            .then(function (r) { return r.json(); })
-            .then(function (msg) { if (!msg.error) appendMessage(msg); });
-    }
-
-    sendBtn.addEventListener('click', send);
-    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
-
-    setInterval(poll, 4000);
-})();
-</script>
+<div class="chat-composer-fixed">
+    <div class="reply-preview" id="chat-reply-preview" hidden>
+        <div class="reply-preview-text">
+            <strong id="chat-reply-sender"></strong>
+            <span id="chat-reply-snippet"></span>
+        </div>
+        <button type="button" id="chat-reply-cancel" aria-label="Cancel reply">✕</button>
+    </div>
+    <div class="chat-attach-preview" id="chat-attach-preview" hidden>
+        <img id="chat-attach-preview-img" alt="">
+        <button type="button" id="chat-attach-remove" aria-label="Remove photo">✕</button>
+    </div>
+    <p class="chat-attach-error" id="chat-attach-error" hidden></p>
+    <div class="chat-input-row">
+        <button type="button" id="chat-attach-btn" aria-label="Attach photo">
+            <span class="material-symbols-rounded">add_photo_alternate</span>
+        </button>
+        <input type="file" id="chat-attach-input" accept="image/jpeg,image/png,image/webp" hidden>
+        <input type="text" id="chat-text" placeholder="Type a message…" autocomplete="off">
+        <button type="button" id="chat-send">➤</button>
+    </div>
+</div>
+<script src="{% static 'js/chat.js' %}" defer></script>
 {% endblock %}

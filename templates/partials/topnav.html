@@ -1,0 +1,28 @@
+{% load static i18n %}
+<div class="topnav">
+    <div class="topnav-logo">
+        <img src="{% static 'images/LegacyLink_Africa_logo_transparent.png' %}" alt="LegacyLink Africa">
+    </div>
+    <div class="topnav-actions">
+        <button type="button" class="icon-btn" id="theme-toggle-btn" aria-label="{% trans 'Toggle dark/light theme' %}">
+            <span class="material-symbols-rounded" id="theme-toggle-icon">dark_mode</span>
+        </button>
+        <button type="button" class="topnav-lang-btn" id="lang-toggle-btn" aria-label="{% trans 'Switch language' %}">
+            <span id="lang-toggle-label">{% if LANGUAGE_CODE == 'sw' %}SW{% else %}EN{% endif %}</span>
+        </button>
+        <a href="{% url 'messages_inbox' %}" class="icon-btn" aria-label="{% trans 'Notifications' %}">
+            <span class="material-symbols-rounded">notifications</span>
+            {% if total_unread_messages %}
+                <span class="badge-count">{% if total_unread_messages > 99 %}99+{% else %}{{ total_unread_messages }}{% endif %}</span>
+            {% endif %}
+        </a>
+        <a href="{% url 'profile' %}" class="topnav-avatar" aria-label="{% trans 'Your profile' %}">
+            {% if user.avatar %}
+                <img src="{{ user.avatar.url }}" alt="{{ user.full_name|default:user.phone_or_email }}">
+            {% else %}
+                <span>{{ user.full_name|default:user.phone_or_email|first }}</span>
+            {% endif %}
+        </a>
+    </div>
+</div>
+<script src="{% static 'js/topnav.js' %}" defer></script>

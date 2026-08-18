@@ -5,8 +5,10 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import permissions, status
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from . import services
 from .exceptions import MediaValidationError
@@ -16,11 +18,22 @@ from .serializers import InitiateUploadSerializer, MediaAssetSerializer
 from .storage import LocalMediaBackend, get_media_backend
 
 
+# DEFAULT_AUTHENTICATION_CLASSES (see settings.REST_FRAMEWORK) is JWT-only,
+# for the mobile app / pure API clients. The web app (posts composer) is
+# session-authenticated instead — DRF re-authenticates its own Request
+# independent of Django's AuthenticationMiddleware, so without this the
+# session-authenticated browser would look anonymous to these views and get
+# 401s. SessionAuthentication enforces its own CSRF check on unsafe methods,
+# satisfied by the X-CSRFToken header the web JS already sends.
+_WEB_AND_JWT_AUTH = [SessionAuthentication, JWTAuthentication]
+
+
 class InitiateUploadView(APIView):
     """POST /api/media/init/ — step 1-4 of the upload flow: verifies the
     authenticated user, feature flag and declared type/size, creates a
     pending MediaAsset, and returns a short-lived upload URL for a
     quarantine storage key."""
+    authentication_classes = _WEB_AND_JWT_AUTH
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -49,6 +62,7 @@ class InitiateUploadView(APIView):
 
 
 class _OwnedMediaMixin:
+    authentication_classes = _WEB_AND_JWT_AUTH
     permission_classes = [permissions.IsAuthenticated, IsMediaOwner]
 
     def get_asset(self, request, media_id):

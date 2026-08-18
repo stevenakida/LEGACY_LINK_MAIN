@@ -4,27 +4,30 @@
 
 {% block extra_head %}
 <style>
-    .form-card { background: rgba(17, 24, 39, 0.8); border: 1px solid var(--border); border-radius: 20px; padding: 1.5rem; }
+    .form-card { background: var(--card-soft); border: 1px solid var(--border); border-radius: 20px; padding: 1.5rem; }
     form { display: flex; flex-direction: column; }
     label { color: var(--gold); margin-top: 1.25rem; margin-bottom: 0.4rem; font-weight: 600; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.6px; }
     input, select, textarea {
-        padding: 0.65rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border);
+        padding: 0.65rem; background: var(--fill-subtle); border: 1px solid var(--border);
         border-radius: 8px; color: var(--ink); font-size: 0.95rem; font-family: inherit;
     }
+    /* Native <select> dropdown option list — the OS/browser renders this
+       outside our CSS theming, so a fixed black-on-white here (not a
+       theme token) is what keeps it from silently going invisible. */
     select option { color: #000; background-color: #fff; }
-    ::placeholder { color: rgba(255, 255, 255, 0.35); font-style: italic; }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); background: rgba(255, 255, 255, 0.1); }
+    ::placeholder { color: var(--placeholder); font-style: italic; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); background: var(--fill-subtle-strong); }
     textarea { resize: vertical; font-family: inherit; }
     .school-autocomplete { position: relative; }
     .school-autocomplete-results {
         display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px;
-        overflow-y: auto; background: #111827; border: 1px solid var(--border); border-radius: 8px; z-index: 30;
+        overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 8px; z-index: 30;
         box-shadow: 0 12px 32px rgba(0,0,0,0.4);
     }
     .school-autocomplete-results.open { display: block; }
     .school-autocomplete-option {
         display: flex; flex-direction: column; width: 100%; text-align: left; padding: 0.6rem 0.8rem;
-        background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--ink); cursor: pointer; font: inherit;
+        background: transparent; border: none; border-bottom: 1px solid var(--separator); color: var(--ink); cursor: pointer; font: inherit;
     }
     .school-autocomplete-option:last-child { border-bottom: none; }
     .school-autocomplete-option:hover, .school-autocomplete-option:focus { background: rgba(232, 166, 60, 0.15); }
@@ -32,7 +35,7 @@
     .school-autocomplete-option .option-meta { color: var(--muted); font-size: 0.78rem; margin-top: 0.1rem; }
     .school-autocomplete-empty { padding: 0.8rem; color: var(--muted); font-size: 0.88rem; }
     .avatar-preview {
-        width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--gold); background: #0B1220;
+        width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--gold); background: var(--avatar-bg);
         display: flex; justify-content: center; align-items: center; overflow: hidden; margin: 0.5rem auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
     .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }

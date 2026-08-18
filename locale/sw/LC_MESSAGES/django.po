@@ -1,0 +1,141 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: LegacyLink Africa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-18 00:00+0300\n"
+"PO-Revision-Date: 2026-08-18 00:00+0300\n"
+"Language: sw\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# First-pass machine/founder-reviewed Swahili copy, scoped to the top nav +
+# Home page this pass (see plan). Worth a native-speaker review pass before
+# this ever reaches production.
+
+msgid "Toggle dark/light theme"
+msgstr "Badilisha mandhari (giza/mwanga)"
+
+msgid "Switch language"
+msgstr "Badilisha lugha"
+
+msgid "Notifications"
+msgstr "Arifa"
+
+msgid "Your profile"
+msgstr "Wasifu wako"
+
+msgid "Home"
+msgstr "Nyumbani"
+
+msgid "Network"
+msgstr "Mtandao"
+
+msgid "Messages"
+msgstr "Ujumbe"
+
+msgid "Opportunities"
+msgstr "Fursa"
+
+msgid "Profile"
+msgstr "Wasifu"
+
+msgid "Welcome back to your network"
+msgstr "Karibu tena kwenye mtandao wako"
+
+msgid "Pending connection requests"
+msgstr "Maombi ya muunganisho yanayosubiri"
+
+msgid "Identity Score"
+msgstr "Alama za Utambulisho"
+
+msgid "Complete your profile to increase your visibility and unlock more opportunities."
+msgstr "Kamilisha wasifu wako ili kuongeza uonekanaji wako na kufungua fursa zaidi."
+
+msgid "Connections"
+msgstr "Miunganisho"
+
+msgid "Pending"
+msgstr "Inasubiri"
+
+msgid "Events"
+msgstr "Matukio"
+
+msgid "Home feed"
+msgstr "Mlisho wa Nyumbani"
+
+msgid "Share news with your cohort…"
+msgstr "Shiriki habari na kikundi chako…"
+
+msgid "Remove photo"
+msgstr "Ondoa picha"
+
+msgid "Add photo"
+msgstr "Ongeza picha"
+
+msgid "Post"
+msgstr "Chapisha"
+
+msgid "ago"
+msgstr "iliyopita"
+
+msgid "No posts yet"
+msgstr "Hakuna machapisho bado"
+
+msgid "Be the first to share news with your cohort."
+msgstr "Kuwa wa kwanza kushiriki habari na kikundi chako."
+
+msgid "Suggested for you"
+msgstr "Yaliyopendekezwa kwako"
+
+msgid "See all"
+msgstr "Ona yote"
+
+msgid "School"
+msgstr "Shule"
+
+msgid "A-Level"
+msgstr "Kidato cha Tano-Sita"
+
+msgid "Primary"
+msgstr "Msingi"
+
+msgid "Connected"
+msgstr "Umeunganishwa"
+
+msgid "Connect"
+msgstr "Unganisha"
+
+msgid "Cohort"
+msgstr "Kikundi"
+
+msgid "Public"
+msgstr "Hadharani"
+
+msgid "Public posts are reviewed before everyone can see them."
+msgstr "Machapisho ya hadharani hukaguliwa kabla kila mtu hajaweza kuyaona."
+
+msgid "Pending review — only you can see this until it's approved."
+msgstr "Inasubiri ukaguzi — ni wewe pekee unaweza kuona hadi ithibitishwe."
+
+msgid "Not approved for Public — only you can see this."
+msgstr "Halikuidhinishwa kwa Hadharani — ni wewe pekee unaweza kuona."
+
+msgid "Complete your school and graduation year to see classmate suggestions."
+msgstr "Kamilisha shule yako na mwaka wa kuhitimu ili kuona mapendekezo ya wanafunzi wenzako."
+
+msgid "Upcoming events"
+msgstr "Matukio yajayo"
+
+msgid "Online"
+msgstr "Mtandaoni"
+
+msgid "Details"
+msgstr "Maelezo"
+
+msgid "No events yet"
+msgstr "Hakuna matukio bado"
+
+msgid "Check back soon"
+msgstr "Rudi tena hivi karibuni"
