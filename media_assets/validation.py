@@ -52,18 +52,23 @@ def validate_and_process_image(input_path: str, processed_output_path: str,
 
             # Bakes any EXIF orientation into the pixels, then dropping EXIF
             # entirely at save time (below) removes the now-redundant tag
-            # along with everything else (GPS, device info, etc).
+            # along with everything else (GPS, device info, etc). Kept even
+            # though the resize/quality drop below was removed — this isn't
+            # about size, it's privacy (GPS/device metadata) and cross-client
+            # correctness (unrotated pixels).
             img = ImageOps.exif_transpose(img)
 
-            if max(img.width, img.height) > settings.MEDIA_ASSETS_IMAGE_MAX_DIMENSION:
-                img.thumbnail(
-                    (settings.MEDIA_ASSETS_IMAGE_MAX_DIMENSION, settings.MEDIA_ASSETS_IMAGE_MAX_DIMENSION),
-                    Image.LANCZOS,
-                )
-
+            # Deliberately no dimension downscale here — the pipeline used to
+            # cap the *stored* image at MEDIA_ASSETS_IMAGE_MAX_DIMENSION,
+            # which visibly degraded quality for anyone viewing/downloading
+            # the full-size image. MEDIA_ASSETS_IMAGE_MAX_PIXELS (the
+            # decompression-bomb guard, set via Image.MAX_IMAGE_PIXELS above)
+            # still bounds how large an input this will ever decode.
             save_kwargs = {'optimize': True}
             if fmt in ('JPEG', 'WEBP'):
-                save_kwargs['quality'] = 85
+                # 95 is visually lossless while still compressing meaningfully
+                # (unlike quality=100, which mostly just inflates file size).
+                save_kwargs['quality'] = 95
             if fmt == 'JPEG' and img.mode not in ('RGB', 'L'):
                 img = img.convert('RGB')
             img.save(processed_output_path, format=fmt, **save_kwargs)

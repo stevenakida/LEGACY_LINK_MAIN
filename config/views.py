@@ -1203,12 +1203,14 @@ def message_attachment_image(request, message_id):
     as posts.views.post_image, except the authorization here is
     "conversation participant" (the same check messages_thread/poll/earlier
     already use) rather than "can see this post". Redirects to a signed
-    preview URL — no Content-Disposition, meant for inline rendering."""
+    preview URL — no Content-Disposition, meant for inline rendering.
+    `?full=1` serves the actual processed image instead of the 320x320
+    thumbnail, for the lightbox/full-screen viewer."""
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Authentication required'}, status=401)
 
     asset = _get_authorized_attachment(request, message_id)
-    url = media_services.get_preview_url(asset)
+    url = media_services.get_preview_url(asset, full=request.GET.get('full') == '1')
     if not url:
         raise Http404('media is not currently available')
     return HttpResponseRedirect(url)

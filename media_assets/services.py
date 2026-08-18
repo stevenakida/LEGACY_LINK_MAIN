@@ -263,9 +263,14 @@ def get_download_url(asset: MediaAsset):
     )
 
 
-def get_preview_url(asset: MediaAsset):
+def get_preview_url(asset: MediaAsset, full: bool = False):
+    """`full=True` serves the actual processed image/video instead of the
+    320x320 thumbnail — used by lightbox/full-screen viewers. Still no
+    Content-Disposition (inline rendering), unlike get_download_url."""
     if not asset.is_downloadable:
         return None
     backend = get_media_backend()
+    if full:
+        return backend.generate_download_url(asset.storage_key, settings.MEDIA_ASSETS_SIGNED_URL_TTL_SECONDS)
     key = asset.thumbnail_storage_key or asset.storage_key
     return backend.generate_download_url(key, settings.MEDIA_ASSETS_SIGNED_URL_TTL_SECONDS)

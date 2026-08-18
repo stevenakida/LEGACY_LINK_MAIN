@@ -97,14 +97,18 @@ class ValidationFailureTests(MediaAssetTestCase):
         self.assertEqual(complete.data['status'], MediaAsset.Status.READY)
         self.assertEqual(complete.data['detected_mime_type'], 'image/png')
 
-    def test_oversized_dimensions_are_resized_not_rejected(self):
+    def test_large_dimensions_are_accepted_at_original_size(self):
+        """Large images are neither rejected nor downscaled — original
+        resolution/quality is preserved (see media_assets/validation.py).
+        MEDIA_ASSETS_IMAGE_MAX_PIXELS is the only real ceiling, guarding
+        against decompression bombs rather than capping normal photos."""
         big = make_jpeg_bytes(width=3000, height=2500)
         _init, complete = self._init_and_upload(
             MediaAsset.Category.IMAGE, 'big.jpg', 'image/jpeg', big,
         )
         self.assertEqual(complete.data['status'], MediaAsset.Status.READY)
-        self.assertLessEqual(complete.data['width'], 2048)
-        self.assertLessEqual(complete.data['height'], 2048)
+        self.assertEqual(complete.data['width'], 3000)
+        self.assertEqual(complete.data['height'], 2500)
 
     def test_video_without_ffprobe_available_fails_closed(self):
         """No ffprobe binary is installed in this environment — this
