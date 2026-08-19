@@ -68,6 +68,35 @@
             </form>
         {% endif %}
     </div>
+
+    <div style="margin-top:0.5rem;display:flex;gap:0.5rem;justify-content:center;">
+        {% if is_muted %}
+            <form method="post" action="{% url 'unmute_user_web' profile_user.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <button type="submit" class="btn btn-line">Unmute</button>
+            </form>
+        {% else %}
+            <form method="post" action="{% url 'mute_user_web' profile_user.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <button type="submit" class="btn btn-line">Mute</button>
+            </form>
+        {% endif %}
+        {% if is_blocked %}
+            <form method="post" action="{% url 'unblock_user_web' profile_user.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <button type="submit" class="btn btn-line">Unblock</button>
+            </form>
+        {% else %}
+            <form method="post" action="{% url 'block_user_web' profile_user.id %}" onsubmit="return confirm('Block {{ profile_user.full_name|escapejs }}? They won’t be able to connect or message you, and you won’t see each other’s posts.');">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <button type="submit" class="btn btn-decline">Block</button>
+            </form>
+        {% endif %}
+    </div>
 </div>
 
 <div class="section-heading">

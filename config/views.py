@@ -14,7 +14,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from accounts.models import User, normalize_identifier
 from alumni.models import School
-from connections.models import Connection
+from connections.models import Connection, UserRelationshipOverride
 from feedback.models import Feedback
 from opportunities.models import Opportunity, OpportunityInterest
 from media_assets import services as media_services
@@ -260,7 +260,10 @@ def dashboard(request):
         (Q(requester=user) | Q(receiver=user)) & Q(status='pending')
     ).select_related('requester', 'receiver')
 
-    cohort_full_qs = user.cohort_queryset()
+    # Exclude blocked users same as the Discover tab (connections()) — a
+    # blocked person shouldn't be suggested here either.
+    blocked_ids = UserRelationshipOverride.blocked_partner_ids(user)
+    cohort_full_qs = user.cohort_queryset().exclude(id__in=blocked_ids)
     cohort_count = cohort_full_qs.count()
     cohort_users = _annotate_connection_status(user, cohort_full_qs[:4])
 
@@ -346,6 +349,13 @@ def view_profile(request, user_id):
     if not next_url.startswith('/') or next_url.startswith('//'):
         next_url = '/connections/'
 
+    is_blocked = UserRelationshipOverride.objects.filter(
+        actor=request.user, target=profile_user, type=UserRelationshipOverride.Type.BLOCK
+    ).exists()
+    is_muted = UserRelationshipOverride.objects.filter(
+        actor=request.user, target=profile_user, type=UserRelationshipOverride.Type.MUTE
+    ).exists()
+
     return render(request, 'public_profile.html', {
         'profile_user': profile_user,
         'trust_label': trust_label,
@@ -355,6 +365,8 @@ def view_profile(request, user_id):
         'connection': conn,
         'connection_status': connection_status,
         'incoming_pending': incoming_pending,
+        'is_blocked': is_blocked,
+        'is_muted': is_muted,
         'next_url': next_url,
         'active_tab': 'network',
     })
@@ -623,9 +635,12 @@ def connections(request):
     ).select_related('requester', 'receiver')
 
     # Discover: cohort matches (same school+year) who aren't already pending/
-    # accepted/declined with this user.
+    # accepted/declined with this user, and aren't blocked in either
+    # direction — surfacing a blocked person as a suggestion would defeat
+    # the point of blocking them.
+    blocked_ids = UserRelationshipOverride.blocked_partner_ids(user)
     discover_users = _annotate_connection_status(user, user.cohort_queryset())
-    discover_users = [p for p in discover_users if p.connection_status == 'none']
+    discover_users = [p for p in discover_users if p.connection_status == 'none' and p.id not in blocked_ids]
 
     # Mutual-connection count per discover candidate — one query per
     # candidate, intentionally simple at current scale rather than a bulk
@@ -670,6 +685,10 @@ def send_connection_web(request, user_id):
 
     if receiver.id == request.user.id:
         messages.error(request, "You can't connect with yourself.")
+        return redirect(next_url)
+
+    if UserRelationshipOverride.is_blocked(request.user, receiver):
+        messages.error(request, 'You can’t connect with this user.')
         return redirect(next_url)
 
     existing = Connection.objects.filter(
@@ -785,6 +804,122 @@ def dismiss_discover_web(request, user_id):
 
     messages.info(request, f'{other.full_name} removed from Discover.')
 
+    return redirect(next_url)
+
+def block_user_web(request, user_id):
+    """POST-only: block another user — severs any existing Connection
+    between the two (pending or accepted; a block supersedes it outright,
+    same reasoning as remove_connection_web deleting rather than
+    soft-declining) and, going forward, hides both users' posts from each
+    other (posts._visible_posts_queryset), blocks new connection requests
+    in either direction, and blocks new messages between them
+    (messages_send). Existing message history stays readable — block cuts
+    off new contact, it doesn't erase the past."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method != 'POST':
+        return redirect('connections')
+
+    next_url = request.POST.get('next', '')
+    if not next_url.startswith('/') or next_url.startswith('//'):
+        next_url = 'connections'
+
+    try:
+        other = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        messages.error(request, 'That user could not be found.')
+        return redirect(next_url)
+
+    if other.id == request.user.id:
+        messages.error(request, "You can't block yourself.")
+        return redirect(next_url)
+
+    UserRelationshipOverride.objects.get_or_create(
+        actor=request.user, target=other, type=UserRelationshipOverride.Type.BLOCK
+    )
+    Connection.objects.filter(
+        (Q(requester=request.user) & Q(receiver=other)) | (Q(requester=other) & Q(receiver=request.user))
+    ).delete()
+
+    messages.success(request, f'{other.full_name} has been blocked.')
+    return redirect(next_url)
+
+def unblock_user_web(request, user_id):
+    """POST-only: undo block_user_web. Only removes the override row this
+    user created — if the other person also has an independent block row
+    pointed the other way (they blocked first, then this user blocked
+    back), that row is untouched and the block stays in effect from their
+    side, matching how a one-sided unblock should behave."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method != 'POST':
+        return redirect('connections')
+
+    next_url = request.POST.get('next', '')
+    if not next_url.startswith('/') or next_url.startswith('//'):
+        next_url = 'connections'
+
+    try:
+        other = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return redirect(next_url)
+
+    UserRelationshipOverride.objects.filter(
+        actor=request.user, target=other, type=UserRelationshipOverride.Type.BLOCK
+    ).delete()
+    messages.info(request, f'{other.full_name} has been unblocked.')
+    return redirect(next_url)
+
+def mute_user_web(request, user_id):
+    """POST-only: mute another user — their posts stop appearing in this
+    user's feed (posts.get_feed_for_user only). One-directional, silent
+    (the muted user is never told), and has no effect on messaging,
+    connections, or the muted user's own view of anything."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method != 'POST':
+        return redirect('connections')
+
+    next_url = request.POST.get('next', '')
+    if not next_url.startswith('/') or next_url.startswith('//'):
+        next_url = 'connections'
+
+    try:
+        other = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        messages.error(request, 'That user could not be found.')
+        return redirect(next_url)
+
+    if other.id == request.user.id:
+        messages.error(request, "You can't mute yourself.")
+        return redirect(next_url)
+
+    UserRelationshipOverride.objects.get_or_create(
+        actor=request.user, target=other, type=UserRelationshipOverride.Type.MUTE
+    )
+    messages.success(request, f'{other.full_name} has been muted.')
+    return redirect(next_url)
+
+def unmute_user_web(request, user_id):
+    """POST-only: undo mute_user_web."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method != 'POST':
+        return redirect('connections')
+
+    next_url = request.POST.get('next', '')
+    if not next_url.startswith('/') or next_url.startswith('//'):
+        next_url = 'connections'
+
+    try:
+        other = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return redirect(next_url)
+
+    UserRelationshipOverride.objects.filter(
+        actor=request.user, target=other, type=UserRelationshipOverride.Type.MUTE
+    ).delete()
+    messages.info(request, f'{other.full_name} has been unmuted.')
     return redirect(next_url)
 
 def select_school(request, school_id):
@@ -1051,6 +1186,16 @@ def messages_send(request, conversation_id):
         conversation = Conversation.objects.get(id=conversation_id, participants__user=request.user)
     except Conversation.DoesNotExist:
         return JsonResponse({'error': 'Not found'}, status=404)
+
+    # messages_start already refuses to open a NEW conversation once
+    # block_user_web has severed the underlying Connection, but an
+    # already-open thread from before the block still exists and would
+    # otherwise let either side keep sending — check block here too so an
+    # existing thread can't be used to route around it. Reading history and
+    # delete-for-me stay unaffected; only new sends are cut off.
+    other = conversation.other_participant(request.user)
+    if other and UserRelationshipOverride.is_blocked(request.user, other):
+        return JsonResponse({'error': 'You can’t message this user.'}, status=403)
 
     recent_count = ChatMessage.objects.filter(
         sender=request.user, sent_at__gte=timezone.now() - timezone.timedelta(minutes=1)

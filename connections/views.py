@@ -2,7 +2,7 @@ from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import models
-from .models import Connection
+from .models import Connection, UserRelationshipOverride
 from accounts.models import User
 
 
@@ -18,6 +18,9 @@ class SendConnectionView(APIView):
 
         if receiver == request.user:
             return Response({'error': 'Cannot connect with yourself'}, status=400)
+
+        if UserRelationshipOverride.is_blocked(request.user, receiver):
+            return Response({'error': 'Cannot connect with this user'}, status=403)
 
         conn, created = Connection.objects.get_or_create(
             requester=request.user, receiver=receiver

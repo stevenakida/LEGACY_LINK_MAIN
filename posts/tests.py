@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from accounts.models import User
 from alumni.models import School
-from connections.models import Connection
+from connections.models import Connection, UserRelationshipOverride
 from media_assets.models import MediaAsset
 
 from .models import Post, PostHiddenFor
@@ -400,3 +400,58 @@ class HidePostTests(TestCase):
         response = self.client.post(reverse('hide_post', kwargs={'post_id': self.post.id}))
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(self.post, get_feed_for_user(self.author))
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class BlockedAndMutedVisibilityTests(TestCase):
+    def setUp(self):
+        self.author = make_user('+255700000130', 'Author')
+        self.other = make_user('+255700000140', 'Other')
+        connect(self.author, self.other)
+        self.post = Post.objects.create(author=self.author, body='visible to connections')
+
+    def test_block_by_viewer_hides_authors_posts(self):
+        UserRelationshipOverride.objects.create(
+            actor=self.other, target=self.author, type=UserRelationshipOverride.Type.BLOCK
+        )
+        self.assertNotIn(self.post, get_feed_for_user(self.other))
+
+    def test_block_by_author_hides_their_posts_from_the_blocked_user(self):
+        # Same effect regardless of who initiated the block — is_blocked is symmetric.
+        UserRelationshipOverride.objects.create(
+            actor=self.author, target=self.other, type=UserRelationshipOverride.Type.BLOCK
+        )
+        self.assertNotIn(self.post, get_feed_for_user(self.other))
+
+    def test_block_also_removes_post_image_authorization(self):
+        asset = make_asset(self.author)
+        post = Post.objects.create(author=self.author, body='pic', media_asset=asset)
+        UserRelationshipOverride.objects.create(
+            actor=self.other, target=self.author, type=UserRelationshipOverride.Type.BLOCK
+        )
+        self.client.force_login(self.other)
+        response = self.client.get(reverse('post_image', kwargs={'post_id': post.id}))
+        self.assertEqual(response.status_code, 404)
+
+    def test_author_still_sees_own_posts_after_being_blocked(self):
+        UserRelationshipOverride.objects.create(
+            actor=self.other, target=self.author, type=UserRelationshipOverride.Type.BLOCK
+        )
+        self.assertIn(self.post, get_feed_for_user(self.author))
+
+    def test_mute_hides_authors_posts_from_muter_only(self):
+        UserRelationshipOverride.objects.create(
+            actor=self.other, target=self.author, type=UserRelationshipOverride.Type.MUTE
+        )
+        self.assertNotIn(self.post, get_feed_for_user(self.other))
+        self.assertIn(self.post, get_feed_for_user(self.author))
+
+    def test_mute_does_not_block_post_image_authorization(self):
+        asset = make_asset(self.author)
+        post = Post.objects.create(author=self.author, body='pic', media_asset=asset)
+        UserRelationshipOverride.objects.create(
+            actor=self.other, target=self.author, type=UserRelationshipOverride.Type.MUTE
+        )
+        self.client.force_login(self.other)
+        response = self.client.get(reverse('post_image', kwargs={'post_id': post.id}))
+        self.assertEqual(response.status_code, 302)  # muted, not blocked — image still viewable

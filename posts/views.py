@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 
-from connections.models import Connection
+from connections.models import Connection, UserRelationshipOverride
 from media_assets import services as media_services
 from media_assets.models import MediaAsset
 
@@ -50,23 +50,38 @@ def _visible_posts_queryset(viewer):
     just as viewable/authorizable as before it was hidden (post_image
     keeps working, and re-hiding an already-hidden post via hide_post
     below stays idempotent instead of 404ing the second time). Only
-    get_feed_for_user applies the hidden-post exclusion."""
+    get_feed_for_user applies the hidden-post exclusion.
+
+    DOES factor in a Block (UserRelationshipOverride) — unlike hide/mute,
+    block is authorization, not just a feed preference, so it belongs here
+    rather than only in get_feed_for_user: a blocked pair must not be able
+    to reach each other's posts via post_image either, not just have them
+    absent from the feed listing."""
     connection_ids = _accepted_connection_ids(viewer)
     cohort_ids = _cohort_author_ids(viewer)
+    blocked_ids = UserRelationshipOverride.blocked_partner_ids(viewer)
     return Post.objects.filter(
         Q(author=viewer)
         | Q(audience=Post.Audience.CONNECTIONS, author_id__in=connection_ids)
         | Q(audience=Post.Audience.COHORT, author_id__in=cohort_ids)
         | Q(audience=Post.Audience.PUBLIC, approval_status=Post.ApprovalStatus.APPROVED)
-    ).select_related('author', 'media_asset')
+    ).exclude(author_id__in=blocked_ids).select_related('author', 'media_asset')
 
 
 def get_feed_for_user(user, limit=FEED_PAGE_SIZE):
     """Newest-first slice of everything `user` is allowed to see, minus
-    anything they've hidden. A plain slice rather than a real paginator —
+    anything they've hidden or muted. Mute (unlike block) only ever applies
+    here — it's a feed display preference, not an access grant, so a muted
+    author's posts stay reachable via a direct link/post_image the same way
+    a hidden post does. A plain slice rather than a real paginator —
     matches the rest of Home (cohort_users[:4], upcoming_events[:3]); no
     infinite scroll this pass."""
-    return list(_visible_posts_queryset(user).exclude(hidden_for__user=user)[:limit])
+    muted_ids = UserRelationshipOverride.muted_author_ids(user)
+    return list(
+        _visible_posts_queryset(user)
+        .exclude(hidden_for__user=user)
+        .exclude(author_id__in=muted_ids)[:limit]
+    )
 
 
 def can_view_post(viewer, post):
