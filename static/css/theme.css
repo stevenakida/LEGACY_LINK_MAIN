@@ -466,6 +466,16 @@ a { color: inherit; }
 .feed-post-pending { font-size: 0.78rem; color: var(--gold); background: rgba(232, 166, 60, 0.12); border: 1px solid rgba(232, 166, 60, 0.3); border-radius: var(--radius-sm); padding: 0.5rem 0.7rem; margin-bottom: 0.6rem; }
 .feed-post-pending.is-rejected { color: var(--danger-soft); background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3); }
 
+.feed-post-actions { display: flex; gap: 0.4rem; margin-top: 0.75rem; }
+.feed-post-actions button { background: var(--card); border: 1px solid var(--border); color: var(--ink); font-size: 0.72rem; font-weight: 700; padding: 0.35rem 0.7rem; border-radius: 999px; cursor: pointer; font-family: inherit; }
+.feed-post-actions button:hover { background: rgba(232, 166, 60, 0.15); }
+
+.feed-post-edit-box { margin-top: 0.5rem; }
+.feed-post-edit-input { width: 100%; min-height: 4.5rem; resize: vertical; font-family: inherit; font-size: 0.88rem; color: var(--ink); background: var(--card-soft); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.75rem; }
+.feed-post-edit-error { font-size: 0.78rem; color: var(--danger-soft); margin-top: 0.4rem; }
+.feed-post-edit-actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.feed-post-edit-actions .btn { padding: 0.4rem 1rem; font-size: 0.8rem; }
+
 /* ---------- info / event cards ---------- */
 
 .info-card { display: flex; align-items: center; gap: 1rem; }

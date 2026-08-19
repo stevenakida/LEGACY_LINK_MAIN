@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Post
+from .models import Post, PostHiddenFor
 
 
 @admin.action(description='Approve selected Public posts')
@@ -24,3 +24,10 @@ class PostAdmin(admin.ModelAdmin):
     @admin.display(boolean=True, description='Has media')
     def has_media(self, obj):
         return obj.media_asset_id is not None
+
+
+@admin.register(PostHiddenFor)
+class PostHiddenForAdmin(admin.ModelAdmin):
+    list_display = ('post', 'user', 'hidden_at')
+    search_fields = ('user__full_name',)
+    autocomplete_fields = ('user',)

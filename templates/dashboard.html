@@ -107,7 +107,7 @@
 
 <div class="feed-list" id="feed-list">
     {% for post in feed_posts %}
-        <article class="card feed-post">
+        <article class="card feed-post" data-post-id="{{ post.id }}" data-is-author="{% if post.author_id == user.id %}1{% else %}0{% endif %}">
             <div class="feed-post-head">
                 <div class="greeting-avatar">
                     {% if post.author.avatar %}
@@ -119,7 +119,7 @@
                 <div class="feed-post-who">
                     <strong>{{ post.author.full_name }}</strong>
                     {% if post.author.cohort_label %}<span class="feed-post-tag">{{ post.author.cohort_label }}</span>{% endif %}
-                    <span class="feed-post-time">{{ post.created_at|timesince }} {% trans "ago" %}</span>
+                    <span class="feed-post-time">{{ post.created_at|timesince }} {% trans "ago" %}{% if post.edited_at %} · {% trans "edited" %}{% endif %}</span>
                 </div>
                 {% if post.audience == 'cohort' %}
                     <span class="feed-post-audience-badge" title="{% trans 'Cohort' %}">
@@ -136,10 +136,18 @@
             {% elif post.approval_status == 'rejected' %}
                 <p class="feed-post-pending is-rejected">{% trans "Not approved for Public — only you can see this." %}</p>
             {% endif %}
-            {% if post.body %}<p class="feed-post-body">{{ post.body }}</p>{% endif %}
+            <p class="feed-post-body" data-post-body{% if not post.body %} hidden{% endif %}>{{ post.body }}</p>
             {% if post.media_asset_id %}
                 <img class="feed-post-image" src="{% url 'post_image' post.id %}" alt="" loading="lazy">
             {% endif %}
+            <div class="feed-post-actions">
+                {% if post.author_id == user.id %}
+                    <button type="button" class="feed-post-action" data-action="edit">{% trans "Edit" %}</button>
+                    <button type="button" class="feed-post-action" data-action="delete">{% trans "Delete" %}</button>
+                {% else %}
+                    <button type="button" class="feed-post-action" data-action="hide">{% trans "Hide" %}</button>
+                {% endif %}
+            </div>
         </article>
     {% empty %}
         <div class="empty-state">
@@ -234,4 +242,5 @@
 
 {% block extra_body %}
 <script src="{% static 'js/composer.js' %}" defer></script>
+<script src="{% static 'js/feed.js' %}" defer></script>
 {% endblock %}
