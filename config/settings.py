@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     'messaging',
     'media_assets',
     'posts',
+    'moderation',
 ]
 
 SITE_ID = 1

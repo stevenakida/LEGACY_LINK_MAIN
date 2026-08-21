@@ -7,6 +7,7 @@ from django.utils import timezone
 from connections.models import Connection, UserRelationshipOverride
 from media_assets import services as media_services
 from media_assets.models import MediaAsset
+from moderation.models import ModerationHold
 
 from .models import Post, PostHiddenFor
 
@@ -133,6 +134,14 @@ def create_post(request):
     )
     if media_asset is not None:
         media_asset.mark_attached()
+
+    if approval_status == Post.ApprovalStatus.PENDING:
+        # Phase 4 Step 3: back the Public-audience review gate with the
+        # generalized ModerationHold record (see moderation/models.py) —
+        # Post.approval_status stays the fast-path field the feed queries
+        # filter on; this is the parallel audit-trail row Step 4's report
+        # flow will reuse instead of inventing its own status field.
+        ModerationHold.open_or_reopen(post, ModerationHold.Reason.PUBLIC_AUDIENCE_REVIEW)
 
     return JsonResponse({
         'id': str(post.id),
