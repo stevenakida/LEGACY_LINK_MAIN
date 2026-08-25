@@ -16,9 +16,10 @@ Core concepts:
   or email (`phone_or_email`) instead of a username.
 - **School** (`alumni.School`) — primary, secondary (O-Level), high school
   (A-Level), or university, scoped to region/district/country. Populated from
-  a real Tanzania education master spreadsheet (27,007 schools) via
-  `python manage.py import_school_database` — see §5 and §6 for the
-  outstanding Render production import step.
+  the Tanzania education master spreadsheet (28,376 schools as of 2026-08-20:
+  a NECTA/TCU-verified backbone of currently-active schools plus
+  legacy-flagged rows kept for alumni whose schools have since closed) via
+  `python manage.py import_school_database` — see §5.
 - **Cohort** — everyone sharing the same `secondary_school` +
   `secondary_completion_year` as the current user.
 - **Connection** (`connections.Connection`) — a request between two users with
@@ -158,8 +159,11 @@ python manage.py runserver
 
 `import_school_database` reads
 `../LegacyLink_Africa_Tanzania_Education_Master_Database.xlsx` (project root,
-sibling to `LEGACY AFRICA/`) and upserts all 27,007 real Tanzania schools,
+sibling to `LEGACY AFRICA/`) and upserts all 28,376 real Tanzania schools,
 matched by the spreadsheet's `legacy_school_id` so it's safe to re-run.
+Note it only creates/updates — rows removed from the spreadsheet must be
+deleted from the DB manually (remap any user school FKs first; they are
+`SET_NULL` and will silently clear otherwise).
 `--purge-legacy-seed` deletes any old `School` rows with no `external_id`
 (i.e. the original hand-typed `seed_schools` list, now superseded). The older
 `seed_schools` command still exists but should no longer be used — it
@@ -369,6 +373,33 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-08-20: **School database rebuilt from primary sources — 27,030 →
+  28,376 rows, live in xlsx + staging + production.** Scraped four NECTA
+  results registries (CSEE 2025, ACSEE 2026, PSLE 2025, SFNA 2025) plus
+  TCU's Aug-2026 university list, using two new reusable scrapers at the
+  project root (outside this repo, next to the master xlsx):
+  `necta_csee_scraper.py` (flat centre index; `--exam csee|acsee`, `--year`,
+  `--host`) and `necta_psle_scraper.py` (region→district hierarchy;
+  `--exam psle|sfna`, optional `--details`). Key discovery: the master's
+  old "A_Level_Schools" sheet (1,037 P-coded rows) was actually NECTA's
+  *private-candidate exam centre* list, not A-Level schools — replaced
+  wholesale with the 1,067 real S-coded ACSEE schools (new id series
+  ALV01038+ so the upsert-by-id import couldn't repoint existing FKs).
+  Also: +940 O-Level schools missing since the 2021 source, +372 primary
+  (SFNA caught 1,087 schools too new to have PSLE cohorts), 1,408 primary
+  rows got missing NECTA codes backfilled, +4 new TCU campus colleges.
+  Rows absent from current registries were kept and flagged
+  `Legacy / not in NECTA 2025-26 registries` in the xlsx `status` column
+  (alumni attended schools that later closed). Prod update ran via local
+  `manage.py` + `DATABASE_URL` against the DO cluster (laptop IP temporarily
+  added to Trusted Sources, removed after): import created 2,406 rows, then
+  a remap-first purge script (`prod_school_update_purge.py`, project root)
+  deleted the 1,037 P-code rows and 23 pre-existing id-less university
+  duplicates from July's shell-added NACTVET batch — 11 user school
+  selections remapped by name, zero lost. DB credentials used during the
+  work were rotated afterwards (DB password reset + app env var updated,
+  API token revoked). Final verified counts everywhere: primary 21,261,
+  secondary 5,964, high_school 1,067, university 84.
 - 2026-08-17: Branded launch splash (`partials/splash.html`, included by
   `base.html` + `login.html`): animated logo, welcome note, loading dots
   shown once per session while fonts load, then fades out; plus an icon

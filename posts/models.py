@@ -45,6 +45,10 @@ class Post(models.Model):
         max_length=20, choices=ApprovalStatus.choices, default=ApprovalStatus.NOT_REQUIRED
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    # Null until the author actually edits the post — drives the "Edited"
+    # label the same way WhatsApp/Facebook only show it once a real edit
+    # has happened, not from creation onward.
+    edited_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']
@@ -54,3 +58,19 @@ class Post(models.Model):
 
     def __str__(self):
         return f"Post by {self.author.full_name} at {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class PostHiddenFor(models.Model):
+    """Per-user 'hide from my feed' — same shape as
+    messaging.models.MessageHiddenFor: hiding a post here only affects what
+    this one user sees in their own feed; every other viewer (including the
+    author) is untouched. posts.views._visible_posts_queryset excludes rows
+    referenced here for the requesting viewer, so feed listing and any
+    per-post authorization check can't drift apart."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='hidden_for')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='hidden_posts')
+    hidden_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('post', 'user')

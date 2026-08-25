@@ -21,6 +21,7 @@ from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
 from django.views.static import serve as serve_static
 from . import views
+from notifications import views as notification_views
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -46,6 +47,10 @@ path('register/', views.register, name='register'),
     path('connections/respond/<uuid:connection_id>/', views.respond_connection_web, name='respond_connection_web'),
     path('connections/remove/<uuid:connection_id>/', views.remove_connection_web, name='remove_connection_web'),
     path('connections/dismiss/<uuid:user_id>/', views.dismiss_discover_web, name='dismiss_discover_web'),
+    path('connections/block/<uuid:user_id>/', views.block_user_web, name='block_user_web'),
+    path('connections/unblock/<uuid:user_id>/', views.unblock_user_web, name='unblock_user_web'),
+    path('connections/mute/<uuid:user_id>/', views.mute_user_web, name='mute_user_web'),
+    path('connections/unmute/<uuid:user_id>/', views.unmute_user_web, name='unmute_user_web'),
     path('cohort/', lambda request: redirect('/connections/?tab=discover'), name='cohort'),
     path('onboarding/', views.onboarding, name='onboarding'),
     path('messages/', views.messages_inbox, name='messages_inbox'),
@@ -58,6 +63,7 @@ path('register/', views.register, name='register'),
     path('messages/attachment/<uuid:message_id>/download/', views.message_attachment_download, name='message_attachment_download'),
     path('messages/<uuid:message_id>/hide/', views.messages_delete_for_me, name='messages_delete_for_me'),
     path('messages/<uuid:message_id>/forward/', views.messages_forward, name='messages_forward'),
+    path('push/register-device/', notification_views.register_device, name='register_device'),
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
     path('api/alumni/', include('alumni.urls')),
