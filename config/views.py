@@ -19,6 +19,7 @@ from feedback.models import Feedback
 from opportunities.models import Opportunity, OpportunityInterest
 from media_assets import services as media_services
 from media_assets.models import MediaAsset
+from notifications.push import send_push_to_user
 from messaging.models import (
     Conversation, ConversationMember, Message as ChatMessage, MessageAttachment, MessageHiddenFor,
 )
@@ -1241,6 +1242,13 @@ def messages_send(request, conversation_id):
         MessageAttachment.objects.create(message=message, media_asset=media_asset)
         media_asset.mark_attached()
         image_url = reverse('message_attachment_image', kwargs={'message_id': message.id})
+
+    if other is not None:
+        threading.Thread(
+            target=send_push_to_user,
+            args=(other, request.user.full_name, message.body[:120] or 'Sent a photo'),
+            daemon=True,
+        ).start()
 
     return JsonResponse({
         'id': str(message.id),

@@ -21,6 +21,7 @@ from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
 from django.views.static import serve as serve_static
 from . import views
+from notifications import views as notification_views
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -62,6 +63,7 @@ path('register/', views.register, name='register'),
     path('messages/attachment/<uuid:message_id>/download/', views.message_attachment_download, name='message_attachment_download'),
     path('messages/<uuid:message_id>/hide/', views.messages_delete_for_me, name='messages_delete_for_me'),
     path('messages/<uuid:message_id>/forward/', views.messages_forward, name='messages_forward'),
+    path('push/register-device/', notification_views.register_device, name='register_device'),
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
     path('api/alumni/', include('alumni.urls')),
