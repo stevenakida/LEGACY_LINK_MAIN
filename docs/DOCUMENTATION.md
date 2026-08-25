@@ -131,6 +131,13 @@ browser-rendered school autocomplete widget, not part of the JWT API surface:
   messaging, restricted to accepted connections) + a DRF API for the Android
   app. Also provides `messaging.context_processors.unread_message_count` so
   the bottom nav's Messages badge works on every page.
+- `moderation/` — `ModerationHold` (generic content-type hold/resolve, one
+  row per target) — the audit-trail layer underneath `Post.approval_status`.
+- `notifications/` — `DeviceToken` model + FCM push sending
+  (`notifications/push.py::send_push_to_user`). `POST /push/register-device/`
+  (root urlconf, session-authenticated, matches the Android WebView's actual
+  auth — NOT one of the JWT `/api/` endpoints). Currently only triggered on
+  new chat messages (`config/views.py::messages_send`).
 - `templates/` — server-rendered HTML pages (mobile/Android-WebView
   friendly). `base.html` + `partials/bottom_nav.html` are the shared app
   shell (single 5-tab bottom nav: Home / Network / Messages / Opportunities /
@@ -338,9 +345,10 @@ custom admin UI exists.
   every string is hardcoded English. Deliberately deferred as its own later
   pass (matches the roadmap doc's framing of translation as "parallel,
   ongoing," not a blocker) rather than bundled into the 2026-07-12 redesign.
-- **Messaging has no block/report yet.** 1:1 messaging restricted to accepted
-  connections shipped 2026-07-12; block/report was explicitly deferred as a
-  fast-follow, not built in the same pass.
+- **RESOLVED (2026-08-25): block/mute now shipped** (`connections.UserRelationshipOverride`,
+  buttons on `public_profile.html`) — see change log. **Report (post/media)
+  is still not built** — that's Phase 4 Step 4, the only remaining item in
+  the Phase 4 trust/interaction build.
 - **No general "view another alum's public profile" route.** `/profile/` is
   self-view only; Connect/Message entry points work from Connections list
   rows, but there's no `/profile/<user_id>/` page yet.
@@ -373,6 +381,14 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-08-25: **Phase 4 Steps 1-3 (post edit/delete/hide, block/mute,
+  generalized moderation holds) + push notifications merged to `main` and
+  deployed to production** (commit `735022c`). Push notifications: new
+  `notifications` app (`DeviceToken`, FCM send via `firebase-admin`), Android
+  side registers its FCM token over a session-authenticated endpoint, wired
+  to fire on every new chat message. `FIREBASE_SERVICE_ACCOUNT_JSON` set
+  both locally and on the DO app; not yet verified on a real device. Step 4
+  (report post/media) is the only Phase 4 item left.
 - 2026-08-20: **School database rebuilt from primary sources — 27,030 →
   28,376 rows, live in xlsx + staging + production.** Scraped four NECTA
   results registries (CSEE 2025, ACSEE 2026, PSLE 2025, SFNA 2025) plus
