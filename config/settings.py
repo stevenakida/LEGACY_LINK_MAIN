@@ -246,10 +246,18 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Read DATABASE_URL via decouple (checks OS env first, then .env) instead of
 # dj_database_url.config(), which only reads the OS environment — a .env
 # DATABASE_URL line was silently ignored before this.
+#
+# DATABASE_SSL_REQUIRE follows the same off-by-default pattern as
+# SECURE_SSL_REDIRECT above: local dev/staging Postgres isn't SSL-configured,
+# so forcing sslmode=require there would break connections outright.
+# Production (DO managed Postgres) must set this True via its own env var —
+# see docs/DOCUMENTATION.md deploy notes.
+DATABASE_SSL_REQUIRE = config('DATABASE_SSL_REQUIRE', default='False') == 'True'
 DATABASES = {
     'default': dj_database_url.parse(
         config('DATABASE_URL', default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
         conn_max_age=600,
+        ssl_require=DATABASE_SSL_REQUIRE,
     )
 }
 

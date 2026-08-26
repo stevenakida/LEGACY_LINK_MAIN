@@ -244,6 +244,30 @@ custom admin UI exists.
   App Platform console's Console tab running `python manage.py
   createsuperuser` — not from this repo.
 
+## 5b. Production infra hardening
+
+- **Spaces versioning**: enabled 2026-08-26 on `legacy-link-production-media`
+  (via boto3 `put_bucket_versioning`, full-access Spaces key — the app's
+  scoped `R2_*` key can't touch bucket-level settings, same wall hit with
+  CORS, see §6). Protects against accidental overwrite/delete of uploaded
+  media; prior object versions are recoverable from the DO Spaces console
+  or via `GetObject?versionId=`.
+- **DB backups**: DO's managed Postgres cluster
+  (`legacy-link-postgres-production`) takes automated daily backups
+  server-side (no app/droplet-level cron needed) — confirmed live via the
+  API on 2026-08-26: daily at 00:58 UTC, ~7 days retained. A real
+  fork-and-restore test (proving a backup actually restores, not just that
+  it exists) is scheduled to be offered to the user the weekend of
+  2026-08-29.
+- **DB connection SSL**: `DATABASE_SSL_REQUIRE` env var added
+  (`config/settings.py`), forcing `sslmode=require` client-side via
+  `dj_database_url`'s `ssl_require` param. Off by default (same pattern as
+  `SECURE_SSL_REDIRECT` — local/staging Postgres isn't SSL-configured), set
+  `True` on production 2026-08-26. Belt-and-suspenders: DO's own
+  auto-generated connection URIs already append `?sslmode=require`, but
+  enforcing it in code too means it no longer silently depends on whoever
+  pasted `DATABASE_URL` having used that exact URI.
+
 ## 6. Known limitations / in-progress work
 
 - **RESOLVED (2026-08-18, second bug in the same flow): after the CORS fix
@@ -381,6 +405,9 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-08-26: **Infra hardening: Spaces versioning enabled, DB backups
+  confirmed automated (restore test deferred to the weekend), DB SSL
+  connection enforcement added** (`DATABASE_SSL_REQUIRE`). See §5b.
 - 2026-08-25: **Phase 4 Steps 1-3 (post edit/delete/hide, block/mute,
   generalized moderation holds) + push notifications merged to `main` and
   deployed to production** (commit `735022c`). Push notifications: new
