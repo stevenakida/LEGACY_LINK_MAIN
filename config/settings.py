@@ -232,6 +232,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'messaging.context_processors.unread_message_count',
                 'messaging.context_processors.total_unread_messages',
+                'notifications.context_processors.total_unread_notifications',
             ],
         },
     },

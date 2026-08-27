@@ -9,6 +9,7 @@ from django.urls import reverse
 from accounts.models import User
 from connections.models import Connection
 from media_assets.models import MediaAsset
+from notifications.models import Notification
 
 from .models import Conversation, ConversationMember, Message, MessageAttachment, MessageHiddenFor
 
@@ -76,6 +77,17 @@ class MessagesSendAttachmentTests(TestCase):
         message = Message.objects.get()
         self.assertEqual(message.body, 'hello')
         self.assertFalse(message.has_attachment)
+
+    def test_sending_a_message_notifies_the_recipient(self):
+        # Phase 4B: messages_send now goes through notifications.services.notify()
+        # instead of firing send_push_to_user directly, so a new message also
+        # gets an in-app Notification row, not just a push.
+        self.client.post(reverse('messages_send', args=[self.conv.id]), {'body': 'hello'})
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.bob)
+        self.assertEqual(notification.actor, self.alice)
+        self.assertEqual(notification.verb, Notification.Verb.NEW_MESSAGE)
+        self.assertEqual(notification.target, Message.objects.get())
 
     def test_image_only_message_allowed(self):
         asset = make_asset(self.alice)

@@ -4,6 +4,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from messaging.models import Conversation, ConversationMember
+from notifications.models import Notification
 
 from .models import Connection, UserRelationshipOverride
 
@@ -199,3 +200,62 @@ class MessagingBlockedTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.post(reverse('messages_send', args=[self.conv.id]), {'body': 'hi'})
         self.assertEqual(response.status_code, 200)
+
+
+class ConnectionNotificationTests(TestCase):
+    """Phase 4B: sending/accepting a connection request raises a
+    notifications.Notification for the other party. Covers both the web
+    view (config.views) and the DRF API view (connections.views), same
+    split SendConnectionBlockedTests above already uses."""
+
+    def setUp(self):
+        self.requester = make_user('+255700000290', 'Requester')
+        self.receiver = make_user('+255700000291', 'Receiver')
+
+    def test_web_send_notifies_receiver(self):
+        self.client.force_login(self.requester)
+        self.client.post(reverse('send_connection_web', args=[self.receiver.id]))
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.receiver)
+        self.assertEqual(notification.actor, self.requester)
+        self.assertEqual(notification.verb, Notification.Verb.CONNECTION_REQUEST)
+        self.assertEqual(notification.target, Connection.objects.get())
+
+    def test_web_accept_notifies_requester(self):
+        conn = Connection.objects.create(requester=self.requester, receiver=self.receiver)
+        self.client.force_login(self.receiver)
+        self.client.post(reverse('respond_connection_web', args=[conn.id]), {'action': 'accept'})
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.requester)
+        self.assertEqual(notification.actor, self.receiver)
+        self.assertEqual(notification.verb, Notification.Verb.CONNECTION_ACCEPTED)
+
+    def test_web_decline_does_not_notify(self):
+        conn = Connection.objects.create(requester=self.requester, receiver=self.receiver)
+        self.client.force_login(self.receiver)
+        self.client.post(reverse('respond_connection_web', args=[conn.id]), {'action': 'decline'})
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_api_send_notifies_receiver(self):
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.requester)
+        api_client.post(reverse('send', args=[self.receiver.id]))
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.receiver)
+        self.assertEqual(notification.verb, Notification.Verb.CONNECTION_REQUEST)
+
+    def test_api_accept_notifies_requester(self):
+        conn = Connection.objects.create(requester=self.requester, receiver=self.receiver)
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.receiver)
+        api_client.patch(reverse('respond', args=[conn.id]), {'action': 'accept'})
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.requester)
+        self.assertEqual(notification.verb, Notification.Verb.CONNECTION_ACCEPTED)
+
+    def test_api_decline_does_not_notify(self):
+        conn = Connection.objects.create(requester=self.requester, receiver=self.receiver)
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.receiver)
+        api_client.patch(reverse('respond', args=[conn.id]), {'action': 'decline'})
+        self.assertEqual(Notification.objects.count(), 0)
