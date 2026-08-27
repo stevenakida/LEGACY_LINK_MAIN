@@ -162,26 +162,6 @@
     {% endfor %}
 </div>
 
-<div id="report-modal" class="forward-modal" hidden>
-    <div class="forward-modal-inner">
-        <h3>{% trans "Report" %}</h3>
-        <div class="report-modal-categories">
-            <label><input type="radio" name="report-category" value="spam"> {% trans "Spam" %}</label>
-            <label><input type="radio" name="report-category" value="harassment"> {% trans "Harassment or bullying" %}</label>
-            <label><input type="radio" name="report-category" value="nudity"> {% trans "Nudity or sexual content" %}</label>
-            <label><input type="radio" name="report-category" value="hate_speech"> {% trans "Hate speech" %}</label>
-            <label><input type="radio" name="report-category" value="misinformation"> {% trans "Misinformation" %}</label>
-            <label><input type="radio" name="report-category" value="other"> {% trans "Other" %}</label>
-        </div>
-        <textarea id="report-modal-description" class="report-modal-description" maxlength="1000" placeholder="{% trans 'Add more detail (optional)' %}"></textarea>
-        <p class="report-modal-error" id="report-modal-error" hidden></p>
-        <div class="report-modal-actions">
-            <button type="button" id="report-modal-submit" class="btn btn-gold btn-full">{% trans "Submit report" %}</button>
-            <button type="button" id="report-modal-cancel" class="btn btn-line btn-full">{% trans "Cancel" %}</button>
-        </div>
-    </div>
-</div>
-
 <div class="section-heading">
     <h2>{% trans "Suggested for you" %}</h2>
     <a href="/connections/?tab=discover">{% trans "See all" %}</a>
@@ -267,4 +247,31 @@
 {% block extra_body %}
 <script src="{% static 'js/composer.js' %}" defer></script>
 <script src="{% static 'js/feed.js' %}" defer></script>
+
+<!-- Placed in this block rather than the main content block deliberately:
+     .main-content (which wraps the content block) has its own
+     position:relative + z-index:1, which traps any z-index used inside it
+     below sibling fixed elements (the bottom nav) that live outside it. This
+     overlay needs to be a true page-level sibling of those to actually
+     render on top and stay clickable — same reasoning documented in
+     chat.html for chat-lightbox/chat-forward-modal. -->
+<div id="report-modal" class="forward-modal" hidden>
+    <div class="forward-modal-inner">
+        <h3>{% trans "Report" %}</h3>
+        <div class="report-modal-categories">
+            <label><input type="radio" name="report-category" value="spam"> {% trans "Spam" %}</label>
+            <label><input type="radio" name="report-category" value="harassment"> {% trans "Harassment or bullying" %}</label>
+            <label><input type="radio" name="report-category" value="nudity"> {% trans "Nudity or sexual content" %}</label>
+            <label><input type="radio" name="report-category" value="hate_speech"> {% trans "Hate speech" %}</label>
+            <label><input type="radio" name="report-category" value="misinformation"> {% trans "Misinformation" %}</label>
+            <label><input type="radio" name="report-category" value="other"> {% trans "Other" %}</label>
+        </div>
+        <textarea id="report-modal-description" class="report-modal-description" maxlength="1000" placeholder="{% trans 'Add more detail (optional)' %}"></textarea>
+        <p class="report-modal-error" id="report-modal-error" hidden></p>
+        <div class="report-modal-actions">
+            <button type="button" id="report-modal-submit" class="btn btn-gold btn-full">{% trans "Submit report" %}</button>
+            <button type="button" id="report-modal-cancel" class="btn btn-line btn-full">{% trans "Cancel" %}</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
