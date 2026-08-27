@@ -70,6 +70,26 @@
     </div>
 </div>
 
+<div id="chat-report-modal" class="forward-modal" hidden>
+    <div class="forward-modal-inner">
+        <h3>Report photo</h3>
+        <div class="report-modal-categories">
+            <label><input type="radio" name="chat-report-category" value="spam"> Spam</label>
+            <label><input type="radio" name="chat-report-category" value="harassment"> Harassment or bullying</label>
+            <label><input type="radio" name="chat-report-category" value="nudity"> Nudity or sexual content</label>
+            <label><input type="radio" name="chat-report-category" value="hate_speech"> Hate speech</label>
+            <label><input type="radio" name="chat-report-category" value="misinformation"> Misinformation</label>
+            <label><input type="radio" name="chat-report-category" value="other"> Other</label>
+        </div>
+        <textarea id="chat-report-description" class="report-modal-description" maxlength="1000" placeholder="Add more detail (optional)"></textarea>
+        <p class="report-modal-error" id="chat-report-error" hidden></p>
+        <div class="report-modal-actions">
+            <button type="button" id="chat-report-submit" class="btn btn-gold btn-full">Submit report</button>
+            <button type="button" id="chat-report-cancel" class="btn btn-line btn-full">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <div class="chat-composer-fixed">
     <div class="reply-preview" id="chat-reply-preview" hidden>
         <div class="reply-preview-text">

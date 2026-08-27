@@ -7,6 +7,7 @@ from accounts.models import User
 from alumni.models import School
 from connections.models import Connection, UserRelationshipOverride
 from media_assets.models import MediaAsset
+from moderation.models import ContentReport, ModerationHold
 
 from .models import Post, PostHiddenFor
 from .views import get_feed_for_user
@@ -455,3 +456,127 @@ class BlockedAndMutedVisibilityTests(TestCase):
         self.client.force_login(self.other)
         response = self.client.get(reverse('post_image', kwargs={'post_id': post.id}))
         self.assertEqual(response.status_code, 302)  # muted, not blocked — image still viewable
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class ReportPostTests(TestCase):
+    def setUp(self):
+        self.author = make_user('+255700000150', 'Author')
+        self.viewer = make_user('+255700000160', 'Viewer')
+        self.stranger = make_user('+255700000170', 'Stranger')  # not connected, no shared cohort
+        connect(self.author, self.viewer)
+        self.post = Post.objects.create(author=self.author, body='reportable post')
+
+    def test_requires_authentication(self):
+        response = self.client.post(reverse('report_post', kwargs={'post_id': self.post.id}), {'category': 'spam'})
+        self.assertEqual(response.status_code, 401)
+
+    def test_cannot_report_a_post_you_cannot_see(self):
+        self.client.force_login(self.stranger)
+        response = self.client.post(reverse('report_post', kwargs={'post_id': self.post.id}), {'category': 'spam'})
+        self.assertEqual(response.status_code, 404)
+
+    def test_cannot_report_own_post(self):
+        self.client.force_login(self.author)
+        response = self.client.post(reverse('report_post', kwargs={'post_id': self.post.id}), {'category': 'spam'})
+        self.assertEqual(response.status_code, 400)
+
+    def test_missing_category_rejected(self):
+        self.client.force_login(self.viewer)
+        response = self.client.post(reverse('report_post', kwargs={'post_id': self.post.id}), {})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(ContentReport.objects.count(), 0)
+
+    def test_report_puts_connections_post_under_review_and_hides_it(self):
+        self.client.force_login(self.viewer)
+        response = self.client.post(
+            reverse('report_post', kwargs={'post_id': self.post.id}),
+            {'category': 'harassment', 'description': 'targeted at me'},
+        )
+        self.assertEqual(response.status_code, 200)
+
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.approval_status, Post.ApprovalStatus.PENDING)
+        self.assertNotIn(self.post, get_feed_for_user(self.viewer))
+        self.assertIn(self.post, get_feed_for_user(self.author))  # author still sees own post
+
+        report = ContentReport.objects.get()
+        self.assertEqual(report.reporter, self.viewer)
+        self.assertEqual(report.category, ContentReport.Category.HARASSMENT)
+
+    def test_report_opens_a_user_report_hold(self):
+        self.client.force_login(self.viewer)
+        self.client.post(reverse('report_post', kwargs={'post_id': self.post.id}), {'category': 'spam'})
+        hold = ModerationHold.objects.get()
+        self.assertEqual(hold.reason, ModerationHold.Reason.USER_REPORT)
+        self.assertEqual(hold.status, ModerationHold.Status.PENDING)
+
+    def test_admin_approve_restores_visibility_after_report(self):
+        from posts.admin import approve_posts
+        self.client.force_login(self.viewer)
+        self.client.post(reverse('report_post', kwargs={'post_id': self.post.id}), {'category': 'spam'})
+
+        approve_posts(None, None, Post.objects.filter(pk=self.post.pk))
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.approval_status, Post.ApprovalStatus.APPROVED)
+        self.assertIn(self.post, get_feed_for_user(self.viewer))
+
+    def test_admin_reject_keeps_it_hidden_after_report(self):
+        from posts.admin import reject_posts
+        self.client.force_login(self.viewer)
+        self.client.post(reverse('report_post', kwargs={'post_id': self.post.id}), {'category': 'spam'})
+
+        reject_posts(None, None, Post.objects.filter(pk=self.post.pk))
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.approval_status, Post.ApprovalStatus.REJECTED)
+        self.assertNotIn(self.post, get_feed_for_user(self.viewer))
+        self.assertIn(self.post, get_feed_for_user(self.author))
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class ReportPostMediaTests(TestCase):
+    def setUp(self):
+        self.author = make_user('+255700000180', 'Author')
+        self.viewer = make_user('+255700000190', 'Viewer')
+        self.stranger = make_user('+255700000200', 'Stranger')
+        connect(self.author, self.viewer)
+        self.asset = make_asset(self.author)
+        self.post = Post.objects.create(author=self.author, body='pic post', media_asset=self.asset)
+
+    def test_requires_authentication(self):
+        response = self.client.post(reverse('report_post_media', kwargs={'post_id': self.post.id}), {'category': 'nudity'})
+        self.assertEqual(response.status_code, 401)
+
+    def test_cannot_report_media_on_a_post_you_cannot_see(self):
+        self.client.force_login(self.stranger)
+        response = self.client.post(reverse('report_post_media', kwargs={'post_id': self.post.id}), {'category': 'nudity'})
+        self.assertEqual(response.status_code, 404)
+
+    def test_cannot_report_own_media(self):
+        self.client.force_login(self.author)
+        response = self.client.post(reverse('report_post_media', kwargs={'post_id': self.post.id}), {'category': 'nudity'})
+        self.assertEqual(response.status_code, 400)
+
+    def test_post_with_no_media_404s(self):
+        text_post = Post.objects.create(author=self.author, body='no photo here')
+        self.client.force_login(self.viewer)
+        response = self.client.post(reverse('report_post_media', kwargs={'post_id': text_post.id}), {'category': 'nudity'})
+        self.assertEqual(response.status_code, 404)
+
+    def test_report_holds_the_media_but_leaves_the_post_visible(self):
+        self.client.force_login(self.viewer)
+        response = self.client.post(
+            reverse('report_post_media', kwargs={'post_id': self.post.id}), {'category': 'nudity'}
+        )
+        self.assertEqual(response.status_code, 200)
+
+        self.asset.refresh_from_db()
+        self.assertTrue(self.asset.moderation_hold)
+        self.assertFalse(self.asset.is_downloadable)
+
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.approval_status, Post.ApprovalStatus.NOT_REQUIRED)
+        self.assertIn(self.post, get_feed_for_user(self.viewer))  # post itself stays visible
+
+        image_response = self.client.get(reverse('post_image', kwargs={'post_id': self.post.id}))
+        self.assertEqual(image_response.status_code, 404)  # but the image is now held

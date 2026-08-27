@@ -19,16 +19,20 @@ def _resolve_holds(queryset, status, resolved_by):
     ).update(status=status, resolved_at=timezone.now(), resolved_by=resolved_by)
 
 
-@admin.action(description='Approve selected Public posts')
+@admin.action(description='Approve selected posts (clears review/report hold)')
 def approve_posts(modeladmin, request, queryset):
-    queryset = queryset.filter(audience=Post.Audience.PUBLIC)
+    # Scoped to PENDING rather than audience=PUBLIC: Phase 4 Step 4's
+    # report_post can put a Connections/Cohort post under review too (see
+    # posts.views.report_post), so this action now clears any post's hold,
+    # not just the original Public-audience review queue's.
+    queryset = queryset.filter(approval_status=Post.ApprovalStatus.PENDING)
     _resolve_holds(queryset, ModerationHold.Status.APPROVED, request.user if request else None)
     queryset.update(approval_status=Post.ApprovalStatus.APPROVED)
 
 
-@admin.action(description='Reject selected Public posts')
+@admin.action(description='Reject selected posts (keeps them hidden)')
 def reject_posts(modeladmin, request, queryset):
-    queryset = queryset.filter(audience=Post.Audience.PUBLIC)
+    queryset = queryset.filter(approval_status=Post.ApprovalStatus.PENDING)
     _resolve_holds(queryset, ModerationHold.Status.REJECTED, request.user if request else None)
     queryset.update(approval_status=Post.ApprovalStatus.REJECTED)
 

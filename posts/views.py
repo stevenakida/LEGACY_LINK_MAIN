@@ -8,6 +8,7 @@ from connections.models import Connection, UserRelationshipOverride
 from media_assets import services as media_services
 from media_assets.models import MediaAsset
 from moderation.models import ModerationHold
+from moderation.services import InvalidReportCategory, file_report
 
 from .models import Post, PostHiddenFor
 
@@ -46,6 +47,16 @@ def _visible_posts_queryset(viewer):
     APPROVED — pending/rejected Public posts are invisible to everyone but
     their author until a moderator acts on them.
 
+    Connections/Cohort posts additionally require approval_status to be
+    NOT_REQUIRED or APPROVED (i.e. exclude PENDING/REJECTED) — those two
+    audiences default to NOT_REQUIRED and normally never move, but
+    Phase 4 Step 4's report_post can flip a reported post's approval_status
+    to PENDING regardless of audience (see moderation.services.file_report),
+    and this is what actually makes that hold hide the post from everyone
+    but its author. Without this, a reported Connections/Cohort post would
+    have PENDING set on it but stay fully visible, since only the Public
+    branch below ever read approval_status.
+
     Deliberately does NOT factor in PostHiddenFor — "hidden" is a feed
     display preference, not an access grant, so a hidden post must stay
     just as viewable/authorizable as before it was hidden (post_image
@@ -61,10 +72,11 @@ def _visible_posts_queryset(viewer):
     connection_ids = _accepted_connection_ids(viewer)
     cohort_ids = _cohort_author_ids(viewer)
     blocked_ids = UserRelationshipOverride.blocked_partner_ids(viewer)
+    not_held = [Post.ApprovalStatus.NOT_REQUIRED, Post.ApprovalStatus.APPROVED]
     return Post.objects.filter(
         Q(author=viewer)
-        | Q(audience=Post.Audience.CONNECTIONS, author_id__in=connection_ids)
-        | Q(audience=Post.Audience.COHORT, author_id__in=cohort_ids)
+        | Q(audience=Post.Audience.CONNECTIONS, author_id__in=connection_ids, approval_status__in=not_held)
+        | Q(audience=Post.Audience.COHORT, author_id__in=cohort_ids, approval_status__in=not_held)
         | Q(audience=Post.Audience.PUBLIC, approval_status=Post.ApprovalStatus.APPROVED)
     ).exclude(author_id__in=blocked_ids).select_related('author', 'media_asset')
 
@@ -250,4 +262,71 @@ def hide_post(request, post_id):
         raise Http404('post not found')
 
     PostHiddenFor.objects.get_or_create(post=post, user=request.user)
+    return JsonResponse({'ok': True})
+
+
+def report_post(request, post_id):
+    """POST /posts/<id>/report/ — file a report against the whole post.
+    Fail-closed, matching the rest of Phase 4: the very first report puts
+    the post under review (approval_status=PENDING) and it becomes
+    invisible to everyone but the author until a moderator approves or
+    rejects it via the same PostAdmin actions the Public-audience review
+    queue uses — see _visible_posts_queryset for why this now applies to
+    Connections/Cohort posts too, not just Public ones. Uses can_view_post
+    (not get_object_or_404) so a post someone isn't allowed to see can't be
+    probed for existence via this endpoint."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    post = get_object_or_404(Post, pk=post_id)
+    if not can_view_post(request.user, post):
+        raise Http404('post not found')
+    if post.author_id == request.user.id:
+        return JsonResponse({'error': "You can't report your own post."}, status=400)
+
+    category = request.POST.get('category', '')
+    description = request.POST.get('description', '')
+    try:
+        file_report(request.user, post, category, description)
+    except InvalidReportCategory:
+        return JsonResponse({'error': 'Choose a reason for the report.'}, status=400)
+
+    post.approval_status = Post.ApprovalStatus.PENDING
+    post.save(update_fields=['approval_status'])
+    return JsonResponse({'ok': True})
+
+
+def report_post_media(request, post_id):
+    """POST /posts/<id>/report-media/ — file a report against the post's
+    photo specifically, not the whole post. Unlike report_post, this
+    leaves the post itself (and its text) fully visible and only pulls the
+    image: MediaAsset.moderation_hold=True makes is_downloadable False
+    immediately, so post_image starts 404ing for everyone, same as any
+    other held asset — no change needed to _visible_posts_queryset for
+    this path."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    post = get_object_or_404(Post.objects.select_related('media_asset'), pk=post_id)
+    if not can_view_post(request.user, post):
+        raise Http404('post not found')
+    if post.author_id == request.user.id:
+        return JsonResponse({'error': "You can't report your own photo."}, status=400)
+    asset = post.media_asset
+    if asset is None:
+        raise Http404('post has no media')
+
+    category = request.POST.get('category', '')
+    description = request.POST.get('description', '')
+    try:
+        file_report(request.user, asset, category, description)
+    except InvalidReportCategory:
+        return JsonResponse({'error': 'Choose a reason for the report.'}, status=400)
+
+    asset.moderation_hold = True
+    asset.save(update_fields=['moderation_hold'])
     return JsonResponse({'ok': True})
