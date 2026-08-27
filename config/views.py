@@ -20,7 +20,8 @@ from opportunities.models import Opportunity, OpportunityInterest
 from media_assets import services as media_services
 from media_assets.models import MediaAsset
 from moderation.services import InvalidReportCategory, file_report
-from notifications.push import send_push_to_user
+from notifications.models import Notification
+from notifications.services import notify
 from messaging.models import (
     Conversation, ConversationMember, Message as ChatMessage, MessageAttachment, MessageHiddenFor,
 )
@@ -699,7 +700,11 @@ def send_connection_web(request, user_id):
     if existing:
         messages.info(request, f'You already have a connection with {receiver.full_name}.')
     else:
-        Connection.objects.create(requester=request.user, receiver=receiver)
+        conn = Connection.objects.create(requester=request.user, receiver=receiver)
+        notify(
+            receiver, Notification.Verb.CONNECTION_REQUEST, actor=request.user, target=conn,
+            push_title=request.user.full_name, push_body='Sent you a connection request',
+        )
         messages.success(request, f'Connection request sent to {receiver.full_name}.')
 
     return redirect(next_url)
@@ -729,6 +734,10 @@ def respond_connection_web(request, connection_id):
     if action == 'accept':
         conn.status = 'accepted'
         conn.save()
+        notify(
+            conn.requester, Notification.Verb.CONNECTION_ACCEPTED, actor=request.user, target=conn,
+            push_title=request.user.full_name, push_body='Accepted your connection request',
+        )
         messages.success(request, f'You are now connected with {conn.requester.full_name}.')
     elif action == 'decline':
         conn.status = 'declined'
@@ -1245,11 +1254,10 @@ def messages_send(request, conversation_id):
         image_url = reverse('message_attachment_image', kwargs={'message_id': message.id})
 
     if other is not None:
-        threading.Thread(
-            target=send_push_to_user,
-            args=(other, request.user.full_name, message.body[:120] or 'Sent a photo'),
-            daemon=True,
-        ).start()
+        notify(
+            other, Notification.Verb.NEW_MESSAGE, actor=request.user, target=message,
+            push_title=request.user.full_name, push_body=message.body[:120] or 'Sent a photo',
+        )
 
     return JsonResponse({
         'id': str(message.id),

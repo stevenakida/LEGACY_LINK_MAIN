@@ -8,6 +8,7 @@ from alumni.models import School
 from connections.models import Connection, UserRelationshipOverride
 from media_assets.models import MediaAsset
 from moderation.models import ContentReport, ModerationHold
+from notifications.models import Notification
 
 from .models import Post, PostHiddenFor
 from .views import get_feed_for_user
@@ -160,6 +161,39 @@ class PublicAudienceApprovalTests(TestCase):
         post.refresh_from_db()
         self.assertEqual(post.approval_status, Post.ApprovalStatus.REJECTED)
         self.assertNotIn(post, get_feed_for_user(self.other))
+
+    def test_admin_approve_action_notifies_the_author(self):
+        from posts.admin import approve_posts
+        post = Post.objects.create(
+            author=self.author, body='pending public', audience=Post.Audience.PUBLIC,
+            approval_status=Post.ApprovalStatus.PENDING,
+        )
+        approve_posts(None, None, Post.objects.filter(pk=post.pk))
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.author)
+        self.assertEqual(notification.verb, Notification.Verb.POST_APPROVED)
+        self.assertIsNone(notification.actor)  # admin action called with request=None
+        self.assertEqual(notification.target, post)
+
+    def test_admin_reject_action_notifies_the_author(self):
+        from posts.admin import reject_posts
+        post = Post.objects.create(
+            author=self.author, body='pending public', audience=Post.Audience.PUBLIC,
+            approval_status=Post.ApprovalStatus.PENDING,
+        )
+        reject_posts(None, None, Post.objects.filter(pk=post.pk))
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.author)
+        self.assertEqual(notification.verb, Notification.Verb.POST_REJECTED)
+
+    def test_approve_action_does_not_notify_already_resolved_posts(self):
+        from posts.admin import approve_posts
+        post = Post.objects.create(
+            author=self.author, body='already approved', audience=Post.Audience.PUBLIC,
+            approval_status=Post.ApprovalStatus.APPROVED,
+        )
+        approve_posts(None, None, Post.objects.filter(pk=post.pk))
+        self.assertEqual(Notification.objects.count(), 0)  # not PENDING, action's own filter excludes it
 
 
 @override_settings(MEDIA_ASSETS_S3_ENABLED=False)

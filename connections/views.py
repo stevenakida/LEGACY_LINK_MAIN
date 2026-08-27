@@ -4,6 +4,8 @@ from rest_framework.views import APIView
 from django.db import models
 from .models import Connection, UserRelationshipOverride
 from accounts.models import User
+from notifications.models import Notification
+from notifications.services import notify
 
 
 class SendConnectionView(APIView):
@@ -28,6 +30,10 @@ class SendConnectionView(APIView):
         if not created:
             return Response({'error': 'Connection already exists'}, status=400)
 
+        notify(
+            receiver, Notification.Verb.CONNECTION_REQUEST, actor=request.user, target=conn,
+            push_title=request.user.full_name, push_body='Sent you a connection request',
+        )
         return Response({'message': 'Connection request sent', 'status': 'pending'}, status=201)
 
 
@@ -50,6 +56,11 @@ class RespondConnectionView(APIView):
             return Response({'error': 'action must be accept or decline'}, status=400)
 
         conn.save()
+        if action == 'accept':
+            notify(
+                conn.requester, Notification.Verb.CONNECTION_ACCEPTED, actor=request.user, target=conn,
+                push_title=request.user.full_name, push_body='Accepted your connection request',
+            )
         return Response({'status': conn.status, 'message': f'Connection {conn.status}'})
 
 

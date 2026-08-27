@@ -3,6 +3,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 
 from moderation.models import ModerationHold
+from notifications.models import Notification
+from notifications.services import notify
 
 from .models import Post, PostHiddenFor
 
@@ -19,6 +21,20 @@ def _resolve_holds(queryset, status, resolved_by):
     ).update(status=status, resolved_at=timezone.now(), resolved_by=resolved_by)
 
 
+def _notify_authors(posts, verb, actor):
+    """Phase 4B: notify each post's author their post was resolved. Takes
+    already-fetched Post instances (see call sites below) rather than a
+    queryset, since the caller's bulk .update() that follows would
+    otherwise make a second queryset evaluation return the already-changed
+    rows — snapshotting first avoids that ordering trap."""
+    for post in posts:
+        notify(
+            post.author, verb, actor=actor, target=post,
+            push_title='LegacyLink Africa',
+            push_body='Your post was approved.' if verb == Notification.Verb.POST_APPROVED else 'Your post was not approved.',
+        )
+
+
 @admin.action(description='Approve selected posts (clears review/report hold)')
 def approve_posts(modeladmin, request, queryset):
     # Scoped to PENDING rather than audience=PUBLIC: Phase 4 Step 4's
@@ -26,15 +42,19 @@ def approve_posts(modeladmin, request, queryset):
     # posts.views.report_post), so this action now clears any post's hold,
     # not just the original Public-audience review queue's.
     queryset = queryset.filter(approval_status=Post.ApprovalStatus.PENDING)
+    posts = list(queryset.select_related('author'))
     _resolve_holds(queryset, ModerationHold.Status.APPROVED, request.user if request else None)
     queryset.update(approval_status=Post.ApprovalStatus.APPROVED)
+    _notify_authors(posts, Notification.Verb.POST_APPROVED, request.user if request else None)
 
 
 @admin.action(description='Reject selected posts (keeps them hidden)')
 def reject_posts(modeladmin, request, queryset):
     queryset = queryset.filter(approval_status=Post.ApprovalStatus.PENDING)
+    posts = list(queryset.select_related('author'))
     _resolve_holds(queryset, ModerationHold.Status.REJECTED, request.user if request else None)
     queryset.update(approval_status=Post.ApprovalStatus.REJECTED)
+    _notify_authors(posts, Notification.Verb.POST_REJECTED, request.user if request else None)
 
 
 @admin.register(Post)

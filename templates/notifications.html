@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Notifications - LegacyLink Africa{% endblock %}
+
+{% block header %}
+<div class="simple-header">
+    <div>
+        <h1>Notifications</h1>
+        <div class="sub">Connection requests, post reviews, and messages</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if notifications %}
+    <div class="card">
+        {% for notification in notifications %}
+            {% if notification.verb == 'connection_request' or notification.verb == 'connection_accepted' %}
+                <a href="/connections/" class="msg-row">
+            {% elif notification.verb == 'new_message' %}
+                <a href="{% url 'messages_inbox' %}" class="msg-row">
+            {% else %}
+                <div class="msg-row">
+            {% endif %}
+                <div class="person-avatar">
+                    {% if notification.actor.avatar %}
+                        <img src="{{ notification.actor.avatar.url }}" alt="{{ notification.actor.full_name }}">
+                    {% elif notification.actor %}
+                        {{ notification.actor.full_name|first }}
+                    {% else %}
+                        L
+                    {% endif %}
+                </div>
+                <div class="info">
+                    <div class="nm">
+                        {% if notification.verb == 'connection_request' %}
+                            {{ notification.actor.full_name }} sent you a connection request
+                        {% elif notification.verb == 'connection_accepted' %}
+                            {{ notification.actor.full_name }} accepted your connection request
+                        {% elif notification.verb == 'post_approved' %}
+                            Your post was approved
+                        {% elif notification.verb == 'post_rejected' %}
+                            Your post was not approved
+                        {% elif notification.verb == 'new_message' %}
+                            {{ notification.actor.full_name }} sent you a message
+                        {% endif %}
+                        <span class="time">{{ notification.created_at|timesince }} ago</span>
+                    </div>
+                </div>
+            {% if notification.verb == 'connection_request' or notification.verb == 'connection_accepted' or notification.verb == 'new_message' %}
+                </a>
+            {% else %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card empty-state">
+        <div class="ico">🔔</div>
+        <div class="t">No notifications yet</div>
+        <div class="s">Connection requests, post reviews, and new messages will show up here.</div>
+    </div>
+{% endif %}
+{% endblock %}
