@@ -356,3 +356,75 @@ class ForwardTests(TestCase):
         # stranger isn't a participant of conv_ac at all
         response = self.client.get(reverse('messages_thread', args=[self.conv_ac.id]))
         self.assertEqual(response.status_code, 302)  # redirected away, not a participant
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class ReportMessageAttachmentTests(TestCase):
+    """Phase 4 Step 4: config.views.report_message_attachment. Same
+    authorization shape as MessageAttachmentImageAuthorizationTests above,
+    plus the sender-can't-report-their-own-photo rule."""
+
+    def setUp(self):
+        from moderation.models import ContentReport, ModerationHold
+        self.ContentReport = ContentReport
+        self.ModerationHold = ModerationHold
+
+        self.alice = make_user('+255700000410', 'Alice')
+        self.bob = make_user('+255700000411', 'Bob')
+        self.stranger = make_user('+255700000412', 'Stranger')
+        self.conv = make_direct_conversation(self.alice, self.bob)
+
+        self.asset = make_asset(self.alice)
+        self.message = Message.objects.create(conversation=self.conv, sender=self.alice, body='pic')
+        MessageAttachment.objects.create(message=self.message, media_asset=self.asset)
+
+    def test_requires_authentication(self):
+        response = self.client.post(reverse('report_message_attachment', args=[self.message.id]), {'category': 'spam'})
+        self.assertEqual(response.status_code, 401)
+
+    def test_non_participant_cannot_report(self):
+        self.client.force_login(self.stranger)
+        response = self.client.post(reverse('report_message_attachment', args=[self.message.id]), {'category': 'spam'})
+        self.assertEqual(response.status_code, 404)
+        self.asset.refresh_from_db()
+        self.assertFalse(self.asset.moderation_hold)
+
+    def test_sender_cannot_report_own_photo(self):
+        self.client.force_login(self.alice)
+        response = self.client.post(reverse('report_message_attachment', args=[self.message.id]), {'category': 'spam'})
+        self.assertEqual(response.status_code, 400)
+
+    def test_missing_category_rejected(self):
+        self.client.force_login(self.bob)
+        response = self.client.post(reverse('report_message_attachment', args=[self.message.id]), {})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.ContentReport.objects.count(), 0)
+
+    def test_other_participant_can_report_and_holds_the_photo(self):
+        self.client.force_login(self.bob)
+        response = self.client.post(
+            reverse('report_message_attachment', args=[self.message.id]),
+            {'category': 'nudity', 'description': 'inappropriate'},
+        )
+        self.assertEqual(response.status_code, 200)
+
+        self.asset.refresh_from_db()
+        self.assertTrue(self.asset.moderation_hold)
+        self.assertFalse(self.asset.is_downloadable)
+
+        report = self.ContentReport.objects.get()
+        self.assertEqual(report.reporter, self.bob)
+        self.assertEqual(report.category, self.ContentReport.Category.NUDITY)
+
+        hold = self.ModerationHold.objects.get()
+        self.assertEqual(hold.reason, self.ModerationHold.Reason.USER_REPORT)
+
+    def test_message_still_readable_after_photo_reported(self):
+        self.client.force_login(self.bob)
+        self.client.post(reverse('report_message_attachment', args=[self.message.id]), {'category': 'spam'})
+
+        image_response = self.client.get(reverse('message_attachment_image', args=[self.message.id]))
+        self.assertEqual(image_response.status_code, 404)  # image held
+
+        thread_response = self.client.get(reverse('messages_thread', args=[self.conv.id]))
+        self.assertEqual(thread_response.status_code, 200)  # thread/message itself unaffected

@@ -33,11 +33,17 @@
         var forwardModalCancel = document.getElementById('forward-modal-cancel');
         var otherConversationsData = document.getElementById('other-conversations-data');
         var otherConversations = otherConversationsData ? JSON.parse(otherConversationsData.textContent) : [];
+        var reportModal = document.getElementById('chat-report-modal');
+        var reportError = document.getElementById('chat-report-error');
+        var reportDescription = document.getElementById('chat-report-description');
+        var reportSubmitBtn = document.getElementById('chat-report-submit');
+        var reportCancelBtn = document.getElementById('chat-report-cancel');
 
         var loadingEarlier = false;
         var pendingMediaId = null;
         var pendingReplyId = null;
         var forwardMessageId = null;
+        var reportMessageId = null;
 
         // ---------- attach-photo (composer) ----------
 
@@ -235,8 +241,79 @@
             row.appendChild(replyBtn);
             row.appendChild(forwardBtn);
             row.appendChild(deleteBtn);
+
+            // Report is only offered on someone else's photo — reporting
+            // your own message never makes sense, and there's nothing
+            // media-shaped to hold on a text-only bubble.
+            if (!messageEl.classList.contains('me') && messageEl.querySelector('.bubble-img')) {
+                var reportBtn = document.createElement('button');
+                reportBtn.type = 'button';
+                reportBtn.textContent = 'Report';
+                reportBtn.addEventListener('click', function () { openReportModal(messageEl); });
+                row.appendChild(reportBtn);
+            }
+
             messageEl.insertAdjacentElement('afterend', row);
         }
+
+        // ---------- report modal ----------
+
+        function openReportModal(messageEl) {
+            if (!reportModal) return;
+            reportMessageId = messageEl.dataset.messageId;
+            reportModal.querySelectorAll('input[name="chat-report-category"]').forEach(function (input) { input.checked = false; });
+            reportDescription.value = '';
+            reportError.hidden = true;
+            reportModal.hidden = false;
+            closeBubbleActions();
+        }
+        function closeReportModal() {
+            if (!reportModal) return;
+            reportModal.hidden = true;
+            reportMessageId = null;
+        }
+        if (reportCancelBtn) reportCancelBtn.addEventListener('click', closeReportModal);
+        if (reportModal) reportModal.addEventListener('click', function (e) {
+            if (e.target === reportModal) closeReportModal();
+        });
+        if (reportSubmitBtn) reportSubmitBtn.addEventListener('click', function () {
+            var checked = reportModal.querySelector('input[name="chat-report-category"]:checked');
+            if (!checked) {
+                reportError.textContent = 'Choose a reason for the report.';
+                reportError.hidden = false;
+                return;
+            }
+            reportError.hidden = true;
+            reportSubmitBtn.disabled = true;
+
+            fetch('/messages/attachment/' + reportMessageId + '/report/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'category=' + encodeURIComponent(checked.value) + '&description=' + encodeURIComponent(reportDescription.value.trim()),
+            })
+                .then(function (resp) {
+                    if (!resp.ok) return resp.json().then(function (data) { throw new Error(data.error || 'Could not submit report'); });
+                    return resp.json();
+                })
+                .then(function () {
+                    var reportedId = reportMessageId;
+                    closeReportModal();
+                    var bubble = body.querySelector('.bubble[data-message-id="' + reportedId + '"]');
+                    var img = bubble ? bubble.querySelector('.bubble-img') : null;
+                    if (img) img.remove();
+                    window.alert('Photo reported. Thanks — it has been hidden pending review.');
+                })
+                .catch(function (err) {
+                    reportError.textContent = err.message || 'Could not submit report.';
+                    reportError.hidden = false;
+                })
+                .finally(function () {
+                    reportSubmitBtn.disabled = false;
+                });
+        });
 
         body.addEventListener('click', function (e) {
             var img = e.target.closest('.bubble-img');

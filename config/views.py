@@ -19,6 +19,7 @@ from feedback.models import Feedback
 from opportunities.models import Opportunity, OpportunityInterest
 from media_assets import services as media_services
 from media_assets.models import MediaAsset
+from moderation.services import InvalidReportCategory, file_report
 from notifications.push import send_push_to_user
 from messaging.models import (
     Conversation, ConversationMember, Message as ChatMessage, MessageAttachment, MessageHiddenFor,
@@ -1385,3 +1386,33 @@ def message_attachment_download(request, message_id):
     if not url:
         raise Http404('media is not currently available')
     return HttpResponseRedirect(url)
+
+
+def report_message_attachment(request, message_id):
+    """POST /messages/attachment/<id>/report/ — Phase 4 Step 4: report a
+    chat photo. Same "conversation participant" authorization as
+    message_attachment_image/download via _get_authorized_attachment, plus
+    a sender check since reporting your own sent photo makes no sense.
+    Mirrors posts.views.report_post_media: sets MediaAsset.moderation_hold
+    so the image stops being servable everywhere it's used, without
+    touching the message/conversation itself."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    message = get_object_or_404(ChatMessage.objects.select_related('sender'), pk=message_id)
+    asset = _get_authorized_attachment(request, message_id)
+    if message.sender_id == request.user.id:
+        return JsonResponse({'error': "You can't report your own photo."}, status=400)
+
+    category = request.POST.get('category', '')
+    description = request.POST.get('description', '')
+    try:
+        file_report(request.user, asset, category, description)
+    except InvalidReportCategory:
+        return JsonResponse({'error': 'Choose a reason for the report.'}, status=400)
+
+    asset.moderation_hold = True
+    asset.save(update_fields=['moderation_hold'])
+    return JsonResponse({'ok': True})

@@ -80,3 +80,47 @@ class ModerationHold(models.Model):
         self.resolved_at = timezone.now()
         self.resolved_by = by
         self.save(update_fields=['status', 'resolved_at', 'resolved_by'])
+
+
+class ContentReport(models.Model):
+    """Phase 4 Step 4: a user-filed report against a piece of content
+    (currently Post or MediaAsset). Unlike ModerationHold — one row per
+    target, since only "is this currently held" is ever queried — this is
+    an append-log across reporters: several different users can each file
+    their own report against the same target, which is useful evidence for
+    whoever reviews it. `unique_together` is scoped to (reporter, target)
+    only, so a single user re-reporting the same content updates their
+    existing row (see moderation.services.file_report) instead of piling up
+    duplicates from one person spamming the button.
+
+    Filing a report does not by itself change what anyone can see — see
+    moderation.services.file_report's docstring for why gating visibility
+    is left to the target-specific caller (posts.views.report_post /
+    report_post_media, config.views.report_message_attachment)."""
+
+    class Category(models.TextChoices):
+        SPAM = 'spam', 'Spam'
+        HARASSMENT = 'harassment', 'Harassment or bullying'
+        NUDITY = 'nudity', 'Nudity or sexual content'
+        HATE_SPEECH = 'hate_speech', 'Hate speech'
+        MISINFORMATION = 'misinformation', 'Misinformation'
+        OTHER = 'other', 'Other'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reporter = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='filed_reports'
+    )
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name='+')
+    object_id = models.UUIDField()
+    target = GenericForeignKey('content_type', 'object_id')
+
+    category = models.CharField(max_length=20, choices=Category.choices)
+    description = models.TextField(blank=True, max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('reporter', 'content_type', 'object_id')
+        indexes = [models.Index(fields=['content_type', 'object_id'])]
+
+    def __str__(self):
+        return f"{self.get_category_display()} report by {self.reporter.full_name} on {self.content_type.model} {self.object_id}"

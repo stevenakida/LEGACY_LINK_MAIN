@@ -3,7 +3,8 @@ from django.test import TestCase, override_settings
 
 from accounts.models import User
 
-from .models import ModerationHold
+from .models import ContentReport, ModerationHold
+from .services import InvalidReportCategory, file_report
 
 
 def make_user(identifier, full_name='Test User'):
@@ -137,3 +138,54 @@ class PostModerationHoldIntegrationTests(TestCase):
         hold.refresh_from_db()
         self.assertEqual(hold.status, ModerationHold.Status.APPROVED)
         self.assertIsNone(hold.resolved_by)
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class FileReportServiceTests(TestCase):
+    def setUp(self):
+        from posts.models import Post
+        self.Post = Post
+        self.author = make_user('+255700000320', 'Author')
+        self.reporter = make_user('+255700000321', 'Reporter')
+        self.other_reporter = make_user('+255700000322', 'Other Reporter')
+        self.post = self.Post.objects.create(author=self.author, body='reportable')
+
+    def test_creates_report_and_opens_hold(self):
+        report = file_report(self.reporter, self.post, ContentReport.Category.SPAM, 'looks like spam')
+        self.assertEqual(report.reporter, self.reporter)
+        self.assertEqual(report.category, ContentReport.Category.SPAM)
+        self.assertEqual(report.description, 'looks like spam')
+        self.assertEqual(report.target, self.post)
+
+        hold = ModerationHold.objects.get(content_type=ContentType.objects.get_for_model(self.post), object_id=self.post.pk)
+        self.assertEqual(hold.status, ModerationHold.Status.PENDING)
+        self.assertEqual(hold.reason, ModerationHold.Reason.USER_REPORT)
+
+    def test_invalid_category_raises_and_creates_nothing(self):
+        with self.assertRaises(InvalidReportCategory):
+            file_report(self.reporter, self.post, 'not-a-real-category')
+        self.assertEqual(ContentReport.objects.count(), 0)
+        self.assertEqual(ModerationHold.objects.count(), 0)
+
+    def test_same_reporter_reporting_twice_updates_in_place(self):
+        file_report(self.reporter, self.post, ContentReport.Category.SPAM, 'first')
+        file_report(self.reporter, self.post, ContentReport.Category.HARASSMENT, 'second')
+        self.assertEqual(ContentReport.objects.count(), 1)
+        report = ContentReport.objects.get()
+        self.assertEqual(report.category, ContentReport.Category.HARASSMENT)
+        self.assertEqual(report.description, 'second')
+
+    def test_different_reporters_on_same_target_both_recorded(self):
+        file_report(self.reporter, self.post, ContentReport.Category.SPAM)
+        file_report(self.other_reporter, self.post, ContentReport.Category.OTHER)
+        self.assertEqual(ContentReport.objects.count(), 2)
+
+    def test_reporting_an_already_resolved_hold_reopens_it(self):
+        hold = ModerationHold.open_or_reopen(self.post, ModerationHold.Reason.PUBLIC_AUDIENCE_REVIEW)
+        hold.resolve(ModerationHold.Status.APPROVED, by=self.author)
+
+        file_report(self.reporter, self.post, ContentReport.Category.NUDITY)
+        hold.refresh_from_db()
+        self.assertEqual(hold.status, ModerationHold.Status.PENDING)
+        self.assertEqual(hold.reason, ModerationHold.Reason.USER_REPORT)
+        self.assertIsNone(hold.resolved_at)
