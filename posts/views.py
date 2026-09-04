@@ -10,6 +10,7 @@ from media_assets import services as media_services
 from media_assets.models import MediaAsset
 from moderation.models import ModerationHold
 from moderation.services import InvalidReportCategory, file_report
+from ratelimiting.services import is_rate_limited
 
 from .models import Post, PostHiddenFor
 
@@ -128,6 +129,16 @@ def create_post(request):
 
     if not body and not media_asset:
         return JsonResponse({'error': 'Add some text or a photo before posting.'}, status=400)
+
+    # Checked only once every other validation has passed, so a failed
+    # attempt (empty body, bad media) never eats into the user's quota —
+    # only actual post creations count toward the limit.
+    if is_rate_limited(
+        request.user, 'create_post',
+        limit=settings.RATE_LIMIT_CREATE_POST_MAX,
+        window_seconds=settings.RATE_LIMIT_CREATE_POST_WINDOW_SECONDS,
+    ):
+        return JsonResponse({'error': "You're posting too quickly — please wait a bit before posting again."}, status=429)
 
     audience = request.POST.get('audience', Post.Audience.CONNECTIONS)
     if audience not in Post.Audience.values:
