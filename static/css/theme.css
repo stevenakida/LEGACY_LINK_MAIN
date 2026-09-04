@@ -469,6 +469,14 @@ a { color: inherit; }
 .feed-post-actions { display: flex; gap: 0.4rem; margin-top: 0.75rem; }
 .feed-post-actions button { background: var(--card); border: 1px solid var(--border); color: var(--ink); font-size: 0.72rem; font-weight: 700; padding: 0.35rem 0.7rem; border-radius: 999px; cursor: pointer; font-family: inherit; }
 .feed-post-actions button:hover { background: rgba(232, 166, 60, 0.15); }
+/* The Block action is a real <form> (a full page POST+redirect, same as
+   public_profile.html's Block button) rather than a JS-driven fetch like
+   its Hide/Report siblings — display:contents keeps the wrapping <form>
+   out of the flex layout so its button still lines up like a plain sibling
+   button. */
+.feed-post-block-form { display: contents; }
+.feed-post-action-danger { color: var(--danger-soft); border-color: rgba(239, 68, 68, 0.4) !important; }
+.feed-post-action-danger:hover { background: rgba(239, 68, 68, 0.15) !important; }
 
 .feed-post-edit-box { margin-top: 0.5rem; }
 .feed-post-edit-input { width: 100%; min-height: 4.5rem; resize: vertical; font-family: inherit; font-size: 0.88rem; color: var(--ink); background: var(--card-soft); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.75rem; }
@@ -563,6 +571,8 @@ a { color: inherit; }
 .chat-head .back { font-size: 1.4rem; color: var(--gold); cursor: pointer; padding: 0.2rem 0.5rem 0.2rem 0; text-decoration: none; }
 .chat-head .nm { font-weight: 800; font-size: 0.98rem; color: var(--ink); }
 .chat-head .st { font-size: 0.78rem; color: var(--muted); }
+.chat-head-actions { margin-left: auto; }
+.chat-head-actions .btn-small { padding: 0.35rem 0.75rem; font-size: 0.72rem; }
 .chat-body { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; min-height: 50vh; }
 .bubble { max-width: 78%; padding: 0.6rem 0.85rem; border-radius: 16px; font-size: 0.88rem; line-height: 1.45; }
 .bubble.them { background: var(--bubble-them-bg); border: 1px solid var(--border); border-bottom-left-radius: 4px; align-self: flex-start; }

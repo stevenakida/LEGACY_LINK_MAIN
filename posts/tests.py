@@ -71,6 +71,30 @@ class FeedVisibilityTests(TestCase):
 
 
 @override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class FeedBlockButtonTests(TestCase):
+    """New Block entry point added directly to each non-author feed post
+    card (previously Block was only reachable from public_profile.html) —
+    a plain <form> POST to the existing block_user_web view, not a new
+    endpoint, mirroring public_profile.html's own Block form exactly."""
+
+    def setUp(self):
+        self.alice = make_user('+255700000801', 'Alice')
+        self.bob = make_user('+255700000802', 'Bob')
+        connect(self.alice, self.bob)
+        self.post_bob = Post.objects.create(author=self.bob, body='hello from Bob')
+        self.client.force_login(self.alice)
+
+    def test_others_post_shows_block_form(self):
+        response = self.client.get(reverse('dashboard'))
+        self.assertContains(response, reverse('block_user_web', args=[self.bob.id]))
+
+    def test_own_post_does_not_show_block_form(self):
+        Post.objects.create(author=self.alice, body='hello from me')
+        response = self.client.get(reverse('dashboard'))
+        self.assertNotContains(response, reverse('block_user_web', args=[self.alice.id]))
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
 class CohortAudienceTests(TestCase):
     def setUp(self):
         self.school = make_school()

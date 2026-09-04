@@ -150,6 +150,11 @@
                     {% if post.media_asset_id %}
                         <button type="button" class="feed-post-action" data-action="report-media">{% trans "Report photo" %}</button>
                     {% endif %}
+                    <form method="post" action="{% url 'block_user_web' post.author_id %}" class="feed-post-block-form" onsubmit="return confirm('Block {{ post.author.full_name|escapejs }}? They won’t be able to connect or message you, and you won’t see each other’s posts.');">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'dashboard' %}">
+                        <button type="submit" class="feed-post-action feed-post-action-danger">{% trans "Block" %}</button>
+                    </form>
                 {% endif %}
             </div>
         </article>
