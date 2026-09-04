@@ -70,7 +70,12 @@ class PostModerationHoldIntegrationTests(TestCase):
         self.staff.is_staff = True
         self.staff.save(update_fields=['is_staff'])
 
+    @override_settings(FEATURE_PUBLIC_POST_REVIEW_REQUIRED=True)
     def test_creating_a_public_post_opens_a_hold(self):
+        # Only relevant while the review gate is actually on — see
+        # posts.tests.PublicAudienceApprovalTests for the same pattern and
+        # posts.tests.PublicAudienceReviewSuspendedTests for the (now
+        # default) suspended behavior this doesn't apply to.
         self.client.force_login(self.author)
         from django.urls import reverse
         response = self.client.post(reverse('create_post'), {'body': 'going public', 'audience': 'public'})
