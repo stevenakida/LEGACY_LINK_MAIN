@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db.models import Q
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -43,19 +44,21 @@ def _visible_posts_queryset(viewer):
     Rules: always your own posts (any audience/status, so you can see your
     own pending/rejected Public posts); connections-audience posts from an
     accepted connection; cohort-audience posts from anyone who shares your
-    cohort; Public posts from anyone, but only once approval_status is
-    APPROVED — pending/rejected Public posts are invisible to everyone but
-    their author until a moderator acts on them.
+    cohort; Public posts from anyone, as long as approval_status is
+    NOT_REQUIRED or APPROVED — pending/rejected Public posts are invisible
+    to everyone but their author until a moderator acts on them. Public
+    posts get NOT_REQUIRED instead of PENDING at creation time whenever
+    settings.FEATURE_PUBLIC_POST_REVIEW_REQUIRED is off (see create_post) —
+    this queryset doesn't care why a Public post is NOT_REQUIRED, only that
+    it is, so it doesn't need its own flag check.
 
-    Connections/Cohort posts additionally require approval_status to be
-    NOT_REQUIRED or APPROVED (i.e. exclude PENDING/REJECTED) — those two
-    audiences default to NOT_REQUIRED and normally never move, but
-    Phase 4 Step 4's report_post can flip a reported post's approval_status
-    to PENDING regardless of audience (see moderation.services.file_report),
+    All three audiences additionally require approval_status to be
+    NOT_REQUIRED or APPROVED (i.e. exclude PENDING/REJECTED) — Connections/
+    Cohort default to NOT_REQUIRED and normally never move, but Phase 4
+    Step 4's report_post can flip a reported post's approval_status to
+    PENDING regardless of audience (see moderation.services.file_report),
     and this is what actually makes that hold hide the post from everyone
-    but its author. Without this, a reported Connections/Cohort post would
-    have PENDING set on it but stay fully visible, since only the Public
-    branch below ever read approval_status.
+    but its author.
 
     Deliberately does NOT factor in PostHiddenFor — "hidden" is a feed
     display preference, not an access grant, so a hidden post must stay
@@ -77,7 +80,7 @@ def _visible_posts_queryset(viewer):
         Q(author=viewer)
         | Q(audience=Post.Audience.CONNECTIONS, author_id__in=connection_ids, approval_status__in=not_held)
         | Q(audience=Post.Audience.COHORT, author_id__in=cohort_ids, approval_status__in=not_held)
-        | Q(audience=Post.Audience.PUBLIC, approval_status=Post.ApprovalStatus.APPROVED)
+        | Q(audience=Post.Audience.PUBLIC, approval_status__in=not_held)
     ).exclude(author_id__in=blocked_ids).select_related('author', 'media_asset')
 
 
@@ -130,10 +133,12 @@ def create_post(request):
     if audience not in Post.Audience.values:
         audience = Post.Audience.CONNECTIONS
 
-    # Only Public needs a human review step before anyone but the author
-    # can see it — Connections/Cohort are visible immediately.
+    # Only Public ever needs a human review step before anyone but the
+    # author can see it, and only while FEATURE_PUBLIC_POST_REVIEW_REQUIRED
+    # is on — Connections/Cohort are always visible immediately.
     approval_status = (
-        Post.ApprovalStatus.PENDING if audience == Post.Audience.PUBLIC
+        Post.ApprovalStatus.PENDING
+        if audience == Post.Audience.PUBLIC and settings.FEATURE_PUBLIC_POST_REVIEW_REQUIRED
         else Post.ApprovalStatus.NOT_REQUIRED
     )
 

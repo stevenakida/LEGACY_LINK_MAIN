@@ -192,6 +192,16 @@ FEATURE_VIDEO_MEDIA_ENABLED = config('FEATURE_VIDEO_MEDIA_ENABLED', default='Fal
 # since PDFs are the only category needing AV scanning.
 FEATURE_DOCUMENT_MEDIA_ENABLED = config('FEATURE_DOCUMENT_MEDIA_ENABLED', default='False') == 'True'
 
+# Unrelated to the media flags above — gates posts.views.create_post's
+# Public-audience admin-review step (Post.approval_status=PENDING until a
+# staff member approves it via Django admin). Suspended by the user
+# 2026-09-04: default 'False' means new Public posts are visible
+# immediately, same as Connections/Cohort, with no code removed — flip this
+# back to 'True' (env var or this default) to re-require review. Existing
+# pending/approved/rejected posts are untouched either way; report_post can
+# still pull any Public post back under review regardless of this flag.
+FEATURE_PUBLIC_POST_REVIEW_REQUIRED = config('FEATURE_PUBLIC_POST_REVIEW_REQUIRED', default='False') == 'True'
+
 # ClamAV (clamd) — new infra, not currently provisioned anywhere in this
 # project. Left blank, document uploads fail closed (see
 # media_assets/scanning.py::NullScanner) rather than being marked safe.

@@ -8,11 +8,13 @@ class Post(models.Model):
     """Home feed post (Phase 3 of the media/posts initiative). Text + at
     most one image, three audiences per the Phase 0 pilot spec: My
     Connections / School-or-Cohort / Public. Public posts require admin
-    approval before anyone but the author can see them — see
-    ApprovalStatus and posts.views._visible_posts_queryset, which is the
-    single source of truth for "who can see this post" (feed listing and
-    the post_image authorization check both go through it, so they can
-    never drift apart)."""
+    approval before anyone but the author can see them, gated behind
+    settings.FEATURE_PUBLIC_POST_REVIEW_REQUIRED (off by default as of
+    2026-09-04 — see posts.views.create_post) — see ApprovalStatus and
+    posts.views._visible_posts_queryset, which is the single source of
+    truth for "who can see this post" (feed listing and the post_image
+    authorization check both go through it, so they can never drift
+    apart)."""
 
     class Audience(models.TextChoices):
         CONNECTIONS = 'connections', 'My Connections'
@@ -38,9 +40,9 @@ class Post(models.Model):
         max_length=20, choices=Audience.choices, default=Audience.CONNECTIONS
     )
     # Only meaningful for audience=PUBLIC (see posts.views.create_post,
-    # which sets PENDING there and NOT_REQUIRED for the other two audiences
-    # — connections/cohort posts are visible immediately, matching the
-    # pilot spec: only Public needs a human review step).
+    # which sets PENDING there only when FEATURE_PUBLIC_POST_REVIEW_REQUIRED
+    # is on, and NOT_REQUIRED otherwise/for the other two audiences —
+    # connections/cohort posts are always visible immediately).
     approval_status = models.CharField(
         max_length=20, choices=ApprovalStatus.choices, default=ApprovalStatus.NOT_REQUIRED
     )

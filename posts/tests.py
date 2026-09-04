@@ -120,8 +120,16 @@ class CohortAudienceTests(TestCase):
         self.assertNotIn(post, feed)
 
 
-@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False, FEATURE_PUBLIC_POST_REVIEW_REQUIRED=True)
 class PublicAudienceApprovalTests(TestCase):
+    """The review-required mechanism itself (admin approve/reject, the
+    moderation hold, notifications) — exercised with the flag forced on
+    regardless of its suspended-by-default value, since admins can still
+    flip it back on and moderation.services.file_report can still pull any
+    Public post under review independent of this flag. See
+    PublicAudienceReviewSuspendedTests below for the actual current
+    default behavior."""
+
     def setUp(self):
         self.author = make_user('+255700000201', 'Author')
         self.other = make_user('+255700000202', 'Other')  # not connected, no shared cohort
@@ -163,6 +171,34 @@ class PublicAudienceApprovalTests(TestCase):
         self.assertEqual(response.status_code, 200)
         post = Post.objects.get()
         self.assertEqual(post.approval_status, Post.ApprovalStatus.NOT_REQUIRED)
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class PublicAudienceReviewSuspendedTests(TestCase):
+    """FEATURE_PUBLIC_POST_REVIEW_REQUIRED's actual current default
+    (suspended 2026-09-04 at the user's request) — no override here, so
+    this exercises the real out-of-the-box behavior: a Public post is
+    treated like Connections/Cohort, visible immediately with no admin
+    step. Doesn't duplicate PublicAudienceApprovalTests' mechanism
+    coverage (that stays valid for whenever the flag is switched back on)."""
+
+    def setUp(self):
+        self.author = make_user('+255700000211', 'Author')
+        self.other = make_user('+255700000212', 'Other')  # not connected, no shared cohort
+
+    def test_create_post_with_public_audience_is_not_required_by_default(self):
+        self.client.force_login(self.author)
+        response = self.client.post(reverse('create_post'), {'body': 'going public', 'audience': 'public'})
+        self.assertEqual(response.status_code, 200)
+        post = Post.objects.get()
+        self.assertEqual(post.audience, Post.Audience.PUBLIC)
+        self.assertEqual(post.approval_status, Post.ApprovalStatus.NOT_REQUIRED)
+
+    def test_public_post_is_immediately_visible_to_a_stranger_by_default(self):
+        self.client.force_login(self.author)
+        self.client.post(reverse('create_post'), {'body': 'going public', 'audience': 'public'})
+        post = Post.objects.get()
+        self.assertIn(post, get_feed_for_user(self.other))
 
     def test_admin_approve_action_makes_post_visible(self):
         from posts.admin import approve_posts
