@@ -21,6 +21,21 @@
         <div class="nm">{{ other.full_name }}</div>
         {% if other.secondary_school %}<div class="st">{{ other.secondary_school.name }}{% if other.secondary_completion_year %} · Class of {{ other.secondary_completion_year }}{% endif %}</div>{% endif %}
     </div>
+    <div class="chat-head-actions">
+        {% if is_blocked %}
+            <form method="post" action="{% url 'unblock_user_web' other.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'messages_inbox' %}">
+                <button type="submit" class="btn btn-line btn-small">Unblock</button>
+            </form>
+        {% else %}
+            <form method="post" action="{% url 'block_user_web' other.id %}" onsubmit="return confirm('Block {{ other.full_name|escapejs }}? They won’t be able to connect or message you, and you won’t see each other’s posts.');">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'messages_inbox' %}">
+                <button type="submit" class="btn btn-decline btn-small">Block</button>
+            </form>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
 

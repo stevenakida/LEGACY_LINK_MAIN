@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import User
-from connections.models import Connection
+from connections.models import Connection, UserRelationshipOverride
 from media_assets.models import MediaAsset
 from notifications.models import Notification
 
@@ -255,6 +255,39 @@ class DeleteForMeTests(TestCase):
         response = self.client.get(reverse('messages_poll', args=[self.conv.id]))
         ids = [m['id'] for m in response.json()['messages']]
         self.assertNotIn(str(self.message.id), ids)
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class MessagesThreadBlockActionTests(TestCase):
+    """New Block/Unblock entry point added directly to the chat header,
+    reusing connections.block_user_web/unblock_user_web (previously only
+    reachable from public_profile.html) — see config.views.messages_thread's
+    is_blocked context flag."""
+
+    def setUp(self):
+        self.alice = make_user('+255700000610', 'Alice')
+        self.bob = make_user('+255700000611', 'Bob')
+        self.conv = make_direct_conversation(self.alice, self.bob)
+        self.client.force_login(self.alice)
+
+    def test_shows_block_button_when_not_blocked(self):
+        response = self.client.get(reverse('messages_thread', args=[self.conv.id]))
+        self.assertContains(response, reverse('block_user_web', args=[self.bob.id]))
+        self.assertNotContains(response, reverse('unblock_user_web', args=[self.bob.id]))
+
+    def test_shows_unblock_button_once_blocked(self):
+        UserRelationshipOverride.objects.create(
+            actor=self.alice, target=self.bob, type=UserRelationshipOverride.Type.BLOCK
+        )
+        response = self.client.get(reverse('messages_thread', args=[self.conv.id]))
+        self.assertContains(response, reverse('unblock_user_web', args=[self.bob.id]))
+
+    def test_block_from_chat_redirects_to_inbox(self):
+        response = self.client.post(
+            reverse('block_user_web', args=[self.bob.id]), {'next': reverse('messages_inbox')}
+        )
+        self.assertRedirects(response, reverse('messages_inbox'))
+        self.assertTrue(UserRelationshipOverride.is_blocked(self.alice, self.bob))
 
 
 @override_settings(MEDIA_ASSETS_S3_ENABLED=False)

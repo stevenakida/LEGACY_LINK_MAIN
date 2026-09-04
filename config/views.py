@@ -1111,6 +1111,7 @@ def messages_thread(request, conversation_id):
         'has_earlier': has_earlier,
         'other_conversations': other_conversations,
         'active_tab': 'messages',
+        'is_blocked': UserRelationshipOverride.is_blocked(request.user, other),
     })
 
 
