@@ -674,3 +674,48 @@ class ReportPostMediaTests(TestCase):
 
         image_response = self.client.get(reverse('post_image', kwargs={'post_id': self.post.id}))
         self.assertEqual(image_response.status_code, 404)  # but the image is now held
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False, RATE_LIMIT_CREATE_POST_MAX=2, RATE_LIMIT_CREATE_POST_WINDOW_SECONDS=60)
+class CreatePostRateLimitTests(TestCase):
+    """Phase 6: create_post's rate limit, scoped to post creation only per
+    the user's 2026-09-04 decision — see ratelimiting/tests.py for the
+    underlying is_rate_limited() unit tests. Limit forced down to 2/60s
+    here so tests don't need to actually create 5+ posts."""
+
+    def setUp(self):
+        self.author = make_user('+255700000221', 'Author')
+        self.client.force_login(self.author)
+
+    def test_allows_up_to_the_limit(self):
+        for _ in range(2):
+            response = self.client.post(reverse('create_post'), {'body': 'hello', 'audience': 'connections'})
+            self.assertEqual(response.status_code, 200)
+        self.assertEqual(Post.objects.count(), 2)
+
+    def test_blocks_once_over_the_limit(self):
+        for _ in range(2):
+            self.client.post(reverse('create_post'), {'body': 'hello', 'audience': 'connections'})
+        response = self.client.post(reverse('create_post'), {'body': 'one too many', 'audience': 'connections'})
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(Post.objects.count(), 2)  # the blocked attempt created no post
+
+    def test_failed_attempt_does_not_count_against_the_limit(self):
+        # An empty post (no body, no media) fails validation before the
+        # rate-limit check even runs — see create_post's ordering — so it
+        # must not eat into the user's quota.
+        for _ in range(3):
+            response = self.client.post(reverse('create_post'), {'body': '', 'audience': 'connections'})
+            self.assertEqual(response.status_code, 400)
+
+        response = self.client.post(reverse('create_post'), {'body': 'real post', 'audience': 'connections'})
+        self.assertEqual(response.status_code, 200)
+
+    def test_limit_is_per_user(self):
+        for _ in range(2):
+            self.client.post(reverse('create_post'), {'body': 'hello', 'audience': 'connections'})
+
+        other = make_user('+255700000222', 'Other')
+        self.client.force_login(other)
+        response = self.client.post(reverse('create_post'), {'body': 'hi from other', 'audience': 'connections'})
+        self.assertEqual(response.status_code, 200)
