@@ -1,7 +1,9 @@
 import logging
 import threading
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
+from django.core.validators import validate_email
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.tokens import default_token_generator
@@ -13,6 +15,7 @@ from django.utils import timezone, translation
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from accounts.models import User, normalize_identifier
+from accounts.tokens import email_verification_token
 from alumni.models import School
 from connections.models import Connection, UserRelationshipOverride
 from feedback.models import Feedback
@@ -104,7 +107,77 @@ def _send_password_reset_email(to_email, full_name, reset_url):
             fail_silently=False,
         )
     except Exception:
-        logger.exception('Failed to send password reset email to %s', to_email)
+        logger.exception('Failed to send password reset email to %s', _mask_email(to_email))
+
+
+def _send_email_verification_email(to_email, full_name, verify_url):
+    """Runs on a background thread, same reasoning as _send_password_reset_email."""
+    try:
+        send_mail(
+            subject='Verify your LegacyLink Africa email address',
+            message=(
+                f'Hi {full_name},\n\n'
+                f'Confirm this email address on your LegacyLink Africa account by '
+                f'clicking the link below. Once verified, you can use it to reset '
+                f'your password if you ever forget it:\n\n'
+                f'{verify_url}\n\n'
+                f"If you didn't add this email address, you can safely ignore this email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[to_email],
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception('Failed to send email verification email to %s', _mask_email(to_email))
+
+
+def _mask_email(email):
+    """Redact an address for logging — enough to correlate log lines with a
+    support ticket without writing the full address into the logs."""
+    if not email or '@' not in email:
+        return '***'
+    local, _, domain = email.partition('@')
+    masked_local = f'{local[0]}***' if local else '***'
+    return f'{masked_local}@{domain}'
+
+
+def _apply_profile_email_update(user, raw_value):
+    """Validate/normalize/dedupe an email typed into the profile-edit form
+    and apply it to `user` in place (caller still needs to `.save()`).
+    Returns (changed, error_message). On any rejection, `user.email` is left
+    untouched so the rest of the profile-edit submission can still save.
+    Changing the email always resets `email_verified` to False — a freshly
+    typed address (or a re-typed one) isn't trusted for password reset until
+    its owner clicks the verification link again; see
+    User.eligible_reset_email()."""
+    new_email = (raw_value or '').strip().lower()
+    if new_email == (user.email or '').lower():
+        return False, None
+    if new_email:
+        try:
+            validate_email(new_email)
+        except ValidationError:
+            return False, "That email address doesn't look valid, so it wasn't updated."
+        duplicate = User.objects.filter(
+            Q(email__iexact=new_email) | Q(phone_or_email__iexact=new_email)
+        ).exclude(id=user.id).exists()
+        if duplicate:
+            return False, 'That email address is already in use on another LegacyLink Africa account, so it wasn\'t updated.'
+    user.email = new_email
+    user.email_verified = False
+    return True, None
+
+
+def _dispatch_email_verification(request, user):
+    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+    token = email_verification_token.make_token(user)
+    verify_url = request.build_absolute_uri(f'/verify-email/{uidb64}/{token}/')
+    logger.info('Email verification dispatched for account %s', user.id)
+    threading.Thread(
+        target=_send_email_verification_email,
+        kwargs=dict(to_email=user.email, full_name=user.full_name, verify_url=verify_url),
+        daemon=True,
+    ).start()
 
 def home(request):
     # If user is already authenticated, redirect to dashboard
@@ -170,30 +243,51 @@ def set_language_web(request):
 
 def forgot_password(request):
     """GET shows the request form; POST sends a reset link if the entered
-    address matches an email-registered account. Only works for accounts
-    registered with an email for now (phone-only accounts have no channel
-    to deliver a reset link to yet — SMS OTP is a future addition)."""
+    address matches an account's eligible reset email.
+
+    "Eligible" (see User.eligible_reset_email) covers two cases: the address
+    IS the account's login identifier (`phone_or_email`, for users who
+    registered with an email), or it's a later profile email the user has
+    verified. It deliberately does NOT match phone_or_email and email
+    separately without regard to verification — that gap (looking only at
+    phone_or_email) was the original bug: a phone-only user who added an
+    email from their profile could never be found here, because their
+    profile email lived in a different field than the one this lookup
+    checked, so no reset link was ever generated for them.
+
+    Phone-only accounts with no verified email still have no channel to
+    deliver a reset link to (SMS OTP isn't available yet) — same generic
+    response either way, so this form can't be used to enumerate accounts
+    or fingerprint their verification state."""
     if request.user.is_authenticated:
         return redirect('dashboard')
 
     if request.method == 'POST':
         identifier = normalize_identifier(request.POST.get('email', '').strip())
         if '@' in identifier:
-            try:
-                user = User.objects.get(phone_or_email__iexact=identifier)
-                if user.has_usable_password():
+            logger.info('Password reset requested for %s', _mask_email(identifier))
+            user = User.find_by_email_identifier(identifier)
+            if user is None:
+                logger.info('Password reset: no account match for %s', _mask_email(identifier))
+            elif not user.has_usable_password():
+                logger.info('Password reset: account %s has no usable password', user.id)
+            else:
+                recipient = user.eligible_reset_email()
+                if recipient is None:
+                    logger.info('Password reset: account %s has no verified email on file', user.id)
+                else:
                     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
                     token = default_token_generator.make_token(user)
                     reset_url = request.build_absolute_uri(f'/reset-password/{uidb64}/{token}/')
+                    logger.info('Password reset: dispatching email for account %s', user.id)
                     threading.Thread(
                         target=_send_password_reset_email,
-                        kwargs=dict(to_email=user.phone_or_email, full_name=user.full_name, reset_url=reset_url),
+                        kwargs=dict(to_email=recipient, full_name=user.full_name, reset_url=reset_url),
                         daemon=True,
                     ).start()
-            except User.DoesNotExist:
-                pass
-        # Same message regardless of whether the account exists, so this
-        # form can't be used to check which emails are registered.
+        # Same message regardless of whether the account exists or has a
+        # verified email, so this form can't be used to check which emails
+        # are registered.
         messages.success(request, "If that email is registered with us, we've sent a link to reset your password.")
         return redirect('login')
 
@@ -224,6 +318,28 @@ def reset_password_confirm(request, uidb64, token):
             return redirect('login')
 
     return render(request, 'reset_password_confirm.html', {'uidb64': uidb64, 'token': token})
+
+def verify_email_confirm(request, uidb64, token):
+    """Landing page for the link sent by _dispatch_email_verification. Marks
+    the account's profile email as verified so it becomes eligible for
+    password reset (see User.eligible_reset_email)."""
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+        user = None
+
+    landing = 'profile' if request.user.is_authenticated else 'login'
+
+    if user is None or not user.email or user.email_verified or not email_verification_token.check_token(user, token):
+        messages.error(request, 'This verification link is invalid or has expired. Please request a new one by re-entering your email on your profile.')
+        return redirect(landing)
+
+    user.email_verified = True
+    user.save(update_fields=['email_verified'])
+    logger.info('Email verified for account %s', user.id)
+    messages.success(request, 'Your email address has been verified. You can now use it to reset your password.')
+    return redirect(landing)
 
 def register(request):
     if request.user.is_authenticated:
@@ -401,6 +517,12 @@ def profile(request):
         'community_confirmed': community_confirmed,
         'trust_label': trust_label,
         'active_tab': 'profile',
+        # Drives a logged-in-only nudge to add/verify a reset email —
+        # deliberately not surfaced anywhere unauthenticated (forgot_password
+        # stays silent either way) so it can't be used to profile an account
+        # from outside.
+        'has_reset_email': user.eligible_reset_email() is not None,
+        'has_pending_unverified_email': bool(user.email) and not user.email_verified,
     })
 
 
@@ -412,7 +534,13 @@ def profile_edit(request):
         user.full_name = request.POST.get('full_name', user.full_name)
         user.bio = request.POST.get('bio', user.bio)
         user.phone_number = request.POST.get('phone_number', user.phone_number)
-        user.email = request.POST.get('email', user.email)
+
+        email_changed = False
+        if 'email' in request.POST:
+            email_changed, email_error = _apply_profile_email_update(user, request.POST.get('email'))
+            if email_error:
+                messages.error(request, email_error)
+
         user.current_role = request.POST.get('current_role', user.current_role)
         user.current_location = request.POST.get('current_location', user.current_location)
         
@@ -464,7 +592,11 @@ def profile_edit(request):
         if 'avatar' in request.FILES:
             user.avatar = request.FILES['avatar']
         user.save()
-        messages.success(request, 'Profile updated successfully!')
+        if email_changed and user.email:
+            _dispatch_email_verification(request, user)
+            messages.success(request, "Profile updated successfully! We've sent a verification link to your new email — click it to enable password reset with that address.")
+        else:
+            messages.success(request, 'Profile updated successfully!')
         return redirect('profile')
     user = request.user
     # If the user hasn't filled in phone_number/email yet, default whichever

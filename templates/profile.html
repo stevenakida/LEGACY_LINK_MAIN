@@ -32,6 +32,19 @@
     </div>
 </div>
 
+{% if has_pending_unverified_email %}
+<div class="card" style="border-color: var(--gold); margin-bottom: 1rem;">
+    ✉️ We sent a verification link to <strong>{{ user.email }}</strong>. Click it to enable
+    password reset with that address — check your inbox (and spam folder).
+</div>
+{% elif not has_reset_email %}
+<div class="card" style="border-color: var(--gold); margin-bottom: 1rem;">
+    🔒 Your account has no verified email on file, so password reset by email isn't
+    available yet — and reset by SMS isn't available either. <a href="/profile/edit/">Add and
+    verify an email</a> now so you can recover your account if you forget your password.
+</div>
+{% endif %}
+
 <section class="card">
     <div class="score-row">
         <div class="score-ring" style="--score: {{ identity_score }};">

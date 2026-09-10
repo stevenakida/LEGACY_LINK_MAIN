@@ -6,9 +6,9 @@ from .models import User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ['avatar_preview', 'full_name', 'phone_or_email', 'primary_school', 'secondary_school', 'onboarding_complete', 'connections_count']
-    list_filter = ['onboarding_complete']
-    search_fields = ['full_name', 'phone_or_email']
+    list_display = ['avatar_preview', 'full_name', 'phone_or_email', 'email', 'email_verified', 'primary_school', 'secondary_school', 'onboarding_complete', 'connections_count']
+    list_filter = ['onboarding_complete', 'email_verified']
+    search_fields = ['full_name', 'phone_or_email', 'email']
     ordering = ['-created_at']
     readonly_fields = ['avatar_preview']
     filter_horizontal = ['groups', 'user_permissions']
@@ -16,6 +16,7 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = (
         (None, {'fields': ('phone_or_email', 'password')}),
         ('Identity', {'fields': ('avatar_preview', 'avatar', 'full_name', 'bio', 'current_role', 'current_location')}),
+        ('Contact', {'fields': ('phone_number', 'email', 'email_verified')}),
         ('Education', {'fields': ('primary_school', 'primary_completion_year', 'secondary_school', 'secondary_completion_year', 'high_school', 'high_school_completion_year')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
     )

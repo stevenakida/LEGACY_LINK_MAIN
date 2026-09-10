@@ -66,6 +66,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     # other one from their profile).
     phone_number = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
+    # Whether `email` above has been confirmed by clicking the link sent to
+    # it (see config.views.verify_email_confirm). Only a verified profile
+    # email is trusted as a password-reset destination — an unconfirmed
+    # address could have been mistyped or belong to someone else entirely.
+    # Not relevant when `phone_or_email` itself is an email: that one is
+    # already trusted at login-credential strength (see eligible_reset_email).
+    email_verified = models.BooleanField(default=False)
 
     # Location
     current_location = models.CharField(max_length=200, blank=True)
@@ -122,6 +129,34 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.full_name} ({self.phone_or_email})"
+
+    @classmethod
+    def find_by_email_identifier(cls, identifier):
+        """Look up an account by an email address, checking both places one
+        can live: `phone_or_email` (the login identifier itself, for users
+        who registered with an email) and `email` (added later from the
+        profile, for phone-only registrants). Case-insensitive. Returns None
+        on no match; if legacy data somehow has more than one account
+        matching (no DB-level uniqueness on `email`), deterministically
+        returns one rather than raising."""
+        if not identifier:
+            return None
+        return cls.objects.filter(
+            models.Q(phone_or_email__iexact=identifier) | models.Q(email__iexact=identifier)
+        ).order_by('id').first()
+
+    def eligible_reset_email(self):
+        """The address a password-reset link may be sent to, or None if this
+        account has none yet. An email is eligible when it's either the
+        identifier the user logs in with (trusted at login-credential
+        strength already) or a later profile email that's been verified.
+        A phone-only account with no verified profile email has no eligible
+        recipient — SMS-based reset isn't available."""
+        if '@' in self.phone_or_email:
+            return self.phone_or_email
+        if self.email and self.email_verified:
+            return self.email
+        return None
 
     @property
     def cohort_label(self):

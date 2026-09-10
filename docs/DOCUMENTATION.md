@@ -270,6 +270,19 @@ custom admin UI exists.
 
 ## 6. Known limitations / in-progress work
 
+- **RESOLVED (2026-09-10): phone-registered users couldn't reset their
+  password even after adding an email from their profile** — see the
+  2026-09-10 change-log entry above for the root cause and fix. Two gaps
+  remain by design, not bugs: (1) **no SMS/OTP reset channel** — a
+  phone-only account with no verified email still has no reset path at all;
+  `forgot_password` and the profile page both say so without confirming
+  whether the account exists. (2) **existing `User.email` values written
+  before this fix are not auto-verified** — every row defaults to
+  `email_verified=False` on migrate, so any phone-only user who already
+  added an email pre-fix must re-add/re-verify it once (they'll see the "no
+  verified email" banner on their profile) before reset-by-email works for
+  them. No bulk backfill was done, since there's no way to confirm those
+  addresses were ever typed correctly or belong to their owner.
 - **RESOLVED (2026-08-18, second bug in the same flow): after the CORS fix
   below, uploads still failed — real code bug this time.**
   `S3MediaBackend.generate_upload_url` (`media_assets/storage.py`) included
@@ -405,6 +418,25 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-10: **Fixed password reset for phone-registered users who add an
+  email later, plus new email-verification safeguard.** Root cause:
+  `forgot_password` (`config/views.py`) looked accounts up by
+  `phone_or_email` only — the login identifier — never by the separate
+  `User.email` field a phone-only registrant fills in from their profile, so
+  no reset link was ever generated for them (the form always claimed
+  success regardless). Fixed by `User.find_by_email_identifier` (checks
+  both fields) plus a new `User.eligible_reset_email()` that only trusts an
+  email for reset when it's the login identifier itself or a profile email
+  the user has verified. Added `User.email_verified` (migration
+  `accounts/0010_user_email_verified`, reversible, defaults every existing
+  row to unverified — see §6) and a verify-email-by-link flow
+  (`accounts/tokens.py`, `verify_email_confirm` view, `/verify-email/<uidb64>/<token>/`)
+  mirroring the existing password-reset-link pattern. `profile_edit` now
+  validates, lowercases, and dedupes a submitted email before saving it
+  (`_apply_profile_email_update`), and re-triggers verification whenever it
+  changes. Tests: `config/tests.py` (new, 18 cases covering the phone→email
+  reset path, duplicate/invalid email rejection, verified-vs-unverified
+  eligibility, expired/reused tokens, and enumeration-safety).
 - 2026-08-26: **Infra hardening: Spaces versioning enabled, DB backups
   confirmed automated (restore test deferred to the weekend), DB SSL
   connection enforcement added** (`DATABASE_SSL_REQUIRE`). See §5b.
