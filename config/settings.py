@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     'moderation',
     'notifications',
     'ratelimiting',
+    'ingestion',
 ]
 
 SITE_ID = 1
@@ -357,6 +358,14 @@ else:
     DEFAULT_FROM_EMAIL = 'noreply@legacylinkafrica.local'
 
 FEEDBACK_NOTIFY_EMAIL = config('FEEDBACK_NOTIFY_EMAIL', default='')
+
+# ReliefWeb API (see ingestion/reliefweb.py) requires a pre-approved
+# appname as of Nov 2025 — request one at
+# https://apidoc.reliefweb.int/parameters#appname (ReliefWeb reviews by
+# hand and emails back an approval). Left blank until that's done;
+# ingest_reliefweb_jobs fails loudly with a clear message rather than
+# silently doing nothing when this is unset.
+RELIEFWEB_APPNAME = config('RELIEFWEB_APPNAME', default='')
 
 # Django-allauth settings
 ACCOUNT_LOGIN_METHODS = {'email'}

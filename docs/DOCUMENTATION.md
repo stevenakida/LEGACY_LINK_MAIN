@@ -418,6 +418,47 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-11: **New `ingestion` app — pilot: auto-post NECTA exam/results
+  news to the Home feed, auto-add ReliefWeb Tanzania jobs to Opportunities.**
+  Two management commands, each dedup'd via `ingestion.IngestedItem`
+  (source + external id, so a periodic run never reposts the same item)
+  and authored/posted by a new non-login system account ("LegacyLink
+  Africa" — `ingestion.services.get_system_author`, unusable password,
+  `get_or_create` so it's idempotent):
+  - `manage.py ingest_necta_news [--pages N] [--dry-run]` — scrapes
+    `necta.go.tz/news/all` (no official API/RSS; verified live 2026-09-11,
+    see `ingestion/necta.py`'s docstring for the exact markup depended on).
+    Handles two article shapes: ordinary announcements (`/news/read/<id>`)
+    and results-release announcements, which link straight out to the
+    separate `matokeo.necta.go.tz` portal instead — those use the URL
+    itself as the dedup key. Posts as Public, `approval_status=NOT_REQUIRED`
+    (immediately visible, matching the review-gate suspension above).
+  - `manage.py ingest_reliefweb_jobs [--limit N] [--dry-run]` — pulls
+    Tanzania-filtered jobs from the official ReliefWeb API
+    (`api.reliefweb.int/v2/jobs`) into `Opportunity` (`type='job'`). As of
+    Nov 2025 ReliefWeb requires a **pre-approved `appname`**
+    (`RELIEFWEB_APPNAME` env var, blank by default) — request one at
+    https://apidoc.reliefweb.int/parameters#appname (ReliefWeb reviews by
+    hand and emails an approval; this can't be automated). Until that's
+    set, the command fails with a clear `CommandError` rather than doing
+    nothing silently or crashing with a raw traceback — verified against
+    the real API's actual 403 response.
+  - Wiring TODO before either runs on a schedule: `RELIEFWEB_APPNAME` needs
+    that approval, and both commands need a periodic invocation — the
+    existing `cleanup-rate-limit-hits` DO App Platform `SCHEDULED` job
+    component is the established pattern for this (see §5b), not yet
+    applied to these two.
+  - Of the other sources discussed (Wizara ya Elimu, Ajira Portal/
+    Recruitment, Impactpool, UNjobs, UNDP Tanzania, Great Tanzania Jobs,
+    Jobweb, ZoomTanzania, Mabumbe), none are wired up yet — each would need
+    its own scraper (no official API) and a per-site ToS check.
+    **LinkedIn was deliberately excluded**: scraping job listings violates
+    its Terms of Service and there's no public jobs-search API without a
+    formal partnership.
+  - Tests: `ingestion/tests.py` (new, 13 cases, no real network — HTTP
+    mocked with fixtures derived from the real live responses). Full
+    suite: 257/257 pass. New dependencies: `requests` (already transitive,
+    now pinned direct), `beautifulsoup4` (new, HTML parsing for NECTA).
 - 2026-09-11: **Fixed: a single Report on a post instantly hid it for
   everyone but the author.** `posts.views.report_post` used to flip
   `approval_status` to `PENDING` on the very first report against a post —
