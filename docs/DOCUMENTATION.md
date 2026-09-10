@@ -418,6 +418,30 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-11: **Fixed: a single Report on a post instantly hid it for
+  everyone but the author.** `posts.views.report_post` used to flip
+  `approval_status` to `PENDING` on the very first report against a post —
+  from anyone, on any audience, even a single accidental tap — independent
+  of the `FEATURE_PUBLIC_POST_REVIEW_REQUIRED` flag suspended 2026-09-04
+  (that only gates *new Public posts at creation*, not reports on existing
+  ones). Reported by the user after posting and having someone report their
+  post, expecting no gate to exist anywhere per the earlier suspension.
+  report_post still files the `ContentReport` and (re)opens the
+  `ModerationHold` for admin review — only the auto-hide-on-first-report is
+  gone; an admin who decides a reported post should come down can still set
+  `approval_status` by hand in Django admin. `_visible_posts_queryset`'s
+  docstring updated to match. `report_post_media` (reporting just the
+  photo) is unchanged — that already only pulls the image, not the whole
+  post, a much smaller blast radius for a single unverified report.
+  Also fixed: the chat reply-preview bar (`#chat-reply-preview` in
+  `chat.html`) sat visibly above the composer on every chat screen from
+  first load — empty except for its ✕ — because `.reply-preview` sets its
+  own `display: flex` in `static/css/theme.css` with no `[hidden]`
+  override, the same class-selector-beats-`[hidden]` trap the lightbox/
+  forward-modal rules two lines above it already guard against, just never
+  extended to this element when it was added. Tests: `posts/tests.py`
+  updated (`ReportPostTests`) to assert the new no-auto-hide behavior while
+  still covering that reports are logged and that admins can still act.
 - 2026-09-10: **Login: phone-prefix normalization + login-by-verified-email,
   password-reset auto-fill.** Three gaps found using the reset flow above in
   practice: (1) `PhoneOrEmailBackend.authenticate` did an exact-string match

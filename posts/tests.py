@@ -581,7 +581,13 @@ class ReportPostTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(ContentReport.objects.count(), 0)
 
-    def test_report_puts_connections_post_under_review_and_hides_it(self):
+    def test_report_logs_the_report_but_does_not_hide_the_post(self):
+        """As of 2026-09-11: a single report no longer auto-hides a post —
+        it used to flip approval_status to PENDING on the very first
+        report, which made an accidental/malicious single tap instantly
+        vanish someone's post for everyone but them. The report is still
+        recorded (ContentReport + ModerationHold) for an admin to review;
+        only an admin's own decision now changes visibility."""
         self.client.force_login(self.viewer)
         response = self.client.post(
             reverse('report_post', kwargs={'post_id': self.post.id}),
@@ -590,35 +596,36 @@ class ReportPostTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
         self.post.refresh_from_db()
-        self.assertEqual(self.post.approval_status, Post.ApprovalStatus.PENDING)
-        self.assertNotIn(self.post, get_feed_for_user(self.viewer))
-        self.assertIn(self.post, get_feed_for_user(self.author))  # author still sees own post
+        self.assertEqual(self.post.approval_status, Post.ApprovalStatus.NOT_REQUIRED)
+        self.assertIn(self.post, get_feed_for_user(self.viewer))
+        self.assertIn(self.post, get_feed_for_user(self.author))
 
         report = ContentReport.objects.get()
         self.assertEqual(report.reporter, self.viewer)
         self.assertEqual(report.category, ContentReport.Category.HARASSMENT)
 
-    def test_report_opens_a_user_report_hold(self):
+    def test_report_opens_a_user_report_hold_for_admin_review(self):
         self.client.force_login(self.viewer)
         self.client.post(reverse('report_post', kwargs={'post_id': self.post.id}), {'category': 'spam'})
         hold = ModerationHold.objects.get()
         self.assertEqual(hold.reason, ModerationHold.Reason.USER_REPORT)
         self.assertEqual(hold.status, ModerationHold.Status.PENDING)
-
-    def test_admin_approve_restores_visibility_after_report(self):
-        from posts.admin import approve_posts
-        self.client.force_login(self.viewer)
-        self.client.post(reverse('report_post', kwargs={'post_id': self.post.id}), {'category': 'spam'})
-
-        approve_posts(None, None, Post.objects.filter(pk=self.post.pk))
+        # The hold is the review queue; approval_status (visibility) is untouched.
         self.post.refresh_from_db()
-        self.assertEqual(self.post.approval_status, Post.ApprovalStatus.APPROVED)
-        self.assertIn(self.post, get_feed_for_user(self.viewer))
+        self.assertEqual(self.post.approval_status, Post.ApprovalStatus.NOT_REQUIRED)
 
-    def test_admin_reject_keeps_it_hidden_after_report(self):
+    def test_admin_can_still_manually_hide_a_reported_post(self):
+        """report_post itself no longer sets PENDING, but an admin who
+        reviews a report (via ModerationHold/ContentReport in Django admin)
+        and decides the post should come down still can, by hand — the
+        bulk approve/reject actions keep working on whatever they're
+        pointed at, same as for the Public-audience review queue."""
         from posts.admin import reject_posts
         self.client.force_login(self.viewer)
         self.client.post(reverse('report_post', kwargs={'post_id': self.post.id}), {'category': 'spam'})
+
+        self.post.approval_status = Post.ApprovalStatus.PENDING
+        self.post.save(update_fields=['approval_status'])
 
         reject_posts(None, None, Post.objects.filter(pk=self.post.pk))
         self.post.refresh_from_db()

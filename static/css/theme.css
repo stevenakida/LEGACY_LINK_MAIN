@@ -620,6 +620,13 @@ a { color: inherit; }
    on the page from first load, "hidden" attribute notwithstanding. */
 .chat-lightbox[hidden], .forward-modal[hidden] { display: none; }
 
+/* Same issue as above, for the reply-preview bar (.reply-preview also sets
+   its own `display: flex`): without this override, the bar sat visibly
+   above the composer on every chat screen from first load, empty except
+   for its ✕ button, since JS only ever toggles the `hidden` attribute and
+   never touches inline style. */
+.reply-preview[hidden] { display: none; }
+
 .chat-lightbox { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1.5rem; }
 .chat-lightbox img { max-width: 100%; max-height: 75vh; border-radius: 10px; object-fit: contain; }
 .chat-lightbox-close { position: absolute; top: 1.25rem; right: 1.25rem; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 1.1rem; cursor: pointer; }

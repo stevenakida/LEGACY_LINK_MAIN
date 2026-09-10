@@ -55,11 +55,13 @@ def _visible_posts_queryset(viewer):
 
     All three audiences additionally require approval_status to be
     NOT_REQUIRED or APPROVED (i.e. exclude PENDING/REJECTED) — Connections/
-    Cohort default to NOT_REQUIRED and normally never move, but Phase 4
-    Step 4's report_post can flip a reported post's approval_status to
-    PENDING regardless of audience (see moderation.services.file_report),
-    and this is what actually makes that hold hide the post from everyone
-    but its author.
+    Cohort default to NOT_REQUIRED and normally never move on their own.
+    As of 2026-09-11, report_post no longer sets PENDING itself (a single
+    report is logged via ModerationHold/ContentReport for admin review but
+    no longer auto-hides the post — see report_post's docstring); PENDING
+    on a Connections/Cohort/Public post now only happens when an admin
+    deliberately sets it (directly, or via FEATURE_PUBLIC_POST_REVIEW_REQUIRED
+    at creation time for Public posts).
 
     Deliberately does NOT factor in PostHiddenFor — "hidden" is a feed
     display preference, not an access grant, so a hidden post must stay
@@ -283,14 +285,20 @@ def hide_post(request, post_id):
 
 def report_post(request, post_id):
     """POST /posts/<id>/report/ — file a report against the whole post.
-    Fail-closed, matching the rest of Phase 4: the very first report puts
-    the post under review (approval_status=PENDING) and it becomes
-    invisible to everyone but the author until a moderator approves or
-    rejects it via the same PostAdmin actions the Public-audience review
-    queue uses — see _visible_posts_queryset for why this now applies to
-    Connections/Cohort posts too, not just Public ones. Uses can_view_post
-    (not get_object_or_404) so a post someone isn't allowed to see can't be
-    probed for existence via this endpoint."""
+    Records the report and (re)opens a ModerationHold for admin review (see
+    moderation.services.file_report) — admins see it via ModerationHold/
+    ContentReport in Django admin regardless. Does NOT touch the post's own
+    approval_status/visibility: as of 2026-09-11, a single report no longer
+    auto-hides the post (previously any one report — even one tap, even by
+    mistake — immediately made the post invisible to everyone but its
+    author). Matches the same "don't gate on unverified single-user signal,
+    only on an admin's actual decision" policy already applied to new-post
+    creation (see FEATURE_PUBLIC_POST_REVIEW_REQUIRED). An admin who
+    decides a reported post genuinely warrants hiding can still do so
+    directly (edit the post in Django admin and set approval_status to
+    Pending or Rejected, or use the PostAdmin actions once it's Pending).
+    Uses can_view_post (not get_object_or_404) so a post someone isn't
+    allowed to see can't be probed for existence via this endpoint."""
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Authentication required'}, status=401)
     if request.method != 'POST':
@@ -309,8 +317,6 @@ def report_post(request, post_id):
     except InvalidReportCategory:
         return JsonResponse({'error': 'Choose a reason for the report.'}, status=400)
 
-    post.approval_status = Post.ApprovalStatus.PENDING
-    post.save(update_fields=['approval_status'])
     return JsonResponse({'ok': True})
 
 
