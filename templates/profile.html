@@ -36,6 +36,10 @@
 <div class="card" style="border-color: var(--gold); margin-bottom: 1rem;">
     ✉️ We sent a verification link to <strong>{{ user.email }}</strong>. Click it to enable
     password reset with that address — check your inbox (and spam folder).
+    <form method="post" action="{% url 'resend_email_verification' %}" style="margin-top:0.6rem;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-line">Resend verification email</button>
+    </form>
 </div>
 {% elif not has_reset_email %}
 <div class="card" style="border-color: var(--gold); margin-bottom: 1rem;">

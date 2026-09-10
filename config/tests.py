@@ -287,3 +287,85 @@ class EmailVerificationTokenTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.user.refresh_from_db()
         self.assertFalse(self.user.email_verified)
+
+
+class MalformedLinkTests(TestCase):
+    """A uidb64 that decodes to a non-UUID string used to raise an uncaught
+    django.core.exceptions.ValidationError from User.objects.get(pk=uid)
+    (pk is a UUIDField) — a 500 instead of the intended graceful
+    "invalid or expired" message, on both link-confirmation views."""
+
+    def test_reset_password_confirm_with_malformed_uid_does_not_500(self):
+        bad_uidb64 = urlsafe_base64_encode(b'not-a-uuid')
+        response = self.client.get(f'/reset-password/{bad_uidb64}/some-token/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/forgot-password/')
+
+    def test_verify_email_confirm_with_malformed_uid_does_not_500(self):
+        bad_uidb64 = urlsafe_base64_encode(b'not-a-uuid')
+        response = self.client.get(f'/verify-email/{bad_uidb64}/some-token/')
+        self.assertEqual(response.status_code, 302)
+
+
+class ResendEmailVerificationTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('0744556677', 'pass1234', full_name='Erin')
+
+    def test_resend_requires_login(self):
+        response = self.client.post('/profile/resend-verification/')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response.url)
+
+    def test_resend_sends_a_fresh_link_for_pending_unverified_email(self):
+        self.user.email = 'erin@example.com'
+        self.user.save()
+        self.client.force_login(self.user)
+        with synchronous_email():
+            response = self.client.post('/profile/resend-verification/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('erin@example.com', mail.outbox[0].to)
+
+    def test_resend_is_a_noop_when_no_email_on_file(self):
+        self.client.force_login(self.user)
+        with synchronous_email():
+            response = self.client.post('/profile/resend-verification/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_resend_is_a_noop_when_already_verified(self):
+        self.user.email = 'erin@example.com'
+        self.user.email_verified = True
+        self.user.save()
+        self.client.force_login(self.user)
+        with synchronous_email():
+            response = self.client.post('/profile/resend-verification/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_resend_unblocks_reset_end_to_end(self):
+        """The exact scenario reported in production: an email added to a
+        phone-only account before this verification flow existed sits
+        unverified after migrate, and profile_edit's change-detection won't
+        re-dispatch for an unchanged value — resend is the only way back in."""
+        self.user.email = 'erin@example.com'
+        self.user.save()  # email_verified stays False, as it would after migrate
+        self.client.force_login(self.user)
+        with synchronous_email():
+            self.client.post('/profile/resend-verification/')
+        verify_mail = mail.outbox[-1]
+        self.assertIn('erin@example.com', verify_mail.to)
+
+        uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
+        token = email_verification_token.make_token(self.user)
+        self.client.get(f'/verify-email/{uidb64}/{token}/')
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.email_verified)
+
+        self.client.logout()
+        mail.outbox.clear()
+        with synchronous_email():
+            response = self.client.post('/forgot-password/', {'email': 'erin@example.com'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('erin@example.com', mail.outbox[0].to)

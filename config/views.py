@@ -297,7 +297,12 @@ def reset_password_confirm(request, uidb64, token):
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
         user = User.objects.get(pk=uid)
-    except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+    except (User.DoesNotExist, ValueError, TypeError, OverflowError, ValidationError):
+        # ValidationError: pk is a UUIDField — User.objects.get(pk=uid) raises
+        # this (not a plain ValueError) when a malformed/tampered uidb64
+        # decodes to something that isn't a valid UUID. Uncaught, this was a
+        # real unhandled-500 on any garbled link instead of the graceful
+        # "invalid or expired" message below.
         user = None
 
     if user is None or not default_token_generator.check_token(user, token):
@@ -326,13 +331,18 @@ def verify_email_confirm(request, uidb64, token):
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
         user = User.objects.get(pk=uid)
-    except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+    except (User.DoesNotExist, ValueError, TypeError, OverflowError, ValidationError):
+        # ValidationError: pk is a UUIDField — User.objects.get(pk=uid) raises
+        # this (not a plain ValueError) when a malformed/tampered uidb64
+        # decodes to something that isn't a valid UUID. Uncaught, this was a
+        # real unhandled-500 on any garbled link instead of the graceful
+        # "invalid or expired" message below.
         user = None
 
     landing = 'profile' if request.user.is_authenticated else 'login'
 
     if user is None or not user.email or user.email_verified or not email_verification_token.check_token(user, token):
-        messages.error(request, 'This verification link is invalid or has expired. Please request a new one by re-entering your email on your profile.')
+        messages.error(request, 'This verification link is invalid or has expired. Use "Resend verification email" on your profile to get a new one.')
         return redirect(landing)
 
     user.email_verified = True
@@ -340,6 +350,24 @@ def verify_email_confirm(request, uidb64, token):
     logger.info('Email verified for account %s', user.id)
     messages.success(request, 'Your email address has been verified. You can now use it to reset your password.')
     return redirect(landing)
+
+def resend_email_verification(request):
+    """POST-only — re-triggers the verification email for the current
+    (already-saved) profile email. profile_edit only dispatches a
+    verification email when the submitted value actually CHANGES the
+    field, so an address that was saved before this verification flow
+    existed — or whose earlier link expired or got lost — had no other way
+    to get a fresh link short of re-typing a different address and back."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method == 'POST':
+        user = request.user
+        if user.email and not user.email_verified:
+            _dispatch_email_verification(request, user)
+            messages.success(request, f"We've sent a new verification link to {user.email}.")
+        else:
+            messages.info(request, 'There is no pending email verification on your account.')
+    return redirect('profile')
 
 def register(request):
     if request.user.is_authenticated:
