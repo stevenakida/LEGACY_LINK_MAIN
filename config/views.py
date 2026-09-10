@@ -1,5 +1,6 @@
 import logging
 import threading
+from urllib.parse import quote
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
@@ -205,11 +206,13 @@ def login_view(request):
             translation.activate(user.preferred_language)
             return _set_language_cookie(redirect('dashboard'), user.preferred_language)
         else:
-            # Check if user exists for better error messaging
-            try:
-                User.objects.get(phone_or_email__iexact=normalize_identifier(phone_or_email))
+            # Check if user exists for better error messaging — same lookup
+            # authenticate() itself uses (phone in any prefix format, or a
+            # verified profile email), so this message is never wrong about
+            # whether an account was found.
+            if User.find_by_login_identifier(phone_or_email):
                 messages.error(request, 'Invalid password. Please check your password and try again.')
-            except User.DoesNotExist:
+            else:
                 messages.error(request, f'No account found for {phone_or_email}. Please register first.')
 
         return render(request, 'login.html', {
@@ -217,7 +220,9 @@ def login_view(request):
             'submitted_password': password,
         })
 
-    return render(request, 'login.html')
+    # A successful password reset redirects here with ?identifier=... so the
+    # login form only needs the password typed — see reset_password_confirm.
+    return render(request, 'login.html', {'submitted_username': request.GET.get('identifier', '')})
 
 
 def set_language_web(request):
@@ -320,7 +325,11 @@ def reset_password_confirm(request, uidb64, token):
             user.set_password(password)
             user.save()
             messages.success(request, 'Your password has been reset. Please sign in.')
-            return redirect('login')
+            # Pre-fill the identifier field on the login page with whatever
+            # address this reset link was actually delivered to, so the user
+            # only has to type their new password.
+            login_identifier = user.eligible_reset_email() or user.phone_or_email
+            return redirect(f"{reverse('login')}?identifier={quote(login_identifier)}")
 
     return render(request, 'reset_password_confirm.html', {'uidb64': uidb64, 'token': token})
 

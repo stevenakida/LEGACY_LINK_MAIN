@@ -418,6 +418,24 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-10: **Login: phone-prefix normalization + login-by-verified-email,
+  password-reset auto-fill.** Three gaps found using the reset flow above in
+  practice: (1) `PhoneOrEmailBackend.authenticate` did an exact-string match
+  against `phone_or_email`, so only the exact format typed at signup ever
+  logged in — `+255…`/`255…`/`0…` weren't treated as equivalent despite
+  registration already normalizing to one canonical form. (2) a verified
+  profile email couldn't log in at all — only `phone_or_email` was ever
+  checked. (3) after a successful password reset, the login page came up
+  blank instead of with the identifier pre-filled. Added
+  `User.find_by_login_identifier` (normalizes, tries `phone_or_email` then a
+  VERIFIED `email` — unverified can't log in, same rule as reset
+  eligibility) and wired it into both the backend and `login_view`'s
+  invalid-password-vs-no-account messaging; `reset_password_confirm` now
+  redirects to `/login/?identifier=<eligible_reset_email>` and `login_view`
+  reads that query param as the pre-fill. Since `AUTHENTICATION_BACKENDS`
+  is shared, this also fixes phone-prefix login and email-login for the
+  mobile app's JWT endpoint, not just the web login form. Tests:
+  `config/tests.py` +11 cases. Full suite: 245/245 pass.
 - 2026-09-10: **Fixed password reset for phone-registered users who add an
   email later, plus new email-verification safeguard.** Root cause:
   `forgot_password` (`config/views.py`) looked accounts up by

@@ -369,3 +369,119 @@ class ResendEmailVerificationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('erin@example.com', mail.outbox[0].to)
+
+
+class PhonePrefixLoginTests(TestCase):
+    """Registration already normalizes any of +255XXXXXXXXX / 255XXXXXXXXX /
+    0XXXXXXXXX to the same canonical phone_or_email — but login previously
+    passed the raw typed value straight to an exact-match query, so only the
+    exact format used at signup ever worked. authenticate() now goes through
+    User.find_by_login_identifier, which normalizes first."""
+
+    def setUp(self):
+        # Registers as +255752402315 (see normalize_identifier).
+        self.user = User.objects.create_user('0752402315', 'pass1234', full_name='Fahari')
+
+    def _login(self, typed_username):
+        return self.client.post('/login/', {'username': typed_username, 'password': 'pass1234'})
+
+    def test_login_with_registered_format_works(self):
+        response = self._login('0752402315')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/dashboard/')
+
+    def test_login_with_plus255_prefix_works(self):
+        response = self._login('+255752402315')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/dashboard/')
+
+    def test_login_with_bare_255_prefix_works(self):
+        response = self._login('255752402315')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/dashboard/')
+
+    def test_wrong_password_with_alternate_prefix_still_reports_invalid_password_not_missing_account(self):
+        response = self.client.post('/login/', {'username': '+255752402315', 'password': 'wrongpass'}, follow=True)
+        msgs = [str(m) for m in response.context['messages']]
+        self.assertTrue(any('Invalid password' in m for m in msgs))
+
+
+class LoginByVerifiedEmailTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('0766778899', 'pass1234', full_name='Grace')
+
+    def _login(self, typed_username, password='pass1234'):
+        return self.client.post('/login/', {'username': typed_username, 'password': password})
+
+    def test_login_by_email_fails_before_verification(self):
+        self.user.email = 'grace@example.com'
+        self.user.save()
+        response = self._login('grace@example.com')
+        self.assertEqual(response.status_code, 200)  # re-renders login.html, no redirect
+
+    def test_login_by_verified_email_succeeds_with_same_password(self):
+        self.user.email = 'grace@example.com'
+        self.user.email_verified = True
+        self.user.save()
+        response = self._login('grace@example.com')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/dashboard/')
+
+    def test_login_by_phone_still_works_after_verified_email_added(self):
+        self.user.email = 'grace@example.com'
+        self.user.email_verified = True
+        self.user.save()
+        response = self._login('0766778899')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/dashboard/')
+
+    def test_verified_email_login_is_case_insensitive(self):
+        self.user.email = 'grace@example.com'
+        self.user.email_verified = True
+        self.user.save()
+        response = self._login('Grace@Example.com')
+        self.assertEqual(response.status_code, 302)
+
+
+class LoginPrefillTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('0788990011', 'oldpass123', full_name='Halima')
+
+    def test_login_get_prefills_username_from_identifier_query_param(self):
+        response = self.client.get('/login/?identifier=%2B255788990011')
+        self.assertContains(response, '+255788990011')
+
+    def test_login_get_without_identifier_has_empty_prefill(self):
+        response = self.client.get('/login/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_reset_password_redirects_to_login_with_identifier_prefilled(self):
+        uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
+        token = default_token_generator.make_token(self.user)
+        response = self.client.post(
+            f'/reset-password/{uidb64}/{token}/',
+            {'password': 'newpass123', 'confirm_password': 'newpass123'},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith('/login/?identifier='))
+        self.assertIn('255788990011', response.url)
+
+        # Following the redirect shows the login page with the field
+        # pre-filled and only the password left for the user to type.
+        followed = self.client.get(response.url)
+        self.assertContains(followed, '+255788990011')
+
+    def test_reset_password_prefills_verified_email_when_that_was_the_reset_channel(self):
+        self.user.email = 'halima@example.com'
+        self.user.email_verified = True
+        self.user.save()
+        uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
+        token = default_token_generator.make_token(self.user)
+        response = self.client.post(
+            f'/reset-password/{uidb64}/{token}/',
+            {'password': 'newpass123', 'confirm_password': 'newpass123'},
+        )
+        # phone_or_email itself isn't an email, so eligible_reset_email()
+        # returns the verified profile email — that's the address the link
+        # was actually delivered to, so it's what gets pre-filled.
+        self.assertIn('halima%40example.com', response.url)

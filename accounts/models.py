@@ -131,6 +131,23 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f"{self.full_name} ({self.phone_or_email})"
 
     @classmethod
+    def find_by_login_identifier(cls, identifier):
+        """Resolve a login-form identifier (phone or email, in any of the
+        accepted formats — see normalize_identifier) to an account. Tries
+        `phone_or_email` (the canonical login identifier) first, then falls
+        back to a VERIFIED profile email — an unverified one can't be used
+        to log in, same rule as password reset (see eligible_reset_email).
+        Used by PhoneOrEmailBackend and by login_view's invalid-password-vs-
+        no-account messaging, so both stay consistent."""
+        if not identifier:
+            return None
+        identifier = normalize_identifier(identifier.strip())
+        user = cls.objects.filter(phone_or_email__iexact=identifier).first()
+        if user is None and '@' in identifier:
+            user = cls.objects.filter(email__iexact=identifier, email_verified=True).first()
+        return user
+
+    @classmethod
     def find_by_email_identifier(cls, identifier):
         """Look up an account by an email address, checking both places one
         can live: `phone_or_email` (the login identifier itself, for users
