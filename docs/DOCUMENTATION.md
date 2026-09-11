@@ -418,6 +418,34 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-11: **DB restore test finally performed and passed** (deferred
+  twice before — see §6/[[session_2026-08-26_infra_hardening]]). Forked
+  `legacy-link-postgres-production` from its latest backup into a
+  temporary cluster, verified real data (54 migrations, correct row counts
+  across core tables, a table's 0-rows correctly matching that its first
+  write postdated the backup), deleted the fork immediately after. Backups
+  are now confirmed genuinely restorable, not just scheduled. Also
+  discovered directly in that data: the leftover rate-limiting scratch
+  test user is still in production (queued for cleanup).
+- 2026-09-11: **Mobile API now has the same email-verification path as the
+  web app.** `accounts.UserProfileSerializer` didn't expose `email` /
+  `phone_number` at all, so none of this week's phone→email password-reset
+  work (verification, login-by-verified-email) was reachable from the
+  Android app — only the web profile-edit form. Refactored the
+  validate/normalize/dedupe/reset-verification logic out of
+  `config.views.profile_edit` into `User.apply_email_update()`
+  (`accounts/models.py`) and the verification-email-sending out of
+  `config/views.py` into `accounts/services.py`
+  (`dispatch_email_verification`, `mask_email`) — both the web view and
+  the new serializer call the same functions now, closing off the exact
+  kind of drift (`profile_edit` bypassing this) that caused the original
+  password-reset bug. `MeView` (`PATCH /api/auth/me/`) now accepts `email`/
+  `phone_number`; `email_verified` is read-only; an invalid/duplicate email
+  rejects the whole PATCH atomically (standard REST semantics — the web
+  form's "save everything except the bad field" behavior doesn't carry
+  over, deliberately, since a JSON API client expects nothing to change on
+  a 400). Tests: `accounts/tests.py` (`MeViewEmailUpdateTests`, +6 cases).
+  Full suite: 265/265 pass.
 - 2026-09-11: **Fixed: feed post links weren't clickable.** Confirmed live
   after the first `ingest_necta_news` scheduled run — `dashboard.html`
   rendered `{{ post.body }}` as plain escaped text, so a URL in a post

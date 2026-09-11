@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import models
 import re
 import uuid
@@ -161,6 +163,35 @@ class User(AbstractBaseUser, PermissionsMixin):
         return cls.objects.filter(
             models.Q(phone_or_email__iexact=identifier) | models.Q(email__iexact=identifier)
         ).order_by('id').first()
+
+    def apply_email_update(self, raw_value):
+        """Validate/normalize/dedupe a submitted email and apply it to
+        `self` in place (caller still needs to `.save()`). Returns
+        (changed, error_message). On any rejection, `self.email` is left
+        untouched so the rest of a larger form/request can still save.
+        Changing the email always resets `email_verified` to False — a
+        freshly typed (or re-typed) address isn't trusted for password
+        reset or login until its owner clicks the verification link again;
+        see eligible_reset_email() / find_by_login_identifier(). Shared by
+        the web profile-edit view and the mobile API (accounts.views.MeView)
+        so both apply the exact same rules — see accounts/services.py for
+        the matching shared verification-email dispatch."""
+        new_email = (raw_value or '').strip().lower()
+        if new_email == (self.email or '').lower():
+            return False, None
+        if new_email:
+            try:
+                validate_email(new_email)
+            except ValidationError:
+                return False, "That email address doesn't look valid, so it wasn't updated."
+            duplicate = User.objects.filter(
+                models.Q(email__iexact=new_email) | models.Q(phone_or_email__iexact=new_email)
+            ).exclude(id=self.id).exists()
+            if duplicate:
+                return False, "That email address is already in use on another LegacyLink Africa account, so it wasn't updated."
+        self.email = new_email
+        self.email_verified = False
+        return True, None
 
     def eligible_reset_email(self):
         """The address a password-reset link may be sent to, or None if this
