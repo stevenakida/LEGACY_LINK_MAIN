@@ -95,6 +95,33 @@ class FeedBlockButtonTests(TestCase):
 
 
 @override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class FeedPostBodyLinkTests(TestCase):
+    """A post body containing a URL — e.g. the ingestion app's NECTA
+    announcements, which end with "Full announcement: <url>" — must render
+    as a clickable link. Plain {{ post.body }} left it as inert escaped
+    text; fixed by adding the |urlize filter in dashboard.html."""
+
+    def setUp(self):
+        self.author = make_user('+255700000901', 'Author')
+        self.viewer = make_user('+255700000902', 'Viewer')
+        connect(self.author, self.viewer)
+        self.client.force_login(self.viewer)
+
+    def test_url_in_post_body_renders_as_clickable_link(self):
+        Post.objects.create(
+            author=self.author,
+            body='STNA 2026 EXAM TIMETABLE\n\nFull announcement: https://www.necta.go.tz/news/read/72',
+        )
+        response = self.client.get(reverse('dashboard'))
+        self.assertContains(response, '<a href="https://www.necta.go.tz/news/read/72"')
+
+    def test_plain_text_without_a_url_is_unaffected(self):
+        Post.objects.create(author=self.author, body='just a regular update, no links')
+        response = self.client.get(reverse('dashboard'))
+        self.assertContains(response, 'just a regular update, no links')
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
 class CohortAudienceTests(TestCase):
     def setUp(self):
         self.school = make_school()

@@ -418,6 +418,16 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-11: **Fixed: feed post links weren't clickable.** Confirmed live
+  after the first `ingest_necta_news` scheduled run — `dashboard.html`
+  rendered `{{ post.body }}` as plain escaped text, so a URL in a post
+  (e.g. the ingestion app's "Full announcement: https://…" line) showed as
+  inert text, not a link. Changed to `{{ post.body|urlize }}` (Django's
+  built-in, safe against XSS — escapes everything except recognized URLs).
+  Scoped to this one template; the composer/edit-save JS paths
+  (`static/js/feed.js`) use `textContent` for the same reason and weren't
+  part of what broke here. Tests: `posts/tests.py` (`FeedPostBodyLinkTests`,
+  +2 cases).
 - 2026-09-11: **New `ingestion` app — pilot: auto-post NECTA exam/results
   news to the Home feed, auto-add ReliefWeb Tanzania jobs to Opportunities.**
   Two management commands, each dedup'd via `ingestion.IngestedItem`

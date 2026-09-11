@@ -136,7 +136,7 @@
             {% elif post.approval_status == 'rejected' %}
                 <p class="feed-post-pending is-rejected">{% trans "Not approved for Public — only you can see this." %}</p>
             {% endif %}
-            <p class="feed-post-body" data-post-body{% if not post.body %} hidden{% endif %}>{{ post.body }}</p>
+            <p class="feed-post-body" data-post-body{% if not post.body %} hidden{% endif %}>{{ post.body|urlize }}</p>
             {% if post.media_asset_id %}
                 <img class="feed-post-image" src="{% url 'post_image' post.id %}" alt="" loading="lazy">
             {% endif %}
