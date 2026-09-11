@@ -418,6 +418,19 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-11: **School database master spreadsheet now tracked in git.**
+  It was never a `.gitignore` exclusion — `import_school_database`'s
+  `DEFAULT_PATH` pointed at `BASE_DIR.parent`, one level *above* the repo
+  root, so the file physically couldn't be inside the repo. Copied
+  `LegacyLink_Africa_Tanzania_Education_Master_Database.xlsx` (4.3MB) into
+  a new `data/` folder and repointed `DEFAULT_PATH` there. Verified it
+  still loads correctly from the new default path (all 8 expected sheets,
+  row counts in line with the 2026-08-20 rebuild). The various raw
+  scraper-output spreadsheets (`necta_*_schools.xlsx`,
+  `nactvet_registered_institutions.xlsx`, `missing_from_master_*.xlsx`)
+  and the dated `.BACKUP-2026-08-20.xlsx` copy were deliberately **not**
+  brought in — nothing in the app reads them, they're intermediate
+  artifacts from that one-time rebuild.
 - 2026-09-11: **DB restore test finally performed and passed** (deferred
   twice before — see §6/[[session_2026-08-26_infra_hardening]]). Forked
   `legacy-link-postgres-production` from its latest backup into a

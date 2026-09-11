@@ -18,7 +18,7 @@ SHEET_TO_SCHOOL_TYPE = [
     ('Universities_Colleges', 'university'),
 ]
 
-DEFAULT_PATH = settings.BASE_DIR.parent / 'LegacyLink_Africa_Tanzania_Education_Master_Database.xlsx'
+DEFAULT_PATH = settings.BASE_DIR / 'data' / 'LegacyLink_Africa_Tanzania_Education_Master_Database.xlsx'
 CHUNK_SIZE = 2000
 
 
@@ -34,7 +34,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             'path', nargs='?', default=str(DEFAULT_PATH),
-            help='Path to the .xlsx master database (defaults to the copy in the project root).'
+            help='Path to the .xlsx master database (defaults to the tracked copy in data/).'
         )
         parser.add_argument(
             '--purge-legacy-seed', action='store_true',
