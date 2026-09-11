@@ -71,11 +71,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'storages',
-    # Social login disabled due to compatibility with custom User model
-    # 'allauth',
-    # 'allauth.account',
-    # 'allauth.socialaccount',
-    
+
     # Our apps
     'accounts',
     'alumni',
@@ -367,10 +363,15 @@ FEEDBACK_NOTIFY_EMAIL = config('FEEDBACK_NOTIFY_EMAIL', default='')
 # silently doing nothing when this is unset.
 RELIEFWEB_APPNAME = config('RELIEFWEB_APPNAME', default='')
 
-# Django-allauth settings
-ACCOUNT_LOGIN_METHODS = {'email'}
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
-ACCOUNT_UNIQUE_EMAIL = True
-SOCIALACCOUNT_AUTO_SIGNUP = True
-SOCIALACCOUNT_ADAPTER = 'allauth.socialaccount.adapter.DefaultSocialAccountAdapter'
+# Google Sign-In — implemented directly against Google's OAuth2 endpoints
+# (accounts/google_oauth.py), not django-allauth: an earlier attempt (see
+# git history) got stuck on allauth's assumptions about the user model
+# (this app's User has no `username` field and uses phone_or_email as
+# USERNAME_FIELD) on top of a `cryptography` build issue on Windows.
+# Get real values from Google Cloud Console → APIs & Services →
+# Credentials → OAuth 2.0 Client ID (Web application) — authorized
+# redirect URI must be <your domain>/auth/google/callback/. Blank by
+# default; google_login_start shows a clear error instead of crashing
+# until these are set.
+GOOGLE_OAUTH_CLIENT_ID = config('GOOGLE_OAUTH_CLIENT_ID', default='')
+GOOGLE_OAUTH_CLIENT_SECRET = config('GOOGLE_OAUTH_CLIENT_SECRET', default='')

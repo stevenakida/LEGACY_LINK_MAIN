@@ -418,6 +418,33 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-11: **"Continue with Google" is now functional** (was a
+  `onclick="alert('coming soon')"` placeholder on both Login and Register).
+  Replaced an abandoned django-allauth attempt (dead code removed:
+  `accounts/management/commands/setup_oauth.py`, root-level
+  `add_test_oauth.py` / `setup_oauth_credentials.py`, the commented-out
+  `allauth*` INSTALLED_APPS lines and unused `ACCOUNT_*`/`SOCIALACCOUNT_*`
+  settings — that attempt got stuck on allauth's user-model assumptions,
+  not really the `cryptography` build issue it blamed) with a minimal
+  OAuth2 flow implemented directly against Google's REST endpoints
+  (`accounts/google_oauth.py`) — no new dependency, just `requests`
+  (already in use). `GET /auth/google/login/` → Google consent screen
+  (CSRF `state` in session) → `GET /auth/google/callback/` exchanges the
+  code, fetches userinfo, and calls the new
+  `User.resolve_google_account(email, full_name)` (`accounts/models.py`):
+  matches an existing account by `phone_or_email` or a verified profile
+  `email` first (same linking rule as `find_by_login_identifier` — Google
+  has already verified the email, trusted at the same strength), only
+  creates a new account otherwise, with `email_verified=True` immediately
+  and no usable password (Google Sign-In is its only way in until the
+  owner sets one). Needs real credentials before it works in practice —
+  `GOOGLE_OAUTH_CLIENT_ID`/`GOOGLE_OAUTH_CLIENT_SECRET` are blank by
+  default and `google_login_start` shows a clear error instead of
+  crashing until they're set; see the rewritten `SOCIAL_LOGIN_SETUP.md`
+  for exactly how to get them from Google Cloud Console. Facebook's
+  button is untouched (still a placeholder — out of scope, wasn't asked
+  for). Tests: `accounts/tests.py` (`ResolveGoogleAccountTests`, +5) and
+  `config/tests.py` (`GoogleLoginTests`, +9). Full suite passes (exit 0).
 - 2026-09-11: **School database master spreadsheet now tracked in git.**
   It was never a `.gitignore` exclusion — `import_school_database`'s
   `DEFAULT_PATH` pointed at `BASE_DIR.parent`, one level *above* the repo

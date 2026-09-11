@@ -315,11 +315,14 @@
         <div class="divider"><span>OR</span></div>
         
         <div class="social-login">
-            <button type="button" class="social-btn google-btn" onclick="alert('Social login is coming soon! Please use email/password for now.')">
+            <a href="{% url 'google_login' %}" class="social-btn google-btn">
                 <i class="fab fa-google"></i>
                 <span>Sign up with Google</span>
-            </button>
+            </a>
         </div>
+        <p style="margin-top:16px;font-size:0.78em;color:#64748B;">
+            By continuing with Google, you agree to our <a href="/terms/" style="color:#E8A63C;">Terms of Use</a>.
+        </p>
     </div>
 
     <script>

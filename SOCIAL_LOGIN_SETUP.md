@@ -1,192 +1,69 @@
-# Social Login Setup Guide
+# Google Sign-In Setup
 
-## Status: ✅ Frontend & Database Ready
+## Status: Implemented, needs real credentials
 
-Your LegacyLink Africa project has social login functionality configured with Google and Facebook OAuth support using django-allauth!
+"Continue with Google" / "Sign up with Google" on the Login and Register
+pages are fully wired up — a minimal OAuth2 Authorization Code flow
+implemented directly against Google's own REST endpoints
+(`accounts/google_oauth.py`), not django-allauth. An earlier attempt using
+allauth is gone — it got stuck on allauth's assumptions about the user
+model (this app's `User` has no `username` field and uses `phone_or_email`
+as `USERNAME_FIELD`) on top of a `cryptography` build issue on Windows that
+was never actually the real blocker.
 
-### What Has Been Completed
+**The only thing missing is a real Google OAuth Client ID/Secret.**
 
-#### 1. ✅ Frontend Configuration
-- **Login page** (`templates/login.html`):
-  - "Continue with Google" button (white, red icon)
-  - "Continue with Facebook" button (blue)
-  - Font Awesome icons included
-  - Traditional phone/email + password form preserved
-  - Responsive mobile design
+## How it works
 
-- **Register page** (`templates/register.html`):
-  - "Sign up with Google" button
-  - "Sign up with Facebook" button
-  - Same styling as login page
-  - Traditional registration form below social options
+1. `GET /auth/google/login/` (`google_login_start` in `config/views.py`)
+   redirects to Google's consent screen, with a random `state` value
+   stashed in the session (CSRF protection on the callback).
+2. Google redirects back to `GET /auth/google/callback/`
+   (`google_login_callback`) with an authorization `code`.
+3. `accounts/google_oauth.py` exchanges that code for an access token,
+   then calls Google's `userinfo` endpoint to get `email`, `email_verified`,
+   and `name`. Google's own verification of that email is trusted directly
+   — no separate LegacyLink Africa verification-link email is sent.
+4. `User.resolve_google_account(email, full_name)` (`accounts/models.py`)
+   finds-or-creates: matches an existing account by `phone_or_email` or a
+   verified profile `email` first (same account-linking rule used
+   elsewhere — see `find_by_login_identifier`), so someone who registered
+   by phone and separately verified this same email from their profile
+   lands on their existing account, not a duplicate. Only creates a new
+   account if neither matches — with `email_verified=True` immediately
+   (Google already verified it) and no usable password, since Google
+   Sign-In is their only way in until they set one.
 
-#### 2. ✅ Backend Configuration
-- django-allauth installed (v65.16.0)
-- Google and Facebook OAuth providers added to INSTALLED_APPS
-- SITE_ID = 1 configured
-- Authentication backends updated
-- Allauth middleware added
-- Email verification set to optional
-- Auto signup enabled for social accounts
+## Setting up real credentials
 
-#### 3. ✅ Database
-- Test OAuth credentials added:
-  - **Google**: client_id = `test-google-client-id.apps.googleusercontent.com`
-  - **Facebook**: app_id = `1234567890`
-- Site entry configured for localhost:8000
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) →
+   create a project (or use an existing one).
+2. **APIs & Services → OAuth consent screen** — configure it (app name,
+   support email, etc.). External user type unless this is Workspace-only.
+3. **APIs & Services → Credentials → Create Credentials → OAuth 2.0
+   Client ID** → Application type: **Web application**.
+4. Add **Authorized redirect URIs**:
+   - Local dev: `http://localhost:8000/auth/google/callback/`
+   - Production: `https://legacylink-app-qs7gl.ondigitalocean.app/auth/google/callback/`
+     (or the app's current domain — check `reference_digitalocean_production`
+     memory / the DO dashboard if that's changed)
+5. Copy the **Client ID** and **Client Secret**.
+6. Set as env vars:
+   - Local: add to `.env` — `GOOGLE_OAUTH_CLIENT_ID=...` /
+     `GOOGLE_OAUTH_CLIENT_SECRET=...`
+   - Production: DigitalOcean → Apps → legacylink-app → Settings →
+     `legacy-link-main` → Environment Variables. `GOOGLE_OAUTH_CLIENT_SECRET`
+     should be added as type **SECRET**.
 
-#### 4. ✅ URL Routes
-- Allauth routes: `path('accounts/', include('allauth.urls'))`
-- Social login endpoints ready:
-  - `{% url 'socialaccount_authorize' 'google' %}`
-  - `{% url 'socialaccount_authorize' 'facebook' %}`
+Until these are set, clicking the Google button shows "Google sign-in is
+not set up yet" instead of crashing (`google_oauth.is_configured()` /
+`GoogleOAuthNotConfigured`).
 
-## Current Limitations
+## Notes
 
-⚠️ **Note**: The current setup has test credentials in the database, but the actual OAuth flow requires the Python `cryptography` library, which is having compilation issues in the current environment.
-
-### Workaround for Development
-
-The UI is complete and buttons are functional. To test locally:
-
-1. **Test Text Display**:
-   - Navigate to `/login/` or `/register/`
-   - You'll see the Google and Facebook buttons
-   - The traditional form still works for email/phone login
-
-2. **To Enable Full OAuth Flow**, you need to:
-   - Install Microsoft C++ Build Tools for cryptography compilation
-   - Run: `pip install cryptography` 
-   - Or use a virtual environment with pre-built cryptography wheels
-
-## Setting Up Real OAuth Credentials
-
-### For Google OAuth
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project
-3. Enable the following APIs:
-   - Google+ API
-   - Google Identity Service API
-4. Go to **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
-5. Choose "Web Application"
-6. Add authorized redirect URIs:
-   - `http://localhost:8000/accounts/google/login/callback/`
-   - `http://127.0.0.1:8000/accounts/google/login/callback/`
-   - For production: `https://yourdomain.com/accounts/google/login/callback/`
-7. Copy **Client ID** and **Client Secret**
-
-### For Facebook OAuth
-
-1. Go to [Facebook Developers](https://developers.facebook.com/)
-2. Create a new app (App Type: Consumer)
-3. In **Settings → Basic**, copy:
-   - **App ID**
-   - **App Secret**
-4. Add **Valid OAuth Redirect URIs**:
-   - `http://localhost:8000/accounts/facebook/login/callback/`
-   - For production: `https://yourdomain.com/accounts/facebook/login/callback/`
-5. Under **Products**, add "Facebook Login"
-
-### Adding Credentials to Django Admin
-
-Once cryptography is working and Django loads properly:
-
-1. Start Django: `python manage.py runserver`
-2. Go to `http://localhost:8000/admin/`
-3. Go to **Social Applications**
-4. Edit existing test apps or create new ones:
-
-   **For Google:**
-   - Provider: Google
-   - Name: Google OAuth
-   - Client ID: (from Google Cloud Console)
-   - Secret Key: (from Google Cloud Console)
-   - Sites: Select localhost:8000
-   - Save
-
-   **For Facebook:**
-   - Provider: Facebook
-   - Name: Facebook OAuth
-   - Client ID: (Facebook App ID)
-   - Secret Key: (Facebook App Secret)
-   - Sites: Select localhost:8000
-   - Save
-
-## Files Created/Modified
-
-### New Files
-- `accounts/management/commands/setup_oauth.py` - Management command for setup
-- `add_test_oauth.py` - Script that added test credentials
-- `SOCIAL_LOGIN_SETUP.md` - This setup guide
-
-### Modified Files
-- `config/settings.py` - Added allauth configuration
-- `config/urls.py` - Added allauth URLs
-- `templates/login.html` - Added social login buttons
-- `templates/register.html` - Added social login buttons
-- `db.sqlite3` - Test credentials added
-
-## Troubleshooting
-
-### Issue: "ModuleNotFoundError: No module named 'cryptography'"
-**Solution**: 
-- On Windows, install Microsoft C++ Build Tools
-- Or use a Docker container with pre-built wheels
-- Alternatively, just use the test credentials for UI testing
-
-### Issue: "Social Applications not appearing"
-**Solution**: 
-- Check that migrations have run: `python manage.py migrate`
-- Verify `SITE_ID = 1` in settings.py
-- Check db.sqlite3 for socialaccount\_socialapp table
-
-### Issue: "Redirect URI mismatch"
-**Solution**:
-- For local dev, URIs must be:
-  - `http://localhost:8000/accounts/provider/login/callback/`
-  - `http://127.0.0.1:8000/accounts/provider/login/callback/`
-- Check exact match in OAuth provider settings vs Django configuration
-
-## Security Notes
-
-### For Production
-
-1. **Use HTTPS only** - Update all redirect URIs to https://
-2. **Environment Variables** - Store credentials in env vars:
-   ```python
-   GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
-   FACEBOOK_APP_ID = os.environ.get('FACEBOOK_APP_ID')
-   ```
-3. **DEBUG = False** - Disable debug mode
-4. **ALLOWED_HOSTS** - Configure properly
-5. **Email Verification** - Set to 'mandatory' for production
-6. **HTTPS Redirects** - Enable `SECURE_SSL_REDIRECT = True`
-
-## Next Steps
-
-1. ✅ Frontend buttons added to login/register
-2. ✅ Test credentials configured in database
-3. ⏳ Resolve cryptography compilation issue (if planning full OAuth)
-4. ⏳ Add real OAuth credentials from Google & Facebook
-5. ⏳ Test complete OAuth flow end-to-end
-
-## Implementation Notes
-
-The social login implementation uses django-allauth which provides:
-- OAuth2 authentication for Google and Facebook
-- Automatic user account creation from OAuth data
-- Email and profile picture import
-- Account linking support
-- CSRF protection
-- Session management
-
-The current limitation is just the Python cryptography library compilation, which is a development environment issue, not a code issue.
-
-## Resources
-
-- [django-allauth Documentation](https://django-allauth.readthedocs.io/)
-- [Google OAuth Documentation](https://developers.google.com/identity/protocols/oauth2)
-- [Facebook Login Documentation](https://developers.facebook.com/docs/facebook-login)
-- [Python Cryptography](https://cryptography.io/)
-
+- Facebook was never implemented past a placeholder button (still shows
+  "Social login is coming soon" — untouched, not part of this work).
+- No new dependency was needed — the whole flow is plain HTTP calls via
+  `requests`, already a project dependency.
+- Scope requested: `openid email profile` — no Google Drive/Calendar/etc.
+  access, just identity.

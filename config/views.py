@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from accounts import google_oauth
 from accounts.models import User, normalize_identifier
 from accounts.services import dispatch_email_verification, mask_email
 from accounts.tokens import email_verification_token
@@ -336,6 +337,67 @@ def register(request):
             messages.error(request, f'Registration failed: {str(e)}')
             return render(request, 'register.html')
     return render(request, 'register.html')
+
+def google_login_start(request):
+    """GET /auth/google/login/ — redirects to Google's consent screen.
+    Shared by the Login and Register pages' "Continue with Google"
+    buttons: whether this ends up logging an existing account in or
+    creating a new one is only decided in the callback, once we actually
+    know the email — there's no separate signup-vs-login intent to carry
+    through the redirect."""
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    if not google_oauth.is_configured():
+        messages.error(request, 'Google sign-in is not set up yet. Please use phone/email for now.')
+        return redirect('login')
+
+    state = google_oauth.new_state()
+    request.session['google_oauth_state'] = state
+    redirect_uri = request.build_absolute_uri(reverse('google_login_callback'))
+    return redirect(google_oauth.build_authorization_url(redirect_uri, state))
+
+def google_login_callback(request):
+    """GET /auth/google/callback/ — Google redirects back here with either
+    `code` (the user approved) or `error` (they declined, or something
+    else went wrong on Google's side)."""
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    expected_state = request.session.pop('google_oauth_state', None)
+    if request.GET.get('error') or not expected_state or request.GET.get('state') != expected_state:
+        messages.error(request, 'Google sign-in was cancelled or could not be verified. Please try again.')
+        return redirect('login')
+
+    code = request.GET.get('code')
+    if not code:
+        messages.error(request, 'Google sign-in did not return the expected response. Please try again.')
+        return redirect('login')
+
+    redirect_uri = request.build_absolute_uri(reverse('google_login_callback'))
+    try:
+        userinfo = google_oauth.fetch_userinfo(code, redirect_uri)
+    except (google_oauth.GoogleOAuthNotConfigured, google_oauth.GoogleOAuthError):
+        messages.error(request, "Couldn't complete Google sign-in. Please try again or use phone/email.")
+        return redirect('login')
+
+    email = userinfo.get('email', '')
+    if not email or not userinfo.get('email_verified'):
+        # Vanishingly rare for a real Google account, but don't trust an
+        # unverified address enough to log someone in or create an
+        # account from it.
+        messages.error(request, "Your Google account's email isn't verified, so we can't use it to sign in.")
+        return redirect('login')
+
+    user, created = User.resolve_google_account(email, userinfo.get('name', ''))
+    if not user.is_active:
+        messages.error(request, 'This account is inactive. Please contact support.')
+        return redirect('login')
+
+    user.backend = 'accounts.backends.PhoneOrEmailBackend'
+    login(request, user)
+    translation.activate(user.preferred_language)
+    logger.info('Google sign-in: %s account %s', 'created' if created else 'matched existing', user.id)
+    return _set_language_cookie(redirect('dashboard'), user.preferred_language)
 
 def terms(request):
     return render(request, 'terms.html')

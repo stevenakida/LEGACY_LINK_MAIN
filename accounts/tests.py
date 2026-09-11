@@ -110,3 +110,48 @@ class MeViewEmailUpdateTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.user.refresh_from_db()
         self.assertEqual(self.user.phone_number, '0755111222')
+
+
+class ResolveGoogleAccountTests(TestCase):
+    """Account-linking rules for Google Sign-In — see
+    accounts/google_oauth.py and User.resolve_google_account. Google has
+    already verified the email by the time this is called, so it's
+    trusted at the same strength as a verified profile email."""
+
+    def test_creates_a_new_account_when_no_match(self):
+        user, created = User.resolve_google_account('newperson@example.com', 'New Person')
+        self.assertTrue(created)
+        self.assertEqual(user.phone_or_email, 'newperson@example.com')
+        self.assertEqual(user.email, 'newperson@example.com')
+        self.assertTrue(user.email_verified)
+        self.assertFalse(user.has_usable_password())
+
+    def test_matches_account_registered_with_that_email(self):
+        existing = User.objects.create_user('someone@example.com', 'pass1234', full_name='Someone')
+        user, created = User.resolve_google_account('someone@example.com', 'Someone Else')
+        self.assertFalse(created)
+        self.assertEqual(user.pk, existing.pk)
+
+    def test_matches_phone_account_with_verified_profile_email(self):
+        existing = User.objects.create_user('0711223344', 'pass1234', full_name='Phone Only')
+        existing.email = 'added@example.com'
+        existing.email_verified = True
+        existing.save()
+        user, created = User.resolve_google_account('added@example.com', 'Phone Only')
+        self.assertFalse(created)
+        self.assertEqual(user.pk, existing.pk)
+
+    def test_does_not_match_unverified_profile_email_creates_new_account_instead(self):
+        existing = User.objects.create_user('0711223355', 'pass1234', full_name='Phone Only')
+        existing.email = 'notverified@example.com'
+        existing.email_verified = False
+        existing.save()
+        user, created = User.resolve_google_account('notverified@example.com', 'Someone')
+        self.assertTrue(created)
+        self.assertNotEqual(user.pk, existing.pk)
+
+    def test_email_match_is_case_insensitive(self):
+        existing = User.objects.create_user('someone@example.com', 'pass1234', full_name='Someone')
+        user, created = User.resolve_google_account('Someone@Example.COM', 'Someone')
+        self.assertFalse(created)
+        self.assertEqual(user.pk, existing.pk)

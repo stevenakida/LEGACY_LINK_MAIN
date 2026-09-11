@@ -499,3 +499,84 @@ class GoogleSiteVerificationTests(TestCase):
             response.content.decode(),
             'google-site-verification: google53e347c5788d485a.html',
         )
+
+
+class GoogleLoginTests(TestCase):
+    def test_start_without_config_shows_error_and_redirects_to_login(self):
+        with self.settings(GOOGLE_OAUTH_CLIENT_ID='', GOOGLE_OAUTH_CLIENT_SECRET=''):
+            response = self.client.get('/auth/google/login/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/login/')
+        self.assertNotIn('google_oauth_state', self.client.session)
+
+    @override_settings(GOOGLE_OAUTH_CLIENT_ID='test-id', GOOGLE_OAUTH_CLIENT_SECRET='test-secret')
+    def test_start_redirects_to_google_with_state_in_session(self):
+        response = self.client.get('/auth/google/login/')
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith('https://accounts.google.com/o/oauth2/v2/auth?'))
+        self.assertIn('client_id=test-id', response.url)
+        self.assertIn('google_oauth_state', self.client.session)
+
+    def test_start_already_authenticated_redirects_to_dashboard(self):
+        user = User.objects.create_user('0700111222', 'pass1234', full_name='Already In')
+        self.client.force_login(user)
+        response = self.client.get('/auth/google/login/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/dashboard/')
+
+    def test_callback_rejects_missing_or_mismatched_state(self):
+        session = self.client.session
+        session['google_oauth_state'] = 'expected-value'
+        session.save()
+        response = self.client.get('/auth/google/callback/', {'code': 'abc', 'state': 'wrong-value'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/login/')
+
+    def test_callback_rejects_google_error_param(self):
+        session = self.client.session
+        session['google_oauth_state'] = 'st'
+        session.save()
+        response = self.client.get('/auth/google/callback/', {'error': 'access_denied', 'state': 'st'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/login/')
+
+    def _do_callback(self):
+        session = self.client.session
+        session['google_oauth_state'] = 'st'
+        session.save()
+        return self.client.get('/auth/google/callback/', {'code': 'valid-code', 'state': 'st'})
+
+    @patch('config.views.google_oauth.fetch_userinfo')
+    def test_callback_rejects_unverified_google_email(self, mock_fetch):
+        mock_fetch.return_value = {'email': 'x@example.com', 'email_verified': False, 'name': 'X'}
+        response = self._do_callback()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/login/')
+        self.assertFalse(User.objects.filter(email='x@example.com').exists())
+
+    @patch('config.views.google_oauth.fetch_userinfo')
+    def test_callback_logs_in_existing_matching_account(self, mock_fetch):
+        existing = User.objects.create_user('googleuser@example.com', 'pass1234', full_name='Google User')
+        mock_fetch.return_value = {'email': 'googleuser@example.com', 'email_verified': True, 'name': 'Google User'}
+        response = self._do_callback()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/dashboard/')
+        self.assertEqual(self.client.session['_auth_user_id'], str(existing.pk))
+
+    @patch('config.views.google_oauth.fetch_userinfo')
+    def test_callback_creates_and_logs_in_new_account(self, mock_fetch):
+        mock_fetch.return_value = {'email': 'brandnew@example.com', 'email_verified': True, 'name': 'Brand New'}
+        response = self._do_callback()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/dashboard/')
+        user = User.objects.get(email='brandnew@example.com')
+        self.assertEqual(user.full_name, 'Brand New')
+        self.assertTrue(user.email_verified)
+
+    @patch('config.views.google_oauth.fetch_userinfo')
+    def test_callback_exchange_failure_shows_generic_error(self, mock_fetch):
+        from accounts.google_oauth import GoogleOAuthError
+        mock_fetch.side_effect = GoogleOAuthError('boom')
+        response = self._do_callback()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/login/')

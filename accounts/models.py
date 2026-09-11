@@ -133,6 +133,34 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f"{self.full_name} ({self.phone_or_email})"
 
     @classmethod
+    def resolve_google_account(cls, email, full_name):
+        """Find-or-create for Google Sign-In (accounts/google_oauth.py):
+        Google itself has already verified `email` ownership before ever
+        handing it to us, so it's trusted at the same strength as a
+        verified profile email — matches an existing account by
+        phone_or_email or a verified profile email first (same rule as
+        find_by_login_identifier), and only creates a new account if
+        neither matches. A newly created account has no password
+        (unusable) — Google Sign-In is its only way in until the owner
+        sets one from their profile. Returns (user, created)."""
+        email = normalize_identifier((email or '').strip())
+        user = cls.objects.filter(phone_or_email__iexact=email).first()
+        if user is None:
+            user = cls.objects.filter(email__iexact=email, email_verified=True).first()
+        if user is not None:
+            return user, False
+
+        user = cls.objects.create(
+            phone_or_email=email,
+            full_name=full_name or email.split('@')[0],
+            email=email,
+            email_verified=True,
+        )
+        user.set_unusable_password()
+        user.save(update_fields=['password'])
+        return user, True
+
+    @classmethod
     def find_by_login_identifier(cls, identifier):
         """Resolve a login-form identifier (phone or email, in any of the
         accepted formats — see normalize_identifier) to an account. Tries
