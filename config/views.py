@@ -9,7 +9,7 @@ from django.contrib.auth import login, authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib import messages
 from django.db.models import Q
-from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.encoding import force_bytes, force_str
@@ -117,6 +117,12 @@ def home(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     return redirect('login')
+
+def google_site_verification(request):
+    """Serves the HTML-file verification Search Console asks for at the
+    site root - the file's entire content is just this one line, per
+    Google's spec, naming itself again inside the body."""
+    return HttpResponse('google-site-verification: google53e347c5788d485a.html')
 
 def login_view(request):
     """Custom login view that handles phone_or_email authentication"""

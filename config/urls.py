@@ -25,6 +25,7 @@ from notifications import views as notification_views
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('google53e347c5788d485a.html', views.google_site_verification, name='google_site_verification'),
 path('register/', views.register, name='register'),
     path('terms/', views.terms, name='terms'),
     path('login/', views.login_view, name='login'),

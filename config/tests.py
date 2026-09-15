@@ -485,3 +485,17 @@ class LoginPrefillTests(TestCase):
         # returns the verified profile email — that's the address the link
         # was actually delivered to, so it's what gets pre-filled.
         self.assertIn('halima%40example.com', response.url)
+
+
+class GoogleSiteVerificationTests(TestCase):
+    """Search Console's HTML-file method needs this exact filename at the
+    site root, serving that one line verbatim — anonymously, since Google's
+    crawler never authenticates."""
+
+    def test_verification_file_served_at_root(self):
+        response = self.client.get('/google53e347c5788d485a.html')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.content.decode(),
+            'google-site-verification: google53e347c5788d485a.html',
+        )
