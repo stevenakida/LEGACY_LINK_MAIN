@@ -1439,13 +1439,15 @@ def message_attachment_image(request, message_id):
     "conversation participant" (the same check messages_thread/poll/earlier
     already use) rather than "can see this post". Redirects to a signed
     preview URL — no Content-Disposition, meant for inline rendering.
-    `?full=1` serves the actual processed image instead of the 320x320
-    thumbnail, for the lightbox/full-screen viewer."""
+    Serves the full-resolution processed image by default, so chat bubbles
+    show the photo at the quality it was sent (bubbles used to get the 320px
+    thumbnail). `?size=thumb` opts into the thumbnail; `?full=1` is still
+    accepted from older clients and is now simply the default."""
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Authentication required'}, status=401)
 
     asset = _get_authorized_attachment(request, message_id)
-    url = media_services.get_preview_url(asset, full=request.GET.get('full') == '1')
+    url = media_services.get_preview_url(asset, full=request.GET.get('size') != 'thumb')
     if not url:
         raise Http404('media is not currently available')
     return HttpResponseRedirect(url)

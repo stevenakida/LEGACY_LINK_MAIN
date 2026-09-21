@@ -113,7 +113,7 @@
         {% for post in posts %}
         <div class="ig-post-tile">
             {% if post.media_asset_id %}
-                <img src="{% url 'post_image' post.id %}" alt="">
+                <img src="{% url 'post_image' post.id %}?size=thumb" alt="" loading="lazy" decoding="async">
             {% else %}
                 <div class="ig-post-tile-text">{{ post.body|truncatechars:70 }}</div>
             {% endif %}

@@ -442,6 +442,21 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-21: **Photos keep their original quality in the feed and in chat.**
+  Cause of "faint" photos: `posts.post_image` and `config.views.message_attachment_image`
+  served the small thumbnail by default (stretched to card width in the feed),
+  and the image encoder dropped the ICC colour profile (Display-P3 phone photos
+  looked washed out). Now both endpoints serve the full processed image by
+  default (`?size=thumb` opts into the thumbnail — used only by the profile
+  grid; `?full=1` still accepted); the encoder keeps the ICC profile and reuses
+  a JPEG's own quantization tables/chroma subsampling (fixed quality 95 only as
+  a fallback); thumbnails are 640px/q90. EXIF/GPS is still stripped and
+  orientation still baked in. Videos and documents were already stored
+  byte-for-byte. Photos uploaded before commit 33d0942 were downscaled and
+  their originals deleted, so those cannot be restored. Also fixed the
+  local-dev upload proxy rejecting any body over 2.5 MB (production uploads
+  go straight to Spaces and were unaffected). The 10 MB image cap
+  (`MEDIA_IMAGE_MAX_MB`) is unchanged.
 - 2026-09-11: **"Continue with Google" is now functional** (was a
   `onclick="alert('coming soon')"` placeholder on both Login and Register).
   Replaced an abandoned django-allauth attempt (dead code removed:
