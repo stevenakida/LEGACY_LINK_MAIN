@@ -33,7 +33,13 @@
         if (!btn || !label || !csrfInput) return;
 
         btn.addEventListener('click', function () {
-            var next = label.textContent.trim() === 'EN' ? 'sw' : 'en';
+            // btn.dataset.lang (settings.html's row) is the current language
+            // code straight from the server, so it survives whatever text
+            // the label happens to display (e.g. "English"/"Kiswahili"
+            // there vs. topnav.html's plain "EN"/"SW"). Fall back to
+            // parsing the label text when that attribute isn't set.
+            var currentLang = btn.dataset.lang || (label.textContent.trim() === 'EN' ? 'en' : 'sw');
+            var next = currentLang === 'en' ? 'sw' : 'en';
             btn.disabled = true;
             fetch('/set-language/', {
                 method: 'POST',

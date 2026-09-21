@@ -9,4 +9,4 @@ class ConnectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Connection
-        fields = ['id', 'requester', 'receiver', 'status', 'created_at']
+        fields = ['id', 'requester', 'receiver', 'status', 'message', 'created_at']

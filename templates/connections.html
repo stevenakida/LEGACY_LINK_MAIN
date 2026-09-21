@@ -1,229 +1,35 @@
 {% extends 'base.html' %}
-{% block title %}Connections - LegacyLink Africa{% endblock %}
+{% load static i18n %}
+{% block title %}{% trans "Network" %} - LegacyLink Africa{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/network.css' %}">
+{% endblock %}
 
 {% block header %}
 <div class="simple-header">
     <div>
-        <h1>Connections</h1>
-        <div class="sub">Grow your verified alumni network</div>
+        <h1>{% trans "Network" %}</h1>
+        <div class="sub">{% trans "Grow your alumni network" %}</div>
     </div>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="status-grid">
-    <div class="status-card">
-        <strong>{{ accepted_count }}</strong>
-        <span>Connected</span>
-    </div>
-    <div class="status-card">
-        <strong>{{ pending_count }}</strong>
-        <span>Pending</span>
-    </div>
-</div>
+{% include 'network/_header.html' %}
 
-<div class="tab-switch">
-    <button type="button" class="tab-pill" data-tab="pending" onclick="connTab('pending')">
-        Pending {% if pending_count %}<span class="tab-badge">{{ pending_count }}</span>{% endif %}
-    </button>
-    <button type="button" class="tab-pill" data-tab="connected" onclick="connTab('connected')">Connected</button>
-    <button type="button" class="tab-pill" data-tab="discover" onclick="connTab('discover')">Discover</button>
-</div>
-
-<div id="conn-pending">
-    {% if pending_connections %}
-        <div class="card">
-            {% for connection in pending_connections %}
-                {% if connection.receiver == user %}
-                    <div class="person-row">
-                        <a class="person-link" href="{% url 'view_profile' connection.requester.id %}?next={% url 'connections' %}?tab=pending">
-                            <div class="person-avatar">
-                                {% if connection.requester.avatar %}
-                                    <img src="{{ connection.requester.avatar.url }}" alt="{{ connection.requester.full_name }}">
-                                {% else %}
-                                    {{ connection.requester.full_name|first }}
-                                {% endif %}
-                            </div>
-                            <div class="person-info">
-                                <div class="nm">{{ connection.requester.full_name }}</div>
-                                <div class="mt">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · {% if connection.requester.secondary_completion_year %}Class of {{ connection.requester.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
-                                <div class="mt">{{ connection.requester.current_role|default:'Alumni member' }}</div>
-                            </div>
-                        </a>
-                        <div class="person-actions">
-                            <form method="post" action="{% url 'respond_connection_web' connection.id %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{% url 'connections' %}?tab=pending">
-                                <input type="hidden" name="action" value="accept">
-                                <button type="submit" class="btn btn-gold">Accept</button>
-                            </form>
-                            <form method="post" action="{% url 'respond_connection_web' connection.id %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{% url 'connections' %}?tab=pending">
-                                <input type="hidden" name="action" value="decline">
-                                <button type="submit" class="btn btn-decline">✕</button>
-                            </form>
-                        </div>
-                    </div>
-                {% else %}
-                    <div class="person-row">
-                        <a class="person-link" href="{% url 'view_profile' connection.receiver.id %}?next={% url 'connections' %}?tab=pending">
-                            <div class="person-avatar">
-                                {% if connection.receiver.avatar %}
-                                    <img src="{{ connection.receiver.avatar.url }}" alt="{{ connection.receiver.full_name }}">
-                                {% else %}
-                                    {{ connection.receiver.full_name|first }}
-                                {% endif %}
-                            </div>
-                            <div class="person-info">
-                                <div class="nm">{{ connection.receiver.full_name }}</div>
-                                <div class="mt">{{ connection.receiver.secondary_school.name|default:'Unknown school' }} · {% if connection.receiver.secondary_completion_year %}Class of {{ connection.receiver.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
-                            </div>
-                        </a>
-                        <span class="btn btn-line is-disabled">Request sent</span>
-                    </div>
-                {% endif %}
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="card empty-state">
-            <div class="ico">📭</div>
-            <div class="t">No pending requests</div>
-            <div class="s">When classmates ask to connect, they'll show up here.</div>
-        </div>
-    {% endif %}
-</div>
-
-<div id="conn-connected" style="display:none">
-    {% if connections %}
-        <div class="card">
-            {% for connection in connections %}
-                {% if connection.receiver == user %}
-                    <div class="person-row">
-                        <a class="person-link" href="{% url 'view_profile' connection.requester.id %}?next={% url 'connections' %}?tab=connected">
-                            <div class="person-avatar">
-                                {% if connection.requester.avatar %}<img src="{{ connection.requester.avatar.url }}" alt="{{ connection.requester.full_name }}">{% else %}{{ connection.requester.full_name|first }}{% endif %}
-                            </div>
-                            <div class="person-info">
-                                <div class="nm">{{ connection.requester.full_name }}</div>
-                                <div class="mt">{{ connection.requester.secondary_school.name|default:'Unknown school' }} · {% if connection.requester.secondary_completion_year %}Class of {{ connection.requester.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
-                            </div>
-                        </a>
-                        <div class="person-actions">
-                            <form method="post" action="{% url 'messages_start' connection.requester.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-line">Message</button>
-                            </form>
-                            <form method="post" action="{% url 'remove_connection_web' connection.id %}" onsubmit="return confirm('Remove your connection with {{ connection.requester.full_name|escapejs }}?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{% url 'connections' %}?tab=connected">
-                                <button type="submit" class="btn btn-decline">Remove</button>
-                            </form>
-                        </div>
-                    </div>
-                {% else %}
-                    <div class="person-row">
-                        <a class="person-link" href="{% url 'view_profile' connection.receiver.id %}?next={% url 'connections' %}?tab=connected">
-                            <div class="person-avatar">
-                                {% if connection.receiver.avatar %}<img src="{{ connection.receiver.avatar.url }}" alt="{{ connection.receiver.full_name }}">{% else %}{{ connection.receiver.full_name|first }}{% endif %}
-                            </div>
-                            <div class="person-info">
-                                <div class="nm">{{ connection.receiver.full_name }}</div>
-                                <div class="mt">{{ connection.receiver.secondary_school.name|default:'Unknown school' }} · {% if connection.receiver.secondary_completion_year %}Class of {{ connection.receiver.secondary_completion_year }}{% else %}Class year pending{% endif %}</div>
-                            </div>
-                        </a>
-                        <div class="person-actions">
-                            <form method="post" action="{% url 'messages_start' connection.receiver.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-line">Message</button>
-                            </form>
-                            <form method="post" action="{% url 'remove_connection_web' connection.id %}" onsubmit="return confirm('Remove your connection with {{ connection.receiver.full_name|escapejs }}?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{% url 'connections' %}?tab=connected">
-                                <button type="submit" class="btn btn-decline">Remove</button>
-                            </form>
-                        </div>
-                    </div>
-                {% endif %}
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="card empty-state">
-            <div class="ico">🤝</div>
-            <div class="t">No connections yet</div>
-            <div class="s">Start building your alumni network from the Discover tab.</div>
-        </div>
-    {% endif %}
-</div>
-
-<div id="conn-discover" style="display:none">
-    {% if discover_users %}
-        <div class="card">
-            {% for person in discover_users %}
-                <div class="person-row">
-                    <a class="person-link" href="{% url 'view_profile' person.id %}?next={% url 'connections' %}?tab=discover">
-                        <div class="person-avatar">
-                            {% if person.avatar %}
-                                <img src="{{ person.avatar.url }}" alt="{{ person.full_name }}">
-                            {% else %}
-                                {{ person.full_name|first }}
-                            {% endif %}
-                        </div>
-                        <div class="person-info">
-                            <div class="nm">{{ person.full_name }}</div>
-                            <div class="mt">
-                                {% if user.secondary_school and person.secondary_school == user.secondary_school and person.secondary_completion_year == user.secondary_completion_year %}
-                                    {{ person.secondary_school.name }} · Class of {{ person.secondary_completion_year }}
-                                {% elif user.high_school and person.high_school == user.high_school and person.high_school_completion_year == user.high_school_completion_year %}
-                                    {{ person.high_school.name }} (A-Level) · Class of {{ person.high_school_completion_year }}
-                                {% elif user.tertiary_school and person.tertiary_school == user.tertiary_school and person.tertiary_completion_year == user.tertiary_completion_year %}
-                                    {{ person.tertiary_school.name }} · Class of {{ person.tertiary_completion_year }}
-                                {% elif user.primary_school and person.primary_school == user.primary_school and person.primary_completion_year == user.primary_completion_year %}
-                                    {{ person.primary_school.name }} (Primary) · Class of {{ person.primary_completion_year }}
-                                {% else %}
-                                    {{ person.secondary_school.name|default:'School' }}{% if person.secondary_completion_year %} · Class of {{ person.secondary_completion_year }}{% endif %}
-                                {% endif %}<br>
-                                {{ person.current_role|default:'Alumni member' }}{% if person.mutual_count %} · <span class="mutual">{{ person.mutual_count }} mutual</span>{% endif %}
-                            </div>
-                        </div>
-                    </a>
-                    <div class="person-actions">
-                        <form method="post" action="{% url 'send_connection_web' person.id %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="next" value="{% url 'connections' %}?tab=discover">
-                            <button type="submit" class="btn btn-gold">Connect</button>
-                        </form>
-                        <form method="post" action="{% url 'dismiss_discover_web' person.id %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="next" value="{% url 'connections' %}?tab=discover">
-                            <button type="submit" class="btn btn-decline" aria-label="Not interested in {{ person.full_name }}">✕</button>
-                        </form>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="card empty-state">
-            <div class="ico">🎓</div>
-            <div class="t">Be the first from your class!</div>
-            <div class="s">None of your classmates are here yet. Invite them and build your network — every invite grows your Identity Score.</div>
-            <a class="btn btn-whatsapp" href="https://wa.me/?text=Join%20me%20on%20LegacyLink%20Africa%20to%20reconnect%20with%20our%20classmates!" target="_blank" rel="noopener">📲 Invite via WhatsApp</a>
-        </div>
-    {% endif %}
-</div>
+{% if tab == 'discover' %}
+    {% include 'network/_discover.html' %}
+{% elif tab == 'connected' %}
+    {% include 'network/_connected.html' %}
+{% else %}
+    {% include 'network/_pending.html' %}
+{% endif %}
 {% endblock %}
 
 {% block extra_body %}
-<script>
-    function connTab(name) {
-        document.querySelectorAll('.tab-pill').forEach(function (t) { t.classList.toggle('on', t.dataset.tab === name); });
-        ['pending', 'connected', 'discover'].forEach(function (n) {
-            document.getElementById('conn-' + n).style.display = (n === name) ? '' : 'none';
-        });
-        var url = new URL(window.location);
-        url.searchParams.set('tab', name);
-        window.history.replaceState({}, '', url);
-    }
-    connTab('{{ connections_tab }}');
-</script>
+{% include 'network/_sheet.html' %}
+<div class="net-toast" id="net-toast" role="status" aria-live="polite" hidden></div>
+<script>window.NET = { trackUrl: "{% url 'network_track_event' %}" };</script>
+<script src="{% static 'js/network.js' %}" defer></script>
 {% endblock %}

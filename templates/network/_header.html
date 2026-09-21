@@ -1,0 +1,20 @@
+{% load i18n %}
+<div class="net-stats" role="group" aria-label="{% trans 'Network summary' %}">
+    <div class="net-stat">
+        <strong id="net-connections-count">{{ connections_count }}</strong>
+        <span>{% trans "Connections" %}</span>
+    </div>
+    <div class="net-stat">
+        <strong id="net-pending-count">{{ pending_count }}</strong>
+        <span>{% trans "Pending" %}</span>
+    </div>
+</div>
+
+<nav class="tab-switch" aria-label="{% trans 'Network sections' %}">
+    <a class="tab-pill{% if tab == 'discover' %} on{% endif %}" href="{% url 'connections' %}?tab=discover"{% if tab == 'discover' %} aria-current="page"{% endif %}>{% trans "Discover" %}</a>
+    <a class="tab-pill{% if tab == 'connected' %} on{% endif %}" href="{% url 'connections' %}?tab=connected"{% if tab == 'connected' %} aria-current="page"{% endif %}>{% trans "Connected" %}</a>
+    <a class="tab-pill{% if tab == 'pending' %} on{% endif %}" href="{% url 'connections' %}?tab=pending"{% if tab == 'pending' %} aria-current="page"{% endif %}>
+        {% trans "Pending" %}
+        <span class="tab-badge" id="net-pending-badge"{% if not pending_count %} hidden{% endif %}><span id="net-pending-badge-count">{{ pending_count }}</span><span class="sr-only"> {% trans "requests waiting for your decision" %}</span></span>
+    </a>
+</nav>

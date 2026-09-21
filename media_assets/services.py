@@ -265,7 +265,9 @@ def get_download_url(asset: MediaAsset):
 
 def get_preview_url(asset: MediaAsset, full: bool = False):
     """`full=True` serves the actual processed image/video instead of the
-    320x320 thumbnail — used by lightbox/full-screen viewers. Still no
+    small thumbnail — the feed, chat bubbles and lightbox all pass
+    full=True (see posts.views.post_image / config.views.message_attachment_image);
+    only tiny tiles opt into the thumbnail. Still no
     Content-Disposition (inline rendering), unlike get_download_url."""
     if not asset.is_downloadable:
         return None

@@ -179,7 +179,17 @@ class LocalUploadProxyView(View):
             settings.MEDIA_ASSETS_VIDEO_MAX_BYTES,
             settings.MEDIA_ASSETS_DOCUMENT_MAX_BYTES,
         )
-        body = request.body
+        # Read the stream rather than `request.body`: Django refuses to buffer
+        # a body over DATA_UPLOAD_MAX_MEMORY_SIZE (2.5 MB) with a 400, which
+        # made every normal phone photo fail on the local dev backend. The
+        # real ceiling is the per-category limit checked here.
+        try:
+            declared = int(request.META.get('CONTENT_LENGTH') or 0)
+        except ValueError:
+            declared = 0
+        if declared > max_bytes:
+            return HttpResponse('payload too large', status=413)
+        body = request.read(max_bytes + 1)
         if len(body) > max_bytes:
             return HttpResponse('payload too large', status=413)
 

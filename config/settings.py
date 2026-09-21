@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     'notifications',
     'ratelimiting',
     'ingestion',
+    'analytics',
 ]
 
 SITE_ID = 1
@@ -206,10 +207,17 @@ FEATURE_PUBLIC_POST_REVIEW_REQUIRED = config('FEATURE_PUBLIC_POST_REVIEW_REQUIRE
 # at most this many posts per this many seconds, per user.
 RATE_LIMIT_CREATE_POST_MAX = config('RATE_LIMIT_CREATE_POST_MAX', default=5, cast=int)
 RATE_LIMIT_CREATE_POST_WINDOW_SECONDS = config('RATE_LIMIT_CREATE_POST_WINDOW_SECONDS', default=600, cast=int)
+# Phase 7: connection requests (abuse deterrent, generous for real use).
+RATE_LIMIT_CONNECTION_REQUEST_MAX = config('RATE_LIMIT_CONNECTION_REQUEST_MAX', default=20, cast=int)
+RATE_LIMIT_CONNECTION_REQUEST_WINDOW_SECONDS = config('RATE_LIMIT_CONNECTION_REQUEST_WINDOW_SECONDS', default=600, cast=int)
 # How long RateLimitHit rows stick around before ratelimiting's cleanup
 # command (see its docstring) prunes them — generous relative to any
 # window above so nothing gets purged while still relevant to a check.
 RATE_LIMIT_HIT_RETENTION_HOURS = config('RATE_LIMIT_HIT_RETENTION_HOURS', default=24, cast=int)
+
+# Canonical public URL of the app, used to build WhatsApp invite links so no
+# hostname is hard-coded. Empty = fall back to the request's own origin.
+PUBLIC_APP_URL = config('PUBLIC_APP_URL', default='')
 
 # ClamAV (clamd) — new infra, not currently provisioned anywhere in this
 # project. Left blank, document uploads fail closed (see

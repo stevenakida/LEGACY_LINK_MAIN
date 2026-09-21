@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+{% block title %}{{ group.institution_name }} - LegacyLink Africa{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/network.css' %}">
+{% endblock %}
+
+{% block header %}
+<div class="chat-head">
+    <a href="{% url 'connections' %}?tab=discover" class="back" aria-label="{% trans 'Back to Discover' %}">‹</a>
+    <div>
+        <div class="nm">{{ group.institution_name }}</div>
+        <div class="st">{{ group.subtitle }}</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<form class="net-search" method="get" action="" role="search">
+    <input type="search" name="q" value="{{ q }}" maxlength="80" aria-label="{% trans 'Search this group' %}" placeholder="{% trans 'Search this group by name or class year' %}">
+    <button type="submit" aria-label="{% trans 'Search' %}"><span class="material-symbols-rounded">search</span></button>
+</form>
+
+<div class="net-group-head" style="margin: 0 0.25rem 0.6rem;">
+    <div class="count">{% blocktrans count n=group.total %}{{ n }} alumnus found{% plural %}{{ n }} alumni found{% endblocktrans %}</div>
+</div>
+
+{% if page_obj.object_list %}
+    <div class="card net-group" id="net-list">
+        {% for candidate in group.members %}
+            {% include 'network/_person.html' with candidate=candidate %}
+        {% endfor %}
+    </div>
+    {% include 'network/_pager.html' %}
+    <div class="net-grow">
+        <a href="{{ invite_url }}" target="_blank" rel="noopener" data-net-track="whatsapp_invite_clicked">📲 {% trans "Can't find someone? Invite them via WhatsApp" %}</a>
+    </div>
+{% else %}
+    <div class="card empty-state">
+        <div class="ico">🎓</div>
+        <div class="t">{% trans "No alumni found here yet." %}</div>
+        <div class="s">{% trans "Invite your classmates and build your network." %}</div>
+        <a class="btn btn-whatsapp" href="{{ invite_url }}" target="_blank" rel="noopener" data-net-track="whatsapp_invite_clicked">📲 {% trans "Invite Classmates" %}</a>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_body %}
+{% include 'network/_sheet.html' %}
+<div class="net-toast" id="net-toast" role="status" aria-live="polite" hidden></div>
+<script>window.NET = { trackUrl: "{% url 'network_track_event' %}" };</script>
+<script src="{% static 'js/network.js' %}" defer></script>
+{% endblock %}

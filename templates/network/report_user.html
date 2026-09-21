@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+{% block title %}{% trans "Report" %} - LegacyLink Africa{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/network.css' %}">
+{% endblock %}
+
+{% block header %}
+<div class="chat-head">
+    <a href="{{ next_url }}" class="back" aria-label="{% trans 'Back' %}">‹</a>
+    <div>
+        <div class="nm">{% trans "Report" %} {{ target.full_name }}</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<form class="card net-report" method="post" action="{% url 'report_user_web' target.id %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 0.75rem;">{% trans "Tell us what's wrong. Reports go to our moderators; the person is not told who reported them." %}</p>
+    {% if error %}<p class="net-sheet-error" role="alert">{{ error }}</p>{% endif %}
+    {% for value, label in categories %}
+        <label><input type="radio" name="category" value="{{ value }}" required> {{ label }}</label>
+    {% endfor %}
+    <textarea name="description" class="net-sheet-textarea" maxlength="1000" placeholder="{% trans 'Add details (optional)' %}" style="margin: 0.5rem 0 0.9rem;"></textarea>
+    <button type="submit" class="btn btn-gold btn-full">{% trans "Send report" %}</button>
+    <a class="btn btn-line btn-full" style="margin-top:0.5rem;" href="{{ next_url }}">{% trans "Cancel" %}</a>
+</form>
+{% endblock %}

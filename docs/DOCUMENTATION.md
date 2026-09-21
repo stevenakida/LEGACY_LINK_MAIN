@@ -1,7 +1,7 @@
 # LegacyLink Africa — Documentation
 
 > Living document. Update this file whenever a feature, flow, or setup step changes.
-> Last updated: 2026-08-17
+> Last updated: 2026-09-18
 
 ## 1. What the app does
 
@@ -48,12 +48,16 @@ Core concepts:
    an Upcoming Events list drawn from real `Opportunity` rows. The old
    profile-hero/About/Verified-Identity sections that used to live on this
    page moved to the redesigned Profile page (item 6 below).
-4. **Connections** at `/connections/` — one page, three tabs: **Pending**
-   (accept/decline inline), **Connected** (with a Message button per person,
-   opens a chat thread), and **Discover** (cohort matches — same school +
-   graduation year — with mutual-connection counts and an actionable
-   WhatsApp-invite empty state when no classmates have joined yet). This page
-   absorbed the old standalone `/cohort/` page, which now just redirects to
+4. **Network** at `/connections/` (Phase 7 redesign, see
+   `docs/PHASE7_NETWORK.md`) — three server-rendered tabs in this order:
+   **Discover** (alumni from your own schools, grouped by institution +
+   level + class year, each with a structured "why we match" reason, search,
+   education-level filters, a "View all" page per group, optional note when
+   connecting, contextual WhatsApp invite), **Connected** (search, filters,
+   Message button, ⋯ menu with View profile / Remove / Report / Block) and
+   **Pending** (incoming requests only, newest first, with the requester's
+   optional note and Accept/Decline). A compact header shows Connections and
+   Pending counts on every tab. The old `/cohort/` URL still redirects to
    `/connections/?tab=discover`.
 5. **Messages** at `/messages/` — conversation list (unread badges, last
    message preview) and a chat thread per conversation
@@ -64,11 +68,31 @@ Core concepts:
    WebSockets/Channels (this project has no channels/redis infra) — this
    matches the product roadmap's own recommendation for a first messaging
    MVP. Block/report is not built yet (see §6).
-6. **Profile** at `/profile/` — view-mode by default (avatar, verified badge,
-   bio, education timeline across all four school levels, profile-strength
-   ring). Editing moved to `/profile/edit/` (name, bio, profile picture,
+6. **Profile** at `/profile/` — redesigned Instagram-profile-style (2026-09-18):
+   avatar with an in-place "change photo" badge, a Posts/Connections/
+   Classmates stat row, name/verified-badge/bio, then Edit profile/Share
+   profile buttons (Share copies/native-shares the public `/profile/<uuid>/`
+   link). Below that: the existing profile-strength ring, a "Complete your
+   profile" grid of task cards (one per missing `identity_score_suggestions`
+   item, each with an icon and an Update button to `/profile/edit/`), then a
+   Posts/Education/About tab switcher — Posts is the user's own post grid
+   (image thumbnail or a text snippet tile, reusing `posts.post_image` for
+   authorization), Education/About are the same content the page always
+   had. Editing moved to `/profile/edit/` (name, bio, profile picture,
    current location, professional info, and the four searchable school
    autocomplete fields backed by `/schools/search/`).
+   The profile header's ☰ menu opens **Settings and activity** at
+   `/settings/` (also Instagram-style): Account (Edit profile, Change/Set
+   password), Privacy & Safety (Blocked/Muted accounts lists at
+   `/settings/blocked/` and `/settings/muted/`, reusing the existing
+   block/mute web views), Preferences (Notifications, Appearance/Language —
+   the same toggles as Home's top nav, driven by the same `topnav.js`),
+   and Support (Terms), ending in Logout. `/settings/password/` is a new
+   logged-in password flow (`config.views.change_password`) built on
+   Django's `validate_password` + `update_session_auth_hash`: it asks for
+   the current password only when `user.has_usable_password()` is True,
+   so a Google-only account (see §2 item 8) can set its first password
+   instead of being permanently locked out of email/phone login.
 7. **Opportunities** at `/opportunities/` (renamed from the old, confusingly-named
    `/schools/` URL — `/schools/` now just redirects here) — real `Opportunity`
    rows (Job / Mentorship / Event), filterable by type and by "My school".
@@ -418,6 +442,21 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-21: **Photos keep their original quality in the feed and in chat.**
+  Cause of "faint" photos: `posts.post_image` and `config.views.message_attachment_image`
+  served the small thumbnail by default (stretched to card width in the feed),
+  and the image encoder dropped the ICC colour profile (Display-P3 phone photos
+  looked washed out). Now both endpoints serve the full processed image by
+  default (`?size=thumb` opts into the thumbnail — used only by the profile
+  grid; `?full=1` still accepted); the encoder keeps the ICC profile and reuses
+  a JPEG's own quantization tables/chroma subsampling (fixed quality 95 only as
+  a fallback); thumbnails are 640px/q90. EXIF/GPS is still stripped and
+  orientation still baked in. Videos and documents were already stored
+  byte-for-byte. Photos uploaded before commit 33d0942 were downscaled and
+  their originals deleted, so those cannot be restored. Also fixed the
+  local-dev upload proxy rejecting any body over 2.5 MB (production uploads
+  go straight to Spaces and were unaffected). The 10 MB image cap
+  (`MEDIA_IMAGE_MAX_MB`) is unchanged.
 - 2026-09-11: **"Continue with Google" is now functional** (was a
   `onclick="alert('coming soon')"` placeholder on both Login and Register).
   Replaced an abandoned django-allauth attempt (dead code removed:

@@ -333,9 +333,8 @@
         function openLightbox(imgEl) {
             var messageEl = imgEl.closest('.bubble');
             var messageId = messageEl ? messageEl.dataset.messageId : null;
-            // Bubble <img> is the small 320x320 thumbnail (fast to load in a
-            // long conversation); the lightbox loads the actual full-size
-            // processed image instead of just blowing up that thumbnail.
+            // Bubbles already show the full-resolution image (lazy-loaded);
+            // ?full=1 is kept so the lightbox keeps working unchanged.
             lightboxImg.src = messageId ? '/messages/attachment/' + messageId + '/?full=1' : imgEl.src;
             lightboxDownload.href = messageId ? '/messages/attachment/' + messageId + '/download/' : '#';
             lightbox.hidden = false;

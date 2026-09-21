@@ -22,12 +22,22 @@ class Connection(models.Model):
         related_name='received_connections'
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    # Phase 7: optional plain-text note the requester attaches to a request
+    # (see connections.services.clean_request_message). Never rendered as
+    # HTML; empty means "no note", and the UI must not invent one.
+    message = models.TextField(blank=True, default='', max_length=300)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('requester', 'receiver')  # No duplicate requests
         ordering = ['-created_at']
+        indexes = [
+            # Incoming-pending list/count and accepted-connection lookups
+            # filter by receiver (or requester) + status, newest first.
+            models.Index(fields=['receiver', 'status', '-created_at'], name='conn_receiver_status_idx'),
+            models.Index(fields=['requester', 'status'], name='conn_requester_status_idx'),
+        ]
 
     def __str__(self):
         return f"{self.requester.full_name} → {self.receiver.full_name} ({self.status})"

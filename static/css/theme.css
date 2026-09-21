@@ -678,6 +678,86 @@ a { color: inherit; }
 .timeline .t { font-size: 0.88rem; font-weight: 700; color: var(--ink); }
 .timeline .s { font-size: 0.76rem; color: var(--muted); }
 
+/* ---------- profile: Instagram-style header (avatar + stat row) ---------- */
+
+.ig-profile-top { display: flex; align-items: center; gap: 1.25rem; padding: 0.6rem 0 0.9rem; }
+.ig-profile-top .avatar-circle { width: 84px; height: 84px; font-size: 1.8rem; border-width: 3px; flex-shrink: 0; position: relative; }
+.ig-avatar-edit {
+    position: absolute; bottom: -4px; right: -4px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--gold); color: #15202f;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--card); text-decoration: none;
+}
+.ig-avatar-edit .material-symbols-rounded { font-size: 1rem; color: #15202f; }
+
+.ig-stats { flex: 1; display: flex; justify-content: space-around; }
+.ig-stat { text-align: center; text-decoration: none; color: inherit; background: none; border: none; font-family: inherit; cursor: pointer; }
+.ig-stat strong { display: block; font-size: 1.2rem; font-weight: 800; color: var(--ink); }
+.ig-stat span { font-size: 0.72rem; color: var(--muted); }
+
+.ig-name-block { padding: 0 0.1rem 0.5rem; }
+.ig-name-block .nm { font-size: 1.02rem; font-weight: 800; color: var(--ink); }
+.ig-name-block .bio { font-size: 0.85rem; color: var(--muted); margin-top: 0.35rem; line-height: 1.5; }
+
+.ig-actions { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.ig-action-btn { flex: 1; padding: 0.55rem 0.5rem; font-size: 0.82rem; }
+
+/* ---------- profile: "Complete your profile" task cards ---------- */
+
+.ig-task-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 0.5rem; }
+.ig-task-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.1rem 0.9rem; text-align: center; }
+.ig-task-icon {
+    width: 52px; height: 52px; margin: 0 auto 0.75rem; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--fill-subtle);
+    display: flex; align-items: center; justify-content: center; color: var(--muted);
+}
+.ig-task-icon .material-symbols-rounded { font-size: 1.5rem; }
+.ig-task-card .t { font-size: 0.88rem; font-weight: 800; color: var(--ink); margin-bottom: 0.35rem; }
+.ig-task-card p { font-size: 0.76rem; color: var(--muted); line-height: 1.4; margin-bottom: 0.75rem; }
+.ig-task-card .btn { width: 100%; padding: 0.5rem 0; font-size: 0.78rem; }
+
+/* ---------- profile: posts grid ---------- */
+
+.ig-post-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-bottom: 0.5rem; }
+.ig-post-tile {
+    aspect-ratio: 1 / 1; display: block; overflow: hidden;
+    background: var(--card-soft); border: 1px solid var(--border);
+    text-decoration: none;
+}
+.ig-post-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ig-post-tile-text {
+    width: 100%; height: 100%; padding: 0.6rem;
+    font-size: 0.7rem; line-height: 1.35; color: var(--muted);
+    display: flex; align-items: center; overflow: hidden;
+}
+
+/* ---------- settings (menu reached from profile's ☰ icon) ---------- */
+
+.settings-section-label { font-size: 0.76rem; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted); margin: 1.25rem 0 0.5rem; }
+.settings-section-label:first-child { margin-top: 0; }
+
+.settings-row {
+    display: flex; align-items: center; gap: 0.85rem;
+    padding: 0.85rem 0; border-bottom: 1px solid var(--separator);
+    text-decoration: none; color: inherit; background: none; border-left: none; border-right: none; border-top: none;
+    width: 100%; font-family: inherit; font-size: inherit; text-align: left; cursor: pointer;
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row-icon {
+    width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+    background: var(--fill-subtle); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; color: var(--ink);
+}
+.settings-row-icon .material-symbols-rounded { font-size: 1.1rem; }
+.settings-row-body { flex: 1; min-width: 0; }
+.settings-row-body .t { font-size: 0.9rem; font-weight: 700; color: var(--ink); }
+.settings-row-body .s { font-size: 0.76rem; color: var(--muted); margin-top: 0.15rem; }
+.settings-row-value { font-size: 0.82rem; color: var(--muted); flex-shrink: 0; }
+.settings-row-chevron { color: var(--muted); font-size: 1.2rem; flex-shrink: 0; }
+.settings-row.danger .settings-row-body .t { color: var(--danger-soft); }
+.settings-row.danger .settings-row-icon { color: var(--danger-soft); }
+
 /* ---------- messages banner (Django messages framework) ---------- */
 
 .page-messages { list-style: none; margin-bottom: 1rem; }

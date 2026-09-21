@@ -296,30 +296,37 @@ class User(AbstractBaseUser, PermissionsMixin):
     }
 
     def _identity_score_components(self):
+        # Fifth element is a Material Symbols Rounded icon name — drives the
+        # "Complete your profile" task cards on the profile page (each
+        # missing item renders as one icon+label+CTA card, Instagram-style).
         w = self.IDENTITY_SCORE_WEIGHTS
         return [
-            ('avatar', 'Upload a profile picture', w['avatar'], bool(self.avatar)),
-            ('bio', 'Add a short bio about yourself', w['bio'], bool(self.bio)),
+            ('avatar', 'Upload a profile picture', w['avatar'], bool(self.avatar), 'add_a_photo'),
+            ('bio', 'Add a short bio about yourself', w['bio'], bool(self.bio), 'edit_note'),
             ('primary_school', 'Add your Primary school', w['primary_school'],
-                bool(self.primary_school and self.primary_completion_year)),
+                bool(self.primary_school and self.primary_completion_year), 'school'),
             ('secondary_school', 'Add your Secondary school', w['secondary_school'],
-                bool(self.secondary_school and self.secondary_completion_year)),
+                bool(self.secondary_school and self.secondary_completion_year), 'school'),
             ('tertiary_school', 'Add your University/Tertiary education', w['tertiary_school'],
-                bool(self.tertiary_school and self.tertiary_completion_year)),
-            ('current_location', 'Add your current location', w['current_location'], bool(self.current_location)),
-            ('current_role', 'Add your profession', w['current_role'], bool(self.current_role)),
-            ('company_name', 'Add your company or organization', w['company_name'], bool(self.company_name)),
+                bool(self.tertiary_school and self.tertiary_completion_year), 'school'),
+            ('current_location', 'Add your current location', w['current_location'], bool(self.current_location), 'location_on'),
+            ('current_role', 'Add your profession', w['current_role'], bool(self.current_role), 'work'),
+            ('company_name', 'Add your company or organization', w['company_name'], bool(self.company_name), 'apartment'),
         ]
 
     @property
     def identity_score(self):
-        return sum(points for _, _, points, done in self._identity_score_components() if done)
+        return sum(points for _, _, points, done, _ in self._identity_score_components() if done)
+
+    @property
+    def identity_score_completed_count(self):
+        return sum(1 for _, _, _, done, _ in self._identity_score_components() if done)
 
     @property
     def identity_score_suggestions(self):
         missing = [
-            {'label': label, 'points': points}
-            for _, label, points, done in self._identity_score_components()
+            {'label': label, 'points': points, 'icon': icon}
+            for _, label, points, done, icon in self._identity_score_components()
             if not done
         ]
         return sorted(missing, key=lambda item: item['points'], reverse=True)

@@ -1,67 +1,49 @@
-from rest_framework import status, permissions
+from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db import models
-from .models import Connection, UserRelationshipOverride
-from accounts.models import User
-from notifications.models import Notification
-from notifications.services import notify
+
+from . import services
 
 
 class SendConnectionView(APIView):
-    """POST /api/connections/send/{user_id}/"""
+    """POST /api/connections/send/{user_id}/  (optional body: {"message": "..."})
+
+    Thin wrapper over connections.services.send_request, so the API enforces
+    exactly the same integrity rules as the web UI."""
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, user_id):
-        try:
-            receiver = User.objects.get(id=user_id)
-        except User.DoesNotExist:
+        result = services.send_request(request.user, user_id, request.data.get('message', ''))
+        if result.ok:
+            return Response({'message': 'Connection request sent', 'status': 'pending'}, status=201)
+        if result.code == 'not_found':
             return Response({'error': 'User not found'}, status=404)
-
-        if receiver == request.user:
+        if result.code == 'self':
             return Response({'error': 'Cannot connect with yourself'}, status=400)
-
-        if UserRelationshipOverride.is_blocked(request.user, receiver):
+        if result.code == 'blocked':
             return Response({'error': 'Cannot connect with this user'}, status=403)
-
-        conn, created = Connection.objects.get_or_create(
-            requester=request.user, receiver=receiver
-        )
-        if not created:
-            return Response({'error': 'Connection already exists'}, status=400)
-
-        notify(
-            receiver, Notification.Verb.CONNECTION_REQUEST, actor=request.user, target=conn,
-            push_title=request.user.full_name, push_body='Sent you a connection request',
-        )
-        return Response({'message': 'Connection request sent', 'status': 'pending'}, status=201)
+        if result.code == 'rate_limited':
+            return Response({'error': 'Too many connection requests, try again later'}, status=429)
+        return Response({'error': 'Connection already exists'}, status=400)
 
 
 class RespondConnectionView(APIView):
-    """PATCH /api/connections/{id}/respond/ — Accept or Decline"""
+    """PATCH /api/connections/{id}/respond/ — Accept or Decline. Only a
+    still-pending request addressed to the caller can be answered."""
     permission_classes = [permissions.IsAuthenticated]
 
     def patch(self, request, connection_id):
-        try:
-            conn = Connection.objects.get(id=connection_id, receiver=request.user)
-        except Connection.DoesNotExist:
-            return Response({'error': 'Connection not found'}, status=404)
-
-        action = request.data.get('action')  # 'accept' or 'decline'
-        if action == 'accept':
-            conn.status = 'accepted'
-        elif action == 'decline':
-            conn.status = 'declined'
-        else:
+        result = services.respond_to_request(request.user, connection_id, request.data.get('action'))
+        if result.ok:
+            new_status = result.connection.status
+            return Response({'status': new_status, 'message': f'Connection {new_status}'})
+        if result.code == 'invalid_action':
             return Response({'error': 'action must be accept or decline'}, status=400)
-
-        conn.save()
-        if action == 'accept':
-            notify(
-                conn.requester, Notification.Verb.CONNECTION_ACCEPTED, actor=request.user, target=conn,
-                push_title=request.user.full_name, push_body='Accepted your connection request',
-            )
-        return Response({'status': conn.status, 'message': f'Connection {conn.status}'})
+        if result.code == 'already_resolved':
+            return Response({'error': 'Connection request already answered'}, status=409)
+        if result.code == 'blocked':
+            return Response({'error': 'Cannot respond to this user'}, status=403)
+        return Response({'error': 'Connection not found'}, status=404)
 
 
 class MyConnectionsView(APIView):
@@ -74,13 +56,10 @@ class MyConnectionsView(APIView):
 
         if tab == 'pending':
             # Incoming requests I haven't responded to
-            conns = Connection.objects.filter(receiver=user, status='pending')
+            conns = services.incoming_pending_qs(user)
         else:
             # All accepted connections (both sides)
-            conns = Connection.objects.filter(
-                models.Q(requester=user) | models.Q(receiver=user),
-                status='accepted'
-            )
+            conns = services.accepted_connections_qs(user)
 
         from .serializers import ConnectionSerializer
         return Response(ConnectionSerializer(conns, many=True,

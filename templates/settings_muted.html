@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Muted accounts - LegacyLink Africa{% endblock %}
+
+{% block header %}
+<div class="chat-head">
+    <a href="{% url 'settings' %}" class="back">‹</a>
+    <div>
+        <div class="nm">Muted accounts</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if rows %}
+<div class="card">
+    {% for row in rows %}
+    <div class="person-row">
+        <div class="person-avatar">
+            {% if row.target.avatar %}
+                <img src="{{ row.target.avatar.url }}" alt="{{ row.target.full_name }}">
+            {% else %}
+                <span>{{ row.target.full_name|default:row.target.phone_or_email|first|upper }}</span>
+            {% endif %}
+        </div>
+        <div class="person-info">
+            <div class="nm">{{ row.target.full_name|default:row.target.phone_or_email }}</div>
+            <div class="mt">Muted {{ row.created_at|date:'M j, Y' }}</div>
+        </div>
+        <div class="person-actions">
+            <form method="post" action="{% url 'unmute_user_web' row.target.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'muted_accounts' %}">
+                <button type="submit" class="btn btn-line">Unmute</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card empty-state">
+    <div class="ico">🔇</div>
+    <div class="t">No muted accounts</div>
+    <div class="s">Muted classmates' posts stay out of your feed without them knowing — you can unmute them any time.</div>
+</div>
+{% endif %}
+{% endblock %}

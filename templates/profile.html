@@ -6,46 +6,65 @@
     <div>
         <h1>Profile</h1>
     </div>
-    <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-line">Logout</button>
-    </form>
+    <a href="{% url 'settings' %}" class="icon-btn" aria-label="Settings and activity">
+        <span class="material-symbols-rounded">menu</span>
+    </a>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="prof-head">
+<div class="ig-profile-top">
     <div class="avatar-circle">
         {% if user.avatar %}
             <img src="{{ user.avatar.url }}" alt="{{ user.full_name|default:user.phone_or_email }}">
         {% else %}
             <span>{{ user.full_name|default:user.phone_or_email|first|upper }}</span>
         {% endif %}
+        <a href="/profile/edit/" class="ig-avatar-edit" aria-label="Change profile picture">
+            <span class="material-symbols-rounded">add_a_photo</span>
+        </a>
     </div>
+    <div class="ig-stats">
+        <span class="ig-stat">
+            <strong>{{ posts_count }}</strong>
+            <span>Posts</span>
+        </span>
+        <a href="{% url 'connections' %}" class="ig-stat">
+            <strong>{{ connections_count }}</strong>
+            <span>Connections</span>
+        </a>
+        <a href="{% url 'connections' %}?tab=discover" class="ig-stat">
+            <strong>{{ cohort_count }}</strong>
+            <span>Classmates</span>
+        </a>
+    </div>
+</div>
+
+<div class="ig-name-block">
     <div class="nm">{{ user.full_name|default:user.phone_or_email }}</div>
     {% if school_confirmed or community_confirmed %}
         <div class="verify-badge">✓ {{ trust_label }}</div>
     {% endif %}
     <div class="bio">{{ user.bio|default:'Add a short bio to help classmates recognize you.' }}</div>
-    <div style="margin-top:0.85rem;display:flex;gap:0.5rem;justify-content:center;">
-        <a href="/profile/edit/" class="btn btn-gold">✎ Edit profile</a>
-    </div>
+</div>
+
+<div class="ig-actions">
+    <a href="/profile/edit/" class="btn btn-line ig-action-btn">✎ Edit profile</a>
+    <button type="button" class="btn btn-line ig-action-btn" id="share-profile-btn" data-url="{{ share_url }}">Share profile</button>
 </div>
 
 {% if has_pending_unverified_email %}
 <div class="card" style="border-color: var(--gold); margin-bottom: 1rem;">
-    ✉️ We sent a verification link to <strong>{{ user.email }}</strong>. Click it to enable
-    password reset with that address — check your inbox (and spam folder).
+    ✉️ Verify <strong>{{ user.email }}</strong> — check your inbox for the link.
     <form method="post" action="{% url 'resend_email_verification' %}" style="margin-top:0.6rem;">
         {% csrf_token %}
-        <button type="submit" class="btn btn-line">Resend verification email</button>
+        <button type="submit" class="btn btn-line">Resend email</button>
     </form>
 </div>
 {% elif not has_reset_email %}
 <div class="card" style="border-color: var(--gold); margin-bottom: 1rem;">
-    🔒 Your account has no verified email on file, so password reset by email isn't
-    available yet — and reset by SMS isn't available either. <a href="/profile/edit/">Add and
-    verify an email</a> now so you can recover your account if you forget your password.
+    🔒 No recovery email on file yet. <a href="/profile/edit/">Add and verify one</a> so you can
+    reset your password if you forget it.
 </div>
 {% endif %}
 
@@ -65,48 +84,123 @@
     </div>
 </section>
 
+{% if identity_score_suggestions %}
 <div class="section-heading">
-    <h2>Education timeline</h2>
+    <h2>Complete your profile</h2>
+    <span class="sub" style="color: var(--muted); font-size: 0.82rem;">{{ identity_score_completed_count }} of {{ identity_score_total_count }} complete</span>
 </div>
-<div class="card timeline">
-    <div class="step">
-        <div class="ico">🏫</div>
-        <div>
-            <div class="t">Primary school</div>
-            <div class="s">{% if user.primary_school %}{{ user.primary_school.name }} · {{ user.primary_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
-        </div>
+<div class="ig-task-grid">
+    {% for s in identity_score_suggestions %}
+    <div class="ig-task-card">
+        <div class="ig-task-icon"><span class="material-symbols-rounded">{{ s.icon }}</span></div>
+        <div class="t">{{ s.label }}</div>
+        <p>+{{ s.points }}% profile strength</p>
+        <a href="/profile/edit/" class="btn btn-gold">Update</a>
     </div>
-    <div class="step">
-        <div class="ico">🎓</div>
-        <div>
-            <div class="t">Secondary school</div>
-            <div class="s">{% if user.secondary_school %}{{ user.secondary_school.name }} · Class of {{ user.secondary_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="tab-switch">
+    <button type="button" class="tab-pill" data-tab="posts" onclick="profTab('posts')">Posts</button>
+    <button type="button" class="tab-pill" data-tab="education" onclick="profTab('education')">Education</button>
+    <button type="button" class="tab-pill" data-tab="about" onclick="profTab('about')">About</button>
+</div>
+
+<div id="prof-posts">
+    {% if posts %}
+    <div class="ig-post-grid">
+        {% for post in posts %}
+        <div class="ig-post-tile">
+            {% if post.media_asset_id %}
+                <img src="{% url 'post_image' post.id %}?size=thumb" alt="" loading="lazy" decoding="async">
+            {% else %}
+                <div class="ig-post-tile-text">{{ post.body|truncatechars:70 }}</div>
+            {% endif %}
         </div>
+        {% endfor %}
     </div>
-    <div class="step">
-        <div class="ico">📘</div>
-        <div>
-            <div class="t">High school (A-Level)</div>
-            <div class="s">{% if user.high_school %}{{ user.high_school.name }} · Class of {{ user.high_school_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+    {% else %}
+    <div class="card empty-state">
+        <div class="ico">📷</div>
+        <div class="t">No posts yet</div>
+        <div class="s">Share an update with your classmates from the Home feed.</div>
+        <a href="{% url 'dashboard' %}" class="btn btn-gold">Go to Home</a>
+    </div>
+    {% endif %}
+</div>
+
+<div id="prof-education" style="display:none;">
+    <div class="card timeline">
+        <div class="step">
+            <div class="ico">🏫</div>
+            <div>
+                <div class="t">Primary school</div>
+                <div class="s">{% if user.primary_school %}{{ user.primary_school.name }} · {{ user.primary_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+            </div>
         </div>
-    </div>
-    <div class="step">
-        <div class="ico">🏛️</div>
-        <div>
-            <div class="t">University / Tertiary</div>
-            <div class="s">{% if user.tertiary_school %}{{ user.tertiary_school.name }} · {{ user.tertiary_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+        <div class="step">
+            <div class="ico">🎓</div>
+            <div>
+                <div class="t">Secondary school</div>
+                <div class="s">{% if user.secondary_school %}{{ user.secondary_school.name }} · Class of {{ user.secondary_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+            </div>
+        </div>
+        <div class="step">
+            <div class="ico">📘</div>
+            <div>
+                <div class="t">High school (A-Level)</div>
+                <div class="s">{% if user.high_school %}{{ user.high_school.name }} · Class of {{ user.high_school_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+            </div>
+        </div>
+        <div class="step">
+            <div class="ico">🏛️</div>
+            <div>
+                <div class="t">University / Tertiary</div>
+                <div class="s">{% if user.tertiary_school %}{{ user.tertiary_school.name }} · {{ user.tertiary_completion_year|default:'—' }}{% else %}Not added yet{% endif %}</div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="section-heading">
-    <h2>About</h2>
-</div>
-<div class="card">
-    <div class="info-tags" style="display:flex;flex-wrap:wrap;gap:0.6rem;">
-        <span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ user.current_location|default:'Location not set' }}</span>
-        <span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ user.current_role|default:'Alumni member' }}</span>
-        {% if user.company_name %}<span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ user.company_name }}</span>{% endif %}
+<div id="prof-about" style="display:none;">
+    <div class="card">
+        <div class="info-tags" style="display:flex;flex-wrap:wrap;gap:0.6rem;">
+            <span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ user.current_location|default:'Location not set' }}</span>
+            <span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ user.current_role|default:'Alumni member' }}</span>
+            {% if user.company_name %}<span class="chip" style="border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.85rem;font-size:0.8rem;color:var(--muted);">{{ user.company_name }}</span>{% endif %}
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+    function profTab(name) {
+        document.querySelectorAll('.tab-pill').forEach(function (t) { t.classList.toggle('on', t.dataset.tab === name); });
+        ['posts', 'education', 'about'].forEach(function (n) {
+            document.getElementById('prof-' + n).style.display = (n === name) ? '' : 'none';
+        });
+    }
+    profTab('posts');
+
+    (function () {
+        var btn = document.getElementById('share-profile-btn');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            var url = btn.dataset.url;
+            if (navigator.share) {
+                navigator.share({ title: 'LegacyLink Africa', url: url }).catch(function () {});
+                return;
+            }
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(url).then(function () {
+                    var original = btn.textContent;
+                    btn.textContent = 'Link copied!';
+                    setTimeout(function () { btn.textContent = original; }, 1500);
+                });
+            }
+        });
+    })();
+</script>
 {% endblock %}

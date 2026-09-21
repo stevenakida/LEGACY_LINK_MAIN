@@ -28,9 +28,37 @@ class ImageValidationResult:
         self.thumbnail_path = thumbnail_path
 
 
+THUMBNAIL_MAX_SIDE = 640
+# Fallback JPEG quality for the rare source whose own tables can't be reused
+# (unusual chroma subsampling, or a colour-mode conversion was needed).
+_JPEG_FALLBACK_QUALITY = 95
+
+
+def _save_processed(img, path, fmt, save_kwargs, jpeg_qtables, jpeg_subsampling):
+    """Write the processed image. For JPEGs, reuse the source's quantization
+    tables and chroma subsampling so the stored file is compressed exactly as
+    finely as what the sender uploaded; if that isn't possible for this
+    file, fall back to a fixed high quality."""
+    if fmt == 'JPEG':
+        # Greyscale JPEGs have no chroma, so Pillow reports no subsampling for
+        # them (-1); their tables are still reusable.
+        if jpeg_qtables and (jpeg_subsampling in (0, 1, 2) or img.mode == 'L'):
+            fidelity = {'qtables': jpeg_qtables}
+            if jpeg_subsampling in (0, 1, 2):
+                fidelity['subsampling'] = jpeg_subsampling
+            try:
+                img.save(path, format=fmt, **fidelity, **save_kwargs)
+                return
+            except Exception:
+                pass    # fall through to the fixed-quality save below
+        img.save(path, format=fmt, quality=_JPEG_FALLBACK_QUALITY, **save_kwargs)
+        return
+    img.save(path, format=fmt, **save_kwargs)
+
+
 def validate_and_process_image(input_path: str, processed_output_path: str,
                                 thumbnail_output_path: str) -> ImageValidationResult:
-    from PIL import Image, ImageOps, UnidentifiedImageError
+    from PIL import Image, ImageOps, JpegImagePlugin, UnidentifiedImageError
 
     # Decompression-bomb guard: Pillow raises DecompressionBombError once a
     # decoded image would exceed this many pixels, before allocating memory
@@ -56,6 +84,20 @@ def validate_and_process_image(input_path: str, processed_output_path: str,
             # though the resize/quality drop below was removed — this isn't
             # about size, it's privacy (GPS/device metadata) and cross-client
             # correctness (unrotated pixels).
+            # Read what a decode -> transpose -> re-encode cycle would
+            # otherwise throw away, BEFORE transposing (which returns a copy):
+            #   - the ICC colour profile. Pillow drops it on save unless it is
+            #     passed explicitly, and phone photos are often Display-P3;
+            #     without the profile browsers treat the pixels as sRGB and
+            #     the photo looks washed out ("faint").
+            #   - a JPEG's own quantization tables and chroma subsampling, so
+            #     the re-encode reuses the sender's exact compression settings
+            #     instead of imposing a different quality level on top.
+            icc_profile = img.info.get('icc_profile')
+            source_mode = img.mode
+            jpeg_qtables = getattr(img, 'quantization', None) if fmt == 'JPEG' else None
+            jpeg_subsampling = JpegImagePlugin.get_sampling(img) if fmt == 'JPEG' else -1
+
             img = ImageOps.exif_transpose(img)
 
             # Deliberately no dimension downscale here — the pipeline used to
@@ -65,20 +107,26 @@ def validate_and_process_image(input_path: str, processed_output_path: str,
             # decompression-bomb guard, set via Image.MAX_IMAGE_PIXELS above)
             # still bounds how large an input this will ever decode.
             save_kwargs = {'optimize': True}
-            if fmt in ('JPEG', 'WEBP'):
-                # 95 is visually lossless while still compressing meaningfully
-                # (unlike quality=100, which mostly just inflates file size).
+            if icc_profile:
+                save_kwargs['icc_profile'] = icc_profile
+            if fmt == 'WEBP':
                 save_kwargs['quality'] = 95
             if fmt == 'JPEG' and img.mode not in ('RGB', 'L'):
                 img = img.convert('RGB')
-            img.save(processed_output_path, format=fmt, **save_kwargs)
+            _save_processed(img, processed_output_path, fmt, save_kwargs,
+                            jpeg_qtables if img.mode == source_mode else None, jpeg_subsampling)
             width, height = img.width, img.height
 
+            # Only used for small tiles (?size=thumb); the feed and chat show
+            # the full image. Big enough to stay sharp on a high-DPI phone.
             thumb = img.copy()
-            thumb.thumbnail((320, 320), Image.LANCZOS)
+            thumb.thumbnail((THUMBNAIL_MAX_SIDE, THUMBNAIL_MAX_SIDE), Image.LANCZOS)
             if thumb.mode not in ('RGB', 'L'):
                 thumb = thumb.convert('RGB')
-            thumb.save(thumbnail_output_path, format='JPEG', quality=80, optimize=True)
+            thumb_kwargs = {'format': 'JPEG', 'quality': 90, 'optimize': True}
+            if icc_profile:
+                thumb_kwargs['icc_profile'] = icc_profile
+            thumb.save(thumbnail_output_path, **thumb_kwargs)
     except MediaValidationError:
         raise
     except UnidentifiedImageError:

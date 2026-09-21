@@ -5,7 +5,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, update_session_auth_hash
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib import messages
 from django.db.models import Q
@@ -19,7 +20,9 @@ from accounts.models import User, normalize_identifier
 from accounts.services import dispatch_email_verification, mask_email
 from accounts.tokens import email_verification_token
 from alumni.models import School
+from analytics.services import record_event
 from connections.models import Connection, UserRelationshipOverride
+from connections.services import network_state
 from feedback.models import Feedback
 from opportunities.models import Opportunity, OpportunityInterest
 from media_assets import services as media_services
@@ -30,6 +33,7 @@ from notifications.services import notify
 from messaging.models import (
     Conversation, ConversationMember, Message as ChatMessage, MessageAttachment, MessageHiddenFor,
 )
+from posts.models import Post
 from posts.views import get_feed_for_user
 
 logger = logging.getLogger(__name__)
@@ -295,7 +299,7 @@ def verify_email_confirm(request, uidb64, token):
     user.email_verified = True
     user.save(update_fields=['email_verified'])
     logger.info('Email verified for account %s', user.id)
-    messages.success(request, 'Your email address has been verified. You can now use it to reset your password.')
+    messages.success(request, 'Email verified! You can now use it to reset your password.')
     return redirect(landing)
 
 def resend_email_verification(request):
@@ -407,13 +411,6 @@ def dashboard(request):
         return redirect('login')
 
     user = request.user
-    accepted_connections = Connection.objects.filter(
-        (Q(requester=user) | Q(receiver=user)) & Q(status='accepted')
-    ).select_related('requester', 'receiver')
-
-    pending_connections = Connection.objects.filter(
-        (Q(requester=user) | Q(receiver=user)) & Q(status='pending')
-    ).select_related('requester', 'receiver')
 
     # Exclude blocked users same as the Discover tab (connections()) — a
     # blocked person shouldn't be suggested here either.
@@ -422,8 +419,11 @@ def dashboard(request):
     cohort_count = cohort_full_qs.count()
     cohort_users = _annotate_connection_status(user, cohort_full_qs[:4])
 
-    connections_count = accepted_connections.count()
-    pending_count = pending_connections.count()
+    # Same counts the Network tabs show (Phase 7): accepted connections, and
+    # incoming requests only -- outgoing ones are not "pending" for this user.
+    network = network_state(user)
+    connections_count = network['connections_count']
+    pending_count = network['pending_count']
 
     hour = timezone.localtime().hour
     if hour < 12:
@@ -503,6 +503,8 @@ def view_profile(request, user_id):
     next_url = request.GET.get('next', '')
     if not next_url.startswith('/') or next_url.startswith('//'):
         next_url = '/connections/'
+    if next_url.startswith('/connections'):
+        record_event('profile_opened_from_network', actor=request.user)
 
     is_blocked = UserRelationshipOverride.objects.filter(
         actor=request.user, target=profile_user, type=UserRelationshipOverride.Type.BLOCK
@@ -533,9 +535,9 @@ def profile(request):
     if not request.user.is_authenticated:
         return redirect('login')
     user = request.user
-    connections_count = Connection.objects.filter(
-        (Q(requester=user) | Q(receiver=user)) & Q(status='accepted')
-    ).count()
+    # Same definition the Network header and Home use (accepted, both sides
+    # active, neither blocked) so the numbers can never disagree.
+    connections_count = network_state(user)['connections_count']
     school_confirmed = bool(user.secondary_school and user.secondary_completion_year)
     community_confirmed = connections_count > 0
     if school_confirmed:
@@ -545,10 +547,14 @@ def profile(request):
     else:
         trust_label = 'Getting Started'
 
+    own_posts = Post.objects.filter(author=user).select_related('media_asset').order_by('-created_at')
+
     return render(request, 'profile.html', {
         'user': user,
         'identity_score': user.identity_score,
         'identity_score_suggestions': user.identity_score_suggestions[:4],
+        'identity_score_completed_count': user.identity_score_completed_count,
+        'identity_score_total_count': len(User.IDENTITY_SCORE_WEIGHTS),
         'school_confirmed': school_confirmed,
         'community_confirmed': community_confirmed,
         'trust_label': trust_label,
@@ -559,6 +565,13 @@ def profile(request):
         # from outside.
         'has_reset_email': user.eligible_reset_email() is not None,
         'has_pending_unverified_email': bool(user.email) and not user.email_verified,
+        'connections_count': connections_count,
+        'cohort_count': user.cohort_queryset().count(),
+        'posts_count': own_posts.count(),
+        # Grid is a plain slice, same pattern as Home's cohort_users[:4]/
+        # upcoming_events[:3] — no pagination this pass.
+        'posts': own_posts[:30],
+        'share_url': request.build_absolute_uri(f'/profile/{user.id}/'),
     })
 
 
@@ -630,7 +643,7 @@ def profile_edit(request):
         user.save()
         if email_changed and user.email:
             dispatch_email_verification(request, user)
-            messages.success(request, "Profile updated successfully! We've sent a verification link to your new email — click it to enable password reset with that address.")
+            messages.success(request, 'Profile updated! Check your email to verify it.')
         else:
             messages.success(request, 'Profile updated successfully!')
         return redirect('profile')
@@ -647,6 +660,85 @@ def profile_edit(request):
         'employment_status_choices': User.EMPLOYMENT_STATUS_CHOICES,
         'active_tab': 'profile',
     })
+
+
+def settings_page(request):
+    """Settings and activity — reached from the menu icon on /profile/.
+    Groups account/privacy/support actions that used to be just a bare
+    Logout button on the profile page itself."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    user = request.user
+    blocked_count = UserRelationshipOverride.objects.filter(
+        actor=user, type=UserRelationshipOverride.Type.BLOCK
+    ).count()
+    muted_count = UserRelationshipOverride.objects.filter(
+        actor=user, type=UserRelationshipOverride.Type.MUTE
+    ).count()
+    return render(request, 'settings.html', {
+        'active_tab': 'profile',
+        'blocked_count': blocked_count,
+        'muted_count': muted_count,
+        'has_password': user.has_usable_password(),
+        'has_reset_email': user.eligible_reset_email() is not None,
+    })
+
+
+def change_password(request):
+    """Set a password (Google-only accounts that signed up with
+    resolve_google_account have none yet — see google_oauth.py) or change
+    an existing one. No old-password check when there isn't one to check;
+    otherwise the current password must be confirmed first, same as any
+    other logged-in password change."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    user = request.user
+    has_password = user.has_usable_password()
+    if request.method == 'POST':
+        old_password = request.POST.get('old_password', '')
+        new_password1 = request.POST.get('new_password1', '')
+        new_password2 = request.POST.get('new_password2', '')
+        error = None
+        if has_password and not user.check_password(old_password):
+            error = 'Current password is incorrect.'
+        elif not new_password1 or new_password1 != new_password2:
+            error = "New passwords don't match."
+        else:
+            try:
+                validate_password(new_password1, user=user)
+            except ValidationError as e:
+                error = ' '.join(e.messages)
+        if error:
+            messages.error(request, error)
+        else:
+            user.set_password(new_password1)
+            user.save()
+            update_session_auth_hash(request, user)
+            if has_password:
+                messages.success(request, 'Password updated successfully!')
+            else:
+                messages.success(request, 'Password set — you can now log in with it as well as with Google.')
+            return redirect('settings')
+    return render(request, 'settings_password.html', {'has_password': has_password, 'active_tab': 'profile'})
+
+
+def blocked_accounts(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    rows = UserRelationshipOverride.objects.filter(
+        actor=request.user, type=UserRelationshipOverride.Type.BLOCK
+    ).select_related('target').order_by('-created_at')
+    return render(request, 'settings_blocked.html', {'rows': rows, 'active_tab': 'profile'})
+
+
+def muted_accounts(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    rows = UserRelationshipOverride.objects.filter(
+        actor=request.user, type=UserRelationshipOverride.Type.MUTE
+    ).select_related('target').order_by('-created_at')
+    return render(request, 'settings_muted.html', {'rows': rows, 'active_tab': 'profile'})
+
 
 def opportunities_page(request):
     if not request.user.is_authenticated:
@@ -793,197 +885,6 @@ def _mutual_connection_ids(user):
     ids.discard(user.id)
     return ids
 
-
-def connections(request):
-    if not request.user.is_authenticated:
-        return redirect('login')
-    user = request.user
-    accepted_connections = Connection.objects.filter(
-        (Q(requester=user) | Q(receiver=user)) & Q(status='accepted')
-    ).select_related('requester', 'receiver')
-    pending_connections = Connection.objects.filter(
-        (Q(requester=user) | Q(receiver=user)) & Q(status='pending')
-    ).select_related('requester', 'receiver')
-
-    # Discover: cohort matches (same school+year) who aren't already pending/
-    # accepted/declined with this user, and aren't blocked in either
-    # direction — surfacing a blocked person as a suggestion would defeat
-    # the point of blocking them.
-    blocked_ids = UserRelationshipOverride.blocked_partner_ids(user)
-    discover_users = _annotate_connection_status(user, user.cohort_queryset())
-    discover_users = [p for p in discover_users if p.connection_status == 'none' and p.id not in blocked_ids]
-
-    # Mutual-connection count per discover candidate — one query per
-    # candidate, intentionally simple at current scale rather than a bulk
-    # join, since this list is small (cohort matches only).
-    my_accepted_ids = _mutual_connection_ids(user)
-    for person in discover_users:
-        person.mutual_count = len(my_accepted_ids & _mutual_connection_ids(person))
-
-    requested_tab = request.GET.get('tab', 'pending')
-    if requested_tab not in ('pending', 'connected', 'discover'):
-        requested_tab = 'pending'
-
-    return render(request, 'connections.html', {
-        'connections': accepted_connections,
-        'pending_connections': pending_connections,
-        'discover_users': discover_users,
-        'accepted_count': accepted_connections.count(),
-        'pending_count': pending_connections.count(),
-        'discover_count': len(discover_users),
-        'connections_tab': requested_tab,
-        'active_tab': 'network',
-    })
-
-def send_connection_web(request, user_id):
-    """POST-only: send a connection request from the logged-in user to
-    another user, used by the 'Connect' buttons on the dashboard's
-    Suggested for You carousel and the cohort page's classmate cards."""
-    if not request.user.is_authenticated:
-        return redirect('login')
-    if request.method != 'POST':
-        return redirect('connections')
-
-    next_url = request.POST.get('next', '')
-    if not next_url.startswith('/') or next_url.startswith('//'):
-        next_url = 'connections'
-
-    try:
-        receiver = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        messages.error(request, 'That user could not be found.')
-        return redirect(next_url)
-
-    if receiver.id == request.user.id:
-        messages.error(request, "You can't connect with yourself.")
-        return redirect(next_url)
-
-    if UserRelationshipOverride.is_blocked(request.user, receiver):
-        messages.error(request, 'You can’t connect with this user.')
-        return redirect(next_url)
-
-    existing = Connection.objects.filter(
-        (Q(requester=request.user) & Q(receiver=receiver)) | (Q(requester=receiver) & Q(receiver=request.user))
-    ).first()
-    if existing:
-        messages.info(request, f'You already have a connection with {receiver.full_name}.')
-    else:
-        conn = Connection.objects.create(requester=request.user, receiver=receiver)
-        notify(
-            receiver, Notification.Verb.CONNECTION_REQUEST, actor=request.user, target=conn,
-            push_title=request.user.full_name, push_body='Sent you a connection request',
-        )
-        messages.success(request, f'Connection request sent to {receiver.full_name}.')
-
-    return redirect(next_url)
-
-def respond_connection_web(request, connection_id):
-    """POST-only: accept or decline a connection request that was sent to
-    the logged-in user. Used by the Accept/Decline buttons on the
-    Pending Requests section of /connections/."""
-    if not request.user.is_authenticated:
-        return redirect('login')
-    if request.method != 'POST':
-        return redirect('connections')
-
-    next_url = request.POST.get('next', '')
-    if not next_url.startswith('/') or next_url.startswith('//'):
-        next_url = 'connections'
-
-    # Scoped to receiver=request.user so only the actual recipient of the
-    # request can accept/decline it, not just anyone who knows the id.
-    try:
-        conn = Connection.objects.get(id=connection_id, receiver=request.user)
-    except Connection.DoesNotExist:
-        messages.error(request, 'That connection request could not be found.')
-        return redirect(next_url)
-
-    action = request.POST.get('action')
-    if action == 'accept':
-        conn.status = 'accepted'
-        conn.save()
-        notify(
-            conn.requester, Notification.Verb.CONNECTION_ACCEPTED, actor=request.user, target=conn,
-            push_title=request.user.full_name, push_body='Accepted your connection request',
-        )
-        messages.success(request, f'You are now connected with {conn.requester.full_name}.')
-    elif action == 'decline':
-        conn.status = 'declined'
-        conn.save()
-        messages.info(request, f'Declined the request from {conn.requester.full_name}.')
-    else:
-        messages.error(request, 'Invalid action.')
-
-    return redirect(next_url)
-
-def remove_connection_web(request, connection_id):
-    """POST-only: remove an existing (accepted) connection — used by the
-    'Remove' button on the Connected tab, e.g. when someone turns out not to
-    be who they claimed. Scoped to requester-or-receiver so only the two
-    people in the connection can remove it. This deletes the Connection row
-    outright rather than adding a new status, so the two can reconnect later
-    if it was a mistake; it does not touch or hide the message thread between
-    them, if any."""
-    if not request.user.is_authenticated:
-        return redirect('login')
-    if request.method != 'POST':
-        return redirect('connections')
-
-    next_url = request.POST.get('next', '')
-    if not next_url.startswith('/') or next_url.startswith('//'):
-        next_url = 'connections'
-
-    try:
-        conn = Connection.objects.get(
-            Q(id=connection_id) & (Q(requester=request.user) | Q(receiver=request.user)),
-            status='accepted',
-        )
-    except Connection.DoesNotExist:
-        messages.error(request, 'That connection could not be found.')
-        return redirect(next_url)
-
-    other = conn.receiver if conn.requester == request.user else conn.requester
-    conn.delete()
-    messages.info(request, f'Removed your connection with {other.full_name}.')
-
-    return redirect(next_url)
-
-def dismiss_discover_web(request, user_id):
-    """POST-only: dismiss a suggested classmate on the Discover tab ('not
-    interested in connecting') — the red X next to Connect. Recorded as a
-    one-sided 'declined' Connection (no request was ever sent, so nothing is
-    sent to the other person / no notification), which reuses the same
-    filter that already hides declined connections from Discover."""
-    if not request.user.is_authenticated:
-        return redirect('login')
-    if request.method != 'POST':
-        return redirect('connections')
-
-    next_url = request.POST.get('next', '')
-    if not next_url.startswith('/') or next_url.startswith('//'):
-        next_url = 'connections'
-
-    try:
-        other = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        return redirect(next_url)
-
-    if other.id == request.user.id:
-        return redirect(next_url)
-
-    # Check both directions, not just requester=me — a row could already
-    # exist the other way round (e.g. they'd sent me a request), and
-    # get_or_create only matching one direction would create a duplicate
-    # row for the same pair instead of respecting the existing one.
-    existing = Connection.objects.filter(
-        (Q(requester=request.user) & Q(receiver=other)) | (Q(requester=other) & Q(receiver=request.user))
-    ).first()
-    if not existing:
-        Connection.objects.create(requester=request.user, receiver=other, status='declined')
-
-    messages.info(request, f'{other.full_name} removed from Discover.')
-
-    return redirect(next_url)
 
 def block_user_web(request, user_id):
     """POST-only: block another user — severs any existing Connection
@@ -1230,6 +1131,9 @@ def messages_start(request, user_id):
     if not _has_accepted_connection(request.user, other):
         messages.error(request, 'You can only message accepted connections.')
         return redirect('connections')
+
+    if request.POST.get('source') == 'network':
+        record_event('connected_message_clicked', actor=request.user)
 
     key = Conversation.direct_key_for(request.user, other)
     conversation, created = Conversation.objects.get_or_create(
@@ -1535,13 +1439,15 @@ def message_attachment_image(request, message_id):
     "conversation participant" (the same check messages_thread/poll/earlier
     already use) rather than "can see this post". Redirects to a signed
     preview URL — no Content-Disposition, meant for inline rendering.
-    `?full=1` serves the actual processed image instead of the 320x320
-    thumbnail, for the lightbox/full-screen viewer."""
+    Serves the full-resolution processed image by default, so chat bubbles
+    show the photo at the quality it was sent (bubbles used to get the 320px
+    thumbnail). `?size=thumb` opts into the thumbnail; `?full=1` is still
+    accepted from older clients and is now simply the default."""
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Authentication required'}, status=401)
 
     asset = _get_authorized_attachment(request, message_id)
-    url = media_services.get_preview_url(asset, full=request.GET.get('full') == '1')
+    url = media_services.get_preview_url(asset, full=request.GET.get('size') != 'thumb')
     if not url:
         raise Http404('media is not currently available')
     return HttpResponseRedirect(url)

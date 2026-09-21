@@ -193,7 +193,12 @@ def post_image(request, post_id):
     _visible_posts_queryset (same rules the feed itself uses), asset is
     actually attached to *this* post and still downloadable — only then
     redirect to a short-lived signed URL. Fails closed (404) on any of
-    those, matching rule 13."""
+    those, matching rule 13.
+
+    Serves the full-resolution processed image by default (the feed used to
+    get the 320px thumbnail stretched to card width, which looked blurry).
+    `?size=thumb` opts into the small thumbnail, for tiny tiles like the
+    profile grid where downloading dozens of full photos would be wasteful."""
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Authentication required'}, status=401)
 
@@ -205,7 +210,7 @@ def post_image(request, post_id):
     if asset is None:
         raise Http404('post has no media')
 
-    url = media_services.get_preview_url(asset)
+    url = media_services.get_preview_url(asset, full=request.GET.get('size') != 'thumb')
     if not url:
         raise Http404('media is not currently available')
     return HttpResponseRedirect(url)
