@@ -19,7 +19,9 @@ from accounts.models import User, normalize_identifier
 from accounts.services import dispatch_email_verification, mask_email
 from accounts.tokens import email_verification_token
 from alumni.models import School
+from analytics.services import record_event
 from connections.models import Connection, UserRelationshipOverride
+from connections.services import network_state
 from feedback.models import Feedback
 from opportunities.models import Opportunity, OpportunityInterest
 from media_assets import services as media_services
@@ -407,13 +409,6 @@ def dashboard(request):
         return redirect('login')
 
     user = request.user
-    accepted_connections = Connection.objects.filter(
-        (Q(requester=user) | Q(receiver=user)) & Q(status='accepted')
-    ).select_related('requester', 'receiver')
-
-    pending_connections = Connection.objects.filter(
-        (Q(requester=user) | Q(receiver=user)) & Q(status='pending')
-    ).select_related('requester', 'receiver')
 
     # Exclude blocked users same as the Discover tab (connections()) — a
     # blocked person shouldn't be suggested here either.
@@ -422,8 +417,11 @@ def dashboard(request):
     cohort_count = cohort_full_qs.count()
     cohort_users = _annotate_connection_status(user, cohort_full_qs[:4])
 
-    connections_count = accepted_connections.count()
-    pending_count = pending_connections.count()
+    # Same counts the Network tabs show (Phase 7): accepted connections, and
+    # incoming requests only -- outgoing ones are not "pending" for this user.
+    network = network_state(user)
+    connections_count = network['connections_count']
+    pending_count = network['pending_count']
 
     hour = timezone.localtime().hour
     if hour < 12:
@@ -503,6 +501,8 @@ def view_profile(request, user_id):
     next_url = request.GET.get('next', '')
     if not next_url.startswith('/') or next_url.startswith('//'):
         next_url = '/connections/'
+    if next_url.startswith('/connections'):
+        record_event('profile_opened_from_network', actor=request.user)
 
     is_blocked = UserRelationshipOverride.objects.filter(
         actor=request.user, target=profile_user, type=UserRelationshipOverride.Type.BLOCK
@@ -794,197 +794,6 @@ def _mutual_connection_ids(user):
     return ids
 
 
-def connections(request):
-    if not request.user.is_authenticated:
-        return redirect('login')
-    user = request.user
-    accepted_connections = Connection.objects.filter(
-        (Q(requester=user) | Q(receiver=user)) & Q(status='accepted')
-    ).select_related('requester', 'receiver')
-    pending_connections = Connection.objects.filter(
-        (Q(requester=user) | Q(receiver=user)) & Q(status='pending')
-    ).select_related('requester', 'receiver')
-
-    # Discover: cohort matches (same school+year) who aren't already pending/
-    # accepted/declined with this user, and aren't blocked in either
-    # direction — surfacing a blocked person as a suggestion would defeat
-    # the point of blocking them.
-    blocked_ids = UserRelationshipOverride.blocked_partner_ids(user)
-    discover_users = _annotate_connection_status(user, user.cohort_queryset())
-    discover_users = [p for p in discover_users if p.connection_status == 'none' and p.id not in blocked_ids]
-
-    # Mutual-connection count per discover candidate — one query per
-    # candidate, intentionally simple at current scale rather than a bulk
-    # join, since this list is small (cohort matches only).
-    my_accepted_ids = _mutual_connection_ids(user)
-    for person in discover_users:
-        person.mutual_count = len(my_accepted_ids & _mutual_connection_ids(person))
-
-    requested_tab = request.GET.get('tab', 'pending')
-    if requested_tab not in ('pending', 'connected', 'discover'):
-        requested_tab = 'pending'
-
-    return render(request, 'connections.html', {
-        'connections': accepted_connections,
-        'pending_connections': pending_connections,
-        'discover_users': discover_users,
-        'accepted_count': accepted_connections.count(),
-        'pending_count': pending_connections.count(),
-        'discover_count': len(discover_users),
-        'connections_tab': requested_tab,
-        'active_tab': 'network',
-    })
-
-def send_connection_web(request, user_id):
-    """POST-only: send a connection request from the logged-in user to
-    another user, used by the 'Connect' buttons on the dashboard's
-    Suggested for You carousel and the cohort page's classmate cards."""
-    if not request.user.is_authenticated:
-        return redirect('login')
-    if request.method != 'POST':
-        return redirect('connections')
-
-    next_url = request.POST.get('next', '')
-    if not next_url.startswith('/') or next_url.startswith('//'):
-        next_url = 'connections'
-
-    try:
-        receiver = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        messages.error(request, 'That user could not be found.')
-        return redirect(next_url)
-
-    if receiver.id == request.user.id:
-        messages.error(request, "You can't connect with yourself.")
-        return redirect(next_url)
-
-    if UserRelationshipOverride.is_blocked(request.user, receiver):
-        messages.error(request, 'You can’t connect with this user.')
-        return redirect(next_url)
-
-    existing = Connection.objects.filter(
-        (Q(requester=request.user) & Q(receiver=receiver)) | (Q(requester=receiver) & Q(receiver=request.user))
-    ).first()
-    if existing:
-        messages.info(request, f'You already have a connection with {receiver.full_name}.')
-    else:
-        conn = Connection.objects.create(requester=request.user, receiver=receiver)
-        notify(
-            receiver, Notification.Verb.CONNECTION_REQUEST, actor=request.user, target=conn,
-            push_title=request.user.full_name, push_body='Sent you a connection request',
-        )
-        messages.success(request, f'Connection request sent to {receiver.full_name}.')
-
-    return redirect(next_url)
-
-def respond_connection_web(request, connection_id):
-    """POST-only: accept or decline a connection request that was sent to
-    the logged-in user. Used by the Accept/Decline buttons on the
-    Pending Requests section of /connections/."""
-    if not request.user.is_authenticated:
-        return redirect('login')
-    if request.method != 'POST':
-        return redirect('connections')
-
-    next_url = request.POST.get('next', '')
-    if not next_url.startswith('/') or next_url.startswith('//'):
-        next_url = 'connections'
-
-    # Scoped to receiver=request.user so only the actual recipient of the
-    # request can accept/decline it, not just anyone who knows the id.
-    try:
-        conn = Connection.objects.get(id=connection_id, receiver=request.user)
-    except Connection.DoesNotExist:
-        messages.error(request, 'That connection request could not be found.')
-        return redirect(next_url)
-
-    action = request.POST.get('action')
-    if action == 'accept':
-        conn.status = 'accepted'
-        conn.save()
-        notify(
-            conn.requester, Notification.Verb.CONNECTION_ACCEPTED, actor=request.user, target=conn,
-            push_title=request.user.full_name, push_body='Accepted your connection request',
-        )
-        messages.success(request, f'You are now connected with {conn.requester.full_name}.')
-    elif action == 'decline':
-        conn.status = 'declined'
-        conn.save()
-        messages.info(request, f'Declined the request from {conn.requester.full_name}.')
-    else:
-        messages.error(request, 'Invalid action.')
-
-    return redirect(next_url)
-
-def remove_connection_web(request, connection_id):
-    """POST-only: remove an existing (accepted) connection — used by the
-    'Remove' button on the Connected tab, e.g. when someone turns out not to
-    be who they claimed. Scoped to requester-or-receiver so only the two
-    people in the connection can remove it. This deletes the Connection row
-    outright rather than adding a new status, so the two can reconnect later
-    if it was a mistake; it does not touch or hide the message thread between
-    them, if any."""
-    if not request.user.is_authenticated:
-        return redirect('login')
-    if request.method != 'POST':
-        return redirect('connections')
-
-    next_url = request.POST.get('next', '')
-    if not next_url.startswith('/') or next_url.startswith('//'):
-        next_url = 'connections'
-
-    try:
-        conn = Connection.objects.get(
-            Q(id=connection_id) & (Q(requester=request.user) | Q(receiver=request.user)),
-            status='accepted',
-        )
-    except Connection.DoesNotExist:
-        messages.error(request, 'That connection could not be found.')
-        return redirect(next_url)
-
-    other = conn.receiver if conn.requester == request.user else conn.requester
-    conn.delete()
-    messages.info(request, f'Removed your connection with {other.full_name}.')
-
-    return redirect(next_url)
-
-def dismiss_discover_web(request, user_id):
-    """POST-only: dismiss a suggested classmate on the Discover tab ('not
-    interested in connecting') — the red X next to Connect. Recorded as a
-    one-sided 'declined' Connection (no request was ever sent, so nothing is
-    sent to the other person / no notification), which reuses the same
-    filter that already hides declined connections from Discover."""
-    if not request.user.is_authenticated:
-        return redirect('login')
-    if request.method != 'POST':
-        return redirect('connections')
-
-    next_url = request.POST.get('next', '')
-    if not next_url.startswith('/') or next_url.startswith('//'):
-        next_url = 'connections'
-
-    try:
-        other = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        return redirect(next_url)
-
-    if other.id == request.user.id:
-        return redirect(next_url)
-
-    # Check both directions, not just requester=me — a row could already
-    # exist the other way round (e.g. they'd sent me a request), and
-    # get_or_create only matching one direction would create a duplicate
-    # row for the same pair instead of respecting the existing one.
-    existing = Connection.objects.filter(
-        (Q(requester=request.user) & Q(receiver=other)) | (Q(requester=other) & Q(receiver=request.user))
-    ).first()
-    if not existing:
-        Connection.objects.create(requester=request.user, receiver=other, status='declined')
-
-    messages.info(request, f'{other.full_name} removed from Discover.')
-
-    return redirect(next_url)
-
 def block_user_web(request, user_id):
     """POST-only: block another user — severs any existing Connection
     between the two (pending or accepted; a block supersedes it outright,
@@ -1230,6 +1039,9 @@ def messages_start(request, user_id):
     if not _has_accepted_connection(request.user, other):
         messages.error(request, 'You can only message accepted connections.')
         return redirect('connections')
+
+    if request.POST.get('source') == 'network':
+        record_event('connected_message_clicked', actor=request.user)
 
     key = Conversation.direct_key_for(request.user, other)
     conversation, created = Conversation.objects.get_or_create(

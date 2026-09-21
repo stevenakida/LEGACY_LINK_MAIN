@@ -1,0 +1,61 @@
+{% load i18n %}
+{# Connected / Pending row. `card` = RelationshipCard; `mode` = 'connected' | 'pending'. #}
+{% with other=card.other %}
+<div class="person-row net-card{% if mode == 'pending' %} net-pending-card{% endif %}" data-connection-id="{{ card.connection.id }}">
+    <a class="person-link" href="{% url 'view_profile' other.id %}?next={{ request.get_full_path|urlencode }}">
+        <div class="person-avatar">
+            {% if other.avatar %}<img src="{{ other.avatar.url }}" alt="">{% else %}{{ other.full_name|default:'?'|first|upper }}{% endif %}
+        </div>
+        <div class="person-info">
+            <div class="nm">{{ other.full_name }}</div>
+            {% if card.match %}
+                <div class="edu">
+                    {{ card.match.institution_name }}<br>
+                    {{ card.match.level_label }}{% if card.match.cohort_year %} · {% blocktrans with year=card.match.cohort_year %}Class of {{ year }}{% endblocktrans %}{% endif %}
+                </div>
+                <span class="net-reason">🎓 {{ card.match.display_label }}</span>
+            {% elif card.fallback %}
+                <div class="edu">{{ card.fallback.institution_name }}{% if card.fallback.cohort_year %} · {% blocktrans with year=card.fallback.cohort_year %}Class of {{ year }}{% endblocktrans %}{% endif %}</div>
+            {% else %}
+                <div class="edu">{% trans "Education not yet added" %}</div>
+            {% endif %}
+            {% if mode == 'pending' %}
+                {% if card.connection.message %}
+                    <p class="net-request-note">{{ card.connection.message|linebreaksbr }}</p>
+                {% else %}
+                    <div class="edu">{% trans "Wants to connect with you." %}</div>
+                {% endif %}
+                <div class="net-request-age">{% if card.just_now %}{% trans "Just now" %}{% else %}{% blocktrans with age=card.connection.created_at|timesince %}{{ age }} ago{% endblocktrans %}{% endif %}</div>
+            {% endif %}
+        </div>
+    </a>
+    {% if mode == 'connected' %}
+        <div class="person-actions">
+            <form method="post" action="{% url 'messages_start' other.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="source" value="network">
+                <button type="submit" class="btn btn-gold">{% trans "Message" %}</button>
+            </form>
+            {% include 'network/_menu.html' with other=other connection_id=card.connection.id %}
+        </div>
+    {% else %}
+        <div class="person-actions">
+            {% include 'network/_menu.html' with other=other connection_id='' %}
+        </div>
+        <div class="net-pending-actions">
+            <form method="post" action="{% url 'respond_connection_web' card.connection.id %}" data-net-respond>
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="action" value="accept">
+                <button type="submit" class="btn btn-gold">{% trans "Accept" %}</button>
+            </form>
+            <form method="post" action="{% url 'respond_connection_web' card.connection.id %}" data-net-respond>
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="action" value="decline">
+                <button type="submit" class="btn btn-decline">{% trans "Decline" %}</button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+{% endwith %}

@@ -1,0 +1,67 @@
+{% load i18n %}
+<form class="net-search" method="get" action="{% url 'connections' %}" role="search">
+    <input type="hidden" name="tab" value="discover">
+    {% if level != 'all' %}<input type="hidden" name="level" value="{{ level }}">{% endif %}
+    <input type="search" name="q" value="{{ q }}" maxlength="80" aria-label="{% trans 'Search alumni' %}" placeholder="{% trans 'Search by name, school or class year' %}">
+    <button type="submit" aria-label="{% trans 'Search' %}"><span class="material-symbols-rounded">search</span></button>
+</form>
+
+<div class="filter-chips" role="group" aria-label="{% trans 'Education level' %}">
+    {% for slug, label in level_filters %}
+        <a class="chip{% if level == slug %} on{% endif %}" href="{% url 'connections' %}?tab=discover&level={{ slug }}{% if q %}&q={{ q|urlencode }}{% endif %}"{% if level == slug %} aria-current="true"{% endif %}>{{ label }}</a>
+    {% endfor %}
+</div>
+
+{% if result.groups %}
+    {% for group in result.groups %}
+        <section class="card net-group" aria-labelledby="grp-{{ group.key }}">
+            <div class="net-group-head">
+                <h3 id="grp-{{ group.key }}">{{ group.title }}</h3>
+                <div class="sub">{{ group.subtitle }}</div>
+                <div class="count">{% blocktrans count n=group.total %}{{ n }} alumnus found{% plural %}{{ n }} alumni found{% endblocktrans %}</div>
+            </div>
+            {% for candidate in group.members %}
+                {% include 'network/_person.html' with candidate=candidate %}
+            {% endfor %}
+            {% if group.total > group.members|length %}
+                <a class="net-viewall" href="{% url 'discover_group' group.level_slug group.institution_id group.mode %}{% if q %}?q={{ q|urlencode }}{% endif %}">{% trans "View all" %} →</a>
+            {% endif %}
+        </section>
+    {% endfor %}
+
+    <div class="net-grow">
+        <a href="{{ invite_url }}" target="_blank" rel="noopener" data-net-track="whatsapp_invite_clicked">📲 {% trans "Can't find someone? Invite them via WhatsApp" %}</a>
+    </div>
+{% elif q %}
+    <div class="card empty-state">
+        <div class="ico">🔎</div>
+        <div class="t">{% blocktrans %}No alumni found for “{{ q }}”{% endblocktrans %}</div>
+        <div class="s">{% trans "Search looks at alumni from your own schools and class years." %}</div>
+        <a class="btn btn-gold" href="{% url 'connections' %}?tab=discover{% if level != 'all' %}&level={{ level }}{% endif %}">{% trans "Clear search" %}</a>
+    </div>
+{% elif not result.has_education %}
+    <div class="card empty-state">
+        <div class="ico">🎓</div>
+        <div class="t">{% trans "Add your school to find alumni" %}</div>
+        <div class="s">{% trans "We match you with people from your primary school, O-Level, A-Level and university years." %}</div>
+        <a class="btn btn-gold" href="{% url 'profile_edit' %}">{% trans "Add your education" %}</a>
+    </div>
+{% elif empty_record %}
+    <div class="card empty-state">
+        <div class="ico">🎓</div>
+        <div class="t">{% trans "No alumni found yet from" %}<br>{{ empty_record.institution_name }}{% if empty_record.cohort_year %} · {% blocktrans with year=empty_record.cohort_year %}Class of {{ year }}{% endblocktrans %}{% endif %}.</div>
+        <div class="s">{% trans "Invite your classmates and build your network — every invite grows your Identity Score." %}</div>
+        <a class="btn btn-whatsapp" href="{{ invite_url }}" target="_blank" rel="noopener" data-net-track="whatsapp_invite_clicked">📲 {% trans "Invite Classmates" %}</a>
+        {% if level != 'all' %}
+            <p style="margin-top:0.9rem;"><a class="net-viewall" style="border:none;padding:0;" href="{% url 'connections' %}?tab=discover">{% trans "Try another education level" %}</a></p>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="card empty-state">
+        <div class="ico">🎓</div>
+        <div class="t">{% trans "You haven't added this level of education yet" %}</div>
+        <div class="s">{% trans "Add it to your profile to find alumni from that school." %}</div>
+        <a class="btn btn-gold" href="{% url 'profile_edit' %}">{% trans "Add your education" %}</a>
+        <p style="margin-top:0.9rem;"><a class="net-viewall" style="border:none;padding:0;" href="{% url 'connections' %}?tab=discover">{% trans "Try another education level" %}</a></p>
+    </div>
+{% endif %}

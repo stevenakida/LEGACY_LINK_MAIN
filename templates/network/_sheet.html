@@ -1,0 +1,14 @@
+{% load i18n %}
+<div class="forward-modal" id="net-connect-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="net-connect-title">
+    <div class="forward-modal-inner">
+        <h3 id="net-connect-title">{% trans "Connect with" %} <span id="net-connect-name"></span></h3>
+        <label for="net-connect-note" class="sr-only">{% trans "Add a personal note (optional)" %}</label>
+        <textarea id="net-connect-note" class="net-sheet-textarea" maxlength="300" placeholder="{% trans 'Add a personal note (optional), e.g. Hi, we were in the same class. Great to reconnect.' %}"></textarea>
+        <div class="net-sheet-meta"><span>{% trans "Optional" %}</span><span><span id="net-note-remaining">300</span> {% trans "characters left" %}</span></div>
+        <p class="net-sheet-error" id="net-connect-error" role="alert" hidden></p>
+        <div class="report-modal-actions">
+            <button type="button" class="btn btn-gold btn-full" id="net-connect-send">{% trans "Send request" %}</button>
+            <button type="button" class="btn btn-line btn-full" id="net-connect-cancel">{% trans "Cancel" %}</button>
+        </div>
+    </div>
+</div>

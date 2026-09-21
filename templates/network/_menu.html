@@ -1,0 +1,31 @@
+{% load i18n %}
+{# Three-dot menu. Needs: other (User); connection_id (optional, accepted connections only). #}
+<details class="net-menu">
+    <summary aria-label="{% blocktrans with name=other.full_name %}More actions for {{ name }}{% endblocktrans %}">
+        <span class="material-symbols-rounded" aria-hidden="true">more_horiz</span>
+    </summary>
+    <div class="net-menu-list" role="menu">
+        <a class="net-menu-item" role="menuitem" href="{% url 'view_profile' other.id %}?next={{ request.get_full_path|urlencode }}">
+            <span class="material-symbols-rounded" aria-hidden="true">person</span>{% trans "View profile" %}
+        </a>
+        {% if connection_id %}
+        <form method="post" action="{% url 'remove_connection_web' connection_id %}" data-net-remove data-name="{{ other.full_name }}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="net-menu-item danger" role="menuitem">
+                <span class="material-symbols-rounded" aria-hidden="true">person_remove</span>{% trans "Remove connection" %}
+            </button>
+        </form>
+        {% endif %}
+        <a class="net-menu-item" role="menuitem" href="{% url 'report_user_web' other.id %}?next={{ request.get_full_path|urlencode }}">
+            <span class="material-symbols-rounded" aria-hidden="true">flag</span>{% trans "Report" %}
+        </a>
+        <form method="post" action="{% url 'block_user_web' other.id %}" data-net-confirm="{% blocktrans with name=other.full_name %}Block {{ name }}? They won’t be able to connect or message you, and you won’t see each other’s posts.{% endblocktrans %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="net-menu-item danger" role="menuitem">
+                <span class="material-symbols-rounded" aria-hidden="true">block</span>{% trans "Block" %}
+            </button>
+        </form>
+    </div>
+</details>

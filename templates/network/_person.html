@@ -1,0 +1,33 @@
+{% load i18n %}
+{# One Discover candidate. `candidate` = connections.services.DiscoverCandidate. #}
+<div class="person-row net-card" data-user-id="{{ candidate.user.id }}">
+    <a class="person-link" href="{% url 'view_profile' candidate.user.id %}?next={{ request.get_full_path|urlencode }}">
+        <div class="person-avatar">
+            {% if candidate.user.avatar %}<img src="{{ candidate.user.avatar.url }}" alt="">{% else %}{{ candidate.user.full_name|default:'?'|first|upper }}{% endif %}
+        </div>
+        <div class="person-info">
+            <div class="nm">{{ candidate.user.full_name }}</div>
+            <div class="edu">
+                {{ candidate.reason.institution_name }}<br>
+                {{ candidate.reason.level_label }}{% if candidate.reason.cohort_year %} · {% blocktrans with year=candidate.reason.cohort_year %}Class of {{ year }}{% endblocktrans %}{% endif %}
+            </div>
+            <span class="net-reason">🎓 {{ candidate.reason.display_label }}</span>
+        </div>
+    </a>
+    <div class="person-actions">
+        {% if candidate.request_sent %}
+            <span class="btn btn-line is-disabled net-sent">{% trans "Request Sent" %}</span>
+        {% else %}
+            <form method="post" action="{% url 'send_connection_web' candidate.user.id %}" data-net-connect data-name="{{ candidate.user.full_name }}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="btn btn-gold">{% trans "Connect" %}</button>
+            </form>
+            <form method="post" action="{% url 'dismiss_discover_web' candidate.user.id %}" data-net-dismiss>
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="btn btn-decline" aria-label="{% blocktrans with name=candidate.user.full_name %}Not interested in {{ name }}{% endblocktrans %}">✕</button>
+            </form>
+        {% endif %}
+    </div>
+</div>

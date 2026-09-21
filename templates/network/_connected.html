@@ -1,0 +1,40 @@
+{% load i18n %}
+<form class="net-search" method="get" action="{% url 'connections' %}" role="search">
+    <input type="hidden" name="tab" value="connected">
+    {% if level != 'all' %}<input type="hidden" name="level" value="{{ level }}">{% endif %}
+    <input type="search" name="q" value="{{ q }}" maxlength="80" aria-label="{% trans 'Search your connections' %}" placeholder="{% trans 'Search your connections...' %}">
+    <button type="submit" aria-label="{% trans 'Search' %}"><span class="material-symbols-rounded">search</span></button>
+</form>
+
+<div class="filter-chips" role="group" aria-label="{% trans 'Education level' %}">
+    {% for slug, label in level_filters %}
+        <a class="chip{% if level == slug %} on{% endif %}" href="{% url 'connections' %}?tab=connected&level={{ slug }}{% if q %}&q={{ q|urlencode }}{% endif %}"{% if level == slug %} aria-current="true"{% endif %}>{{ label }}</a>
+    {% endfor %}
+</div>
+
+{% if page_obj.object_list %}
+    <div class="card" id="net-list">
+        {% for card in page_obj.object_list %}
+            {% include 'network/_relcard.html' with card=card mode='connected' %}
+        {% endfor %}
+    </div>
+    {% include 'network/_pager.html' %}
+    <div class="net-grow">
+        <strong>{% trans "Grow your network" %}</strong>
+        <a href="{% url 'connections' %}?tab=discover">{% trans "Find more alumni from your schools and cohorts" %} →</a>
+    </div>
+{% elif q or level != 'all' %}
+    <div class="card empty-state">
+        <div class="ico">🔎</div>
+        <div class="t">{% trans "No connections match" %}</div>
+        <div class="s">{% trans "Try a different name, school, class year or education level." %}</div>
+        <a class="btn btn-gold" href="{% url 'connections' %}?tab=connected">{% trans "Show all connections" %}</a>
+    </div>
+{% else %}
+    <div class="card empty-state">
+        <div class="ico">🤝</div>
+        <div class="t">{% trans "No connections yet." %}</div>
+        <div class="s">{% trans "Start exploring and connect with alumni from your schools and cohorts." %}</div>
+        <a class="btn btn-gold" href="{% url 'connections' %}?tab=discover">{% trans "Discover Alumni" %}</a>
+    </div>
+{% endif %}

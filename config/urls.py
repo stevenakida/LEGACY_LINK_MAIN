@@ -21,6 +21,7 @@ from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
 from django.views.static import serve as serve_static
 from . import views
+from . import network_views
 from notifications import views as notification_views
 
 urlpatterns = [
@@ -47,11 +48,14 @@ path('register/', views.register, name='register'),
     path('schools/search/', views.school_search, name='school_search'),
     path('schools/<int:school_id>/select/', views.select_school, name='select_school'),
     path('feedback/submit/', views.submit_feedback, name='submit_feedback'),
-    path('connections/', views.connections, name='connections'),
-    path('connections/connect/<uuid:user_id>/', views.send_connection_web, name='send_connection_web'),
-    path('connections/respond/<uuid:connection_id>/', views.respond_connection_web, name='respond_connection_web'),
-    path('connections/remove/<uuid:connection_id>/', views.remove_connection_web, name='remove_connection_web'),
-    path('connections/dismiss/<uuid:user_id>/', views.dismiss_discover_web, name='dismiss_discover_web'),
+    path('connections/', network_views.connections, name='connections'),
+    path('connections/discover/<slug:level_slug>/<int:institution_id>/<slug:mode>/', network_views.discover_group, name='discover_group'),
+    path('connections/connect/<uuid:user_id>/', network_views.send_connection_web, name='send_connection_web'),
+    path('connections/respond/<uuid:connection_id>/', network_views.respond_connection_web, name='respond_connection_web'),
+    path('connections/remove/<uuid:connection_id>/', network_views.remove_connection_web, name='remove_connection_web'),
+    path('connections/dismiss/<uuid:user_id>/', network_views.dismiss_discover_web, name='dismiss_discover_web'),
+    path('connections/report/<uuid:user_id>/', network_views.report_user_web, name='report_user_web'),
+    path('connections/track/', network_views.track_event, name='network_track_event'),
     path('connections/block/<uuid:user_id>/', views.block_user_web, name='block_user_web'),
     path('connections/unblock/<uuid:user_id>/', views.unblock_user_web, name='unblock_user_web'),
     path('connections/mute/<uuid:user_id>/', views.mute_user_web, name='mute_user_web'),

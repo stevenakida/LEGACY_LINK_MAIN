@@ -1,0 +1,16 @@
+{% load i18n %}
+{% if page_obj.object_list %}
+    <div class="card" id="net-list">
+        {% for card in page_obj.object_list %}
+            {% include 'network/_relcard.html' with card=card mode='pending' %}
+        {% endfor %}
+    </div>
+    {% include 'network/_pager.html' %}
+{% else %}
+    <div class="card empty-state">
+        <div class="ico">📭</div>
+        <div class="t">{% trans "No pending requests." %}</div>
+        <div class="s">{% trans "When classmates or alumni ask to connect, they'll show up here." %}</div>
+        <a class="btn btn-gold" href="{% url 'connections' %}?tab=discover">{% trans "Discover Alumni" %}</a>
+    </div>
+{% endif %}
