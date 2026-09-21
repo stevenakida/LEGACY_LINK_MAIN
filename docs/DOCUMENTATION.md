@@ -48,12 +48,16 @@ Core concepts:
    an Upcoming Events list drawn from real `Opportunity` rows. The old
    profile-hero/About/Verified-Identity sections that used to live on this
    page moved to the redesigned Profile page (item 6 below).
-4. **Connections** at `/connections/` — one page, three tabs: **Pending**
-   (accept/decline inline), **Connected** (with a Message button per person,
-   opens a chat thread), and **Discover** (cohort matches — same school +
-   graduation year — with mutual-connection counts and an actionable
-   WhatsApp-invite empty state when no classmates have joined yet). This page
-   absorbed the old standalone `/cohort/` page, which now just redirects to
+4. **Network** at `/connections/` (Phase 7 redesign, see
+   `docs/PHASE7_NETWORK.md`) — three server-rendered tabs in this order:
+   **Discover** (alumni from your own schools, grouped by institution +
+   level + class year, each with a structured "why we match" reason, search,
+   education-level filters, a "View all" page per group, optional note when
+   connecting, contextual WhatsApp invite), **Connected** (search, filters,
+   Message button, ⋯ menu with View profile / Remove / Report / Block) and
+   **Pending** (incoming requests only, newest first, with the requester's
+   optional note and Accept/Decline). A compact header shows Connections and
+   Pending counts on every tab. The old `/cohort/` URL still redirects to
    `/connections/?tab=discover`.
 5. **Messages** at `/messages/` — conversation list (unread badges, last
    message preview) and a chat thread per conversation
