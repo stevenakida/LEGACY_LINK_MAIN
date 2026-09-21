@@ -1,7 +1,7 @@
 # LegacyLink Africa — Documentation
 
 > Living document. Update this file whenever a feature, flow, or setup step changes.
-> Last updated: 2026-08-17
+> Last updated: 2026-09-18
 
 ## 1. What the app does
 
@@ -68,11 +68,31 @@ Core concepts:
    WebSockets/Channels (this project has no channels/redis infra) — this
    matches the product roadmap's own recommendation for a first messaging
    MVP. Block/report is not built yet (see §6).
-6. **Profile** at `/profile/` — view-mode by default (avatar, verified badge,
-   bio, education timeline across all four school levels, profile-strength
-   ring). Editing moved to `/profile/edit/` (name, bio, profile picture,
+6. **Profile** at `/profile/` — redesigned Instagram-profile-style (2026-09-18):
+   avatar with an in-place "change photo" badge, a Posts/Connections/
+   Classmates stat row, name/verified-badge/bio, then Edit profile/Share
+   profile buttons (Share copies/native-shares the public `/profile/<uuid>/`
+   link). Below that: the existing profile-strength ring, a "Complete your
+   profile" grid of task cards (one per missing `identity_score_suggestions`
+   item, each with an icon and an Update button to `/profile/edit/`), then a
+   Posts/Education/About tab switcher — Posts is the user's own post grid
+   (image thumbnail or a text snippet tile, reusing `posts.post_image` for
+   authorization), Education/About are the same content the page always
+   had. Editing moved to `/profile/edit/` (name, bio, profile picture,
    current location, professional info, and the four searchable school
    autocomplete fields backed by `/schools/search/`).
+   The profile header's ☰ menu opens **Settings and activity** at
+   `/settings/` (also Instagram-style): Account (Edit profile, Change/Set
+   password), Privacy & Safety (Blocked/Muted accounts lists at
+   `/settings/blocked/` and `/settings/muted/`, reusing the existing
+   block/mute web views), Preferences (Notifications, Appearance/Language —
+   the same toggles as Home's top nav, driven by the same `topnav.js`),
+   and Support (Terms), ending in Logout. `/settings/password/` is a new
+   logged-in password flow (`config.views.change_password`) built on
+   Django's `validate_password` + `update_session_auth_hash`: it asks for
+   the current password only when `user.has_usable_password()` is True,
+   so a Google-only account (see §2 item 8) can set its first password
+   instead of being permanently locked out of email/phone login.
 7. **Opportunities** at `/opportunities/` (renamed from the old, confusingly-named
    `/schools/` URL — `/schools/` now just redirects here) — real `Opportunity`
    rows (Job / Mentorship / Event), filterable by type and by "My school".

@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Settings and activity - LegacyLink Africa{% endblock %}
+
+{% block header %}
+<div class="chat-head">
+    <a href="{% url 'profile' %}" class="back">‹</a>
+    <div>
+        <div class="nm">Settings and activity</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="padding: 0.4rem 1.25rem;">
+    <div class="settings-section-label">Account</div>
+    <a href="{% url 'profile_edit' %}" class="settings-row">
+        <div class="settings-row-icon"><span class="material-symbols-rounded">person</span></div>
+        <div class="settings-row-body">
+            <div class="t">Edit profile</div>
+            <div class="s">Name, bio, education, photo</div>
+        </div>
+        <span class="material-symbols-rounded settings-row-chevron">chevron_right</span>
+    </a>
+    <a href="{% url 'change_password' %}" class="settings-row">
+        <div class="settings-row-icon"><span class="material-symbols-rounded">lock</span></div>
+        <div class="settings-row-body">
+            <div class="t">{% if has_password %}Change password{% else %}Set a password{% endif %}</div>
+            <div class="s">{% if has_password %}Update your login password{% else %}You signed up with Google — add a password too{% endif %}</div>
+        </div>
+        <span class="material-symbols-rounded settings-row-chevron">chevron_right</span>
+    </a>
+    {% if not has_reset_email %}
+    <a href="{% url 'profile_edit' %}" class="settings-row">
+        <div class="settings-row-icon"><span class="material-symbols-rounded">mail</span></div>
+        <div class="settings-row-body">
+            <div class="t">Add a recovery email</div>
+            <div class="s">Needed to reset your password if you forget it</div>
+        </div>
+        <span class="material-symbols-rounded settings-row-chevron">chevron_right</span>
+    </a>
+    {% endif %}
+</div>
+
+<div class="card" style="padding: 0.4rem 1.25rem;">
+    <div class="settings-section-label">Privacy &amp; safety</div>
+    <a href="{% url 'blocked_accounts' %}" class="settings-row">
+        <div class="settings-row-icon"><span class="material-symbols-rounded">block</span></div>
+        <div class="settings-row-body">
+            <div class="t">Blocked accounts</div>
+        </div>
+        <span class="settings-row-value">{{ blocked_count }}</span>
+        <span class="material-symbols-rounded settings-row-chevron">chevron_right</span>
+    </a>
+    <a href="{% url 'muted_accounts' %}" class="settings-row">
+        <div class="settings-row-icon"><span class="material-symbols-rounded">volume_off</span></div>
+        <div class="settings-row-body">
+            <div class="t">Muted accounts</div>
+        </div>
+        <span class="settings-row-value">{{ muted_count }}</span>
+        <span class="material-symbols-rounded settings-row-chevron">chevron_right</span>
+    </a>
+</div>
+
+<div class="card" style="padding: 0.4rem 1.25rem;">
+    <div class="settings-section-label">Preferences</div>
+    <a href="{% url 'notifications_list' %}" class="settings-row">
+        <div class="settings-row-icon"><span class="material-symbols-rounded">notifications</span></div>
+        <div class="settings-row-body">
+            <div class="t">Notifications</div>
+        </div>
+        <span class="material-symbols-rounded settings-row-chevron">chevron_right</span>
+    </a>
+    <button type="button" class="settings-row" id="theme-toggle-btn">
+        <div class="settings-row-icon"><span class="material-symbols-rounded" id="theme-toggle-icon">dark_mode</span></div>
+        <div class="settings-row-body">
+            <div class="t">Appearance</div>
+        </div>
+    </button>
+    <button type="button" class="settings-row" id="lang-toggle-btn" data-lang="{{ LANGUAGE_CODE }}">
+        <div class="settings-row-icon"><span class="material-symbols-rounded">translate</span></div>
+        <div class="settings-row-body">
+            <div class="t">Language</div>
+        </div>
+        <span class="settings-row-value" id="lang-toggle-label">{% if LANGUAGE_CODE == 'sw' %}Kiswahili{% else %}English{% endif %}</span>
+    </button>
+</div>
+
+<div class="card" style="padding: 0.4rem 1.25rem;">
+    <div class="settings-section-label">Support</div>
+    <a href="{% url 'terms' %}" class="settings-row">
+        <div class="settings-row-icon"><span class="material-symbols-rounded">description</span></div>
+        <div class="settings-row-body">
+            <div class="t">Terms of use &amp; privacy policy</div>
+        </div>
+        <span class="material-symbols-rounded settings-row-chevron">chevron_right</span>
+    </a>
+</div>
+
+<div class="card" style="padding: 0.4rem 1.25rem;">
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="settings-row danger">
+            <div class="settings-row-icon"><span class="material-symbols-rounded">logout</span></div>
+            <div class="settings-row-body">
+                <div class="t">Log out</div>
+            </div>
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script src="{% static 'js/topnav.js' %}" defer></script>
+{% endblock %}

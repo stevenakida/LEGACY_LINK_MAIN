@@ -5,7 +5,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, update_session_auth_hash
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib import messages
 from django.db.models import Q
@@ -32,6 +33,7 @@ from notifications.services import notify
 from messaging.models import (
     Conversation, ConversationMember, Message as ChatMessage, MessageAttachment, MessageHiddenFor,
 )
+from posts.models import Post
 from posts.views import get_feed_for_user
 
 logger = logging.getLogger(__name__)
@@ -297,7 +299,7 @@ def verify_email_confirm(request, uidb64, token):
     user.email_verified = True
     user.save(update_fields=['email_verified'])
     logger.info('Email verified for account %s', user.id)
-    messages.success(request, 'Your email address has been verified. You can now use it to reset your password.')
+    messages.success(request, 'Email verified! You can now use it to reset your password.')
     return redirect(landing)
 
 def resend_email_verification(request):
@@ -533,9 +535,9 @@ def profile(request):
     if not request.user.is_authenticated:
         return redirect('login')
     user = request.user
-    connections_count = Connection.objects.filter(
-        (Q(requester=user) | Q(receiver=user)) & Q(status='accepted')
-    ).count()
+    # Same definition the Network header and Home use (accepted, both sides
+    # active, neither blocked) so the numbers can never disagree.
+    connections_count = network_state(user)['connections_count']
     school_confirmed = bool(user.secondary_school and user.secondary_completion_year)
     community_confirmed = connections_count > 0
     if school_confirmed:
@@ -545,10 +547,14 @@ def profile(request):
     else:
         trust_label = 'Getting Started'
 
+    own_posts = Post.objects.filter(author=user).select_related('media_asset').order_by('-created_at')
+
     return render(request, 'profile.html', {
         'user': user,
         'identity_score': user.identity_score,
         'identity_score_suggestions': user.identity_score_suggestions[:4],
+        'identity_score_completed_count': user.identity_score_completed_count,
+        'identity_score_total_count': len(User.IDENTITY_SCORE_WEIGHTS),
         'school_confirmed': school_confirmed,
         'community_confirmed': community_confirmed,
         'trust_label': trust_label,
@@ -559,6 +565,13 @@ def profile(request):
         # from outside.
         'has_reset_email': user.eligible_reset_email() is not None,
         'has_pending_unverified_email': bool(user.email) and not user.email_verified,
+        'connections_count': connections_count,
+        'cohort_count': user.cohort_queryset().count(),
+        'posts_count': own_posts.count(),
+        # Grid is a plain slice, same pattern as Home's cohort_users[:4]/
+        # upcoming_events[:3] — no pagination this pass.
+        'posts': own_posts[:30],
+        'share_url': request.build_absolute_uri(f'/profile/{user.id}/'),
     })
 
 
@@ -630,7 +643,7 @@ def profile_edit(request):
         user.save()
         if email_changed and user.email:
             dispatch_email_verification(request, user)
-            messages.success(request, "Profile updated successfully! We've sent a verification link to your new email — click it to enable password reset with that address.")
+            messages.success(request, 'Profile updated! Check your email to verify it.')
         else:
             messages.success(request, 'Profile updated successfully!')
         return redirect('profile')
@@ -647,6 +660,85 @@ def profile_edit(request):
         'employment_status_choices': User.EMPLOYMENT_STATUS_CHOICES,
         'active_tab': 'profile',
     })
+
+
+def settings_page(request):
+    """Settings and activity — reached from the menu icon on /profile/.
+    Groups account/privacy/support actions that used to be just a bare
+    Logout button on the profile page itself."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    user = request.user
+    blocked_count = UserRelationshipOverride.objects.filter(
+        actor=user, type=UserRelationshipOverride.Type.BLOCK
+    ).count()
+    muted_count = UserRelationshipOverride.objects.filter(
+        actor=user, type=UserRelationshipOverride.Type.MUTE
+    ).count()
+    return render(request, 'settings.html', {
+        'active_tab': 'profile',
+        'blocked_count': blocked_count,
+        'muted_count': muted_count,
+        'has_password': user.has_usable_password(),
+        'has_reset_email': user.eligible_reset_email() is not None,
+    })
+
+
+def change_password(request):
+    """Set a password (Google-only accounts that signed up with
+    resolve_google_account have none yet — see google_oauth.py) or change
+    an existing one. No old-password check when there isn't one to check;
+    otherwise the current password must be confirmed first, same as any
+    other logged-in password change."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    user = request.user
+    has_password = user.has_usable_password()
+    if request.method == 'POST':
+        old_password = request.POST.get('old_password', '')
+        new_password1 = request.POST.get('new_password1', '')
+        new_password2 = request.POST.get('new_password2', '')
+        error = None
+        if has_password and not user.check_password(old_password):
+            error = 'Current password is incorrect.'
+        elif not new_password1 or new_password1 != new_password2:
+            error = "New passwords don't match."
+        else:
+            try:
+                validate_password(new_password1, user=user)
+            except ValidationError as e:
+                error = ' '.join(e.messages)
+        if error:
+            messages.error(request, error)
+        else:
+            user.set_password(new_password1)
+            user.save()
+            update_session_auth_hash(request, user)
+            if has_password:
+                messages.success(request, 'Password updated successfully!')
+            else:
+                messages.success(request, 'Password set — you can now log in with it as well as with Google.')
+            return redirect('settings')
+    return render(request, 'settings_password.html', {'has_password': has_password, 'active_tab': 'profile'})
+
+
+def blocked_accounts(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    rows = UserRelationshipOverride.objects.filter(
+        actor=request.user, type=UserRelationshipOverride.Type.BLOCK
+    ).select_related('target').order_by('-created_at')
+    return render(request, 'settings_blocked.html', {'rows': rows, 'active_tab': 'profile'})
+
+
+def muted_accounts(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    rows = UserRelationshipOverride.objects.filter(
+        actor=request.user, type=UserRelationshipOverride.Type.MUTE
+    ).select_related('target').order_by('-created_at')
+    return render(request, 'settings_muted.html', {'rows': rows, 'active_tab': 'profile'})
+
 
 def opportunities_page(request):
     if not request.user.is_authenticated:
