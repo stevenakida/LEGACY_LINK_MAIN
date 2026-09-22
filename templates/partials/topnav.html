@@ -1,7 +1,13 @@
 {% load static i18n %}
 <div class="topnav">
     <div class="topnav-logo">
-        <img src="{% static 'images/LegacyLink_Africa_logo_transparent.png' %}" alt="LegacyLink Africa">
+        {% comment %}
+        Two variants, toggled by CSS off data-theme (set by topnav.js) — the
+        wordmark and connector lines are pure white, so a single asset
+        disappears on the light theme's white surface.
+        {% endcomment %}
+        <img class="topnav-logo-dark" src="{% static 'images/LegacyLink_Africa_logo_dark.png' %}" alt="LegacyLink Africa">
+        <img class="topnav-logo-light" src="{% static 'images/LegacyLink_Africa_logo_light.png' %}" alt="LegacyLink Africa">
     </div>
     <div class="topnav-actions">
         <button type="button" class="icon-btn" id="theme-toggle-btn" aria-label="{% trans 'Toggle dark/light theme' %}">

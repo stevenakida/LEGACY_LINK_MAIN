@@ -203,7 +203,17 @@ a { color: inherit; }
 }
 
 .topnav-logo { display: flex; align-items: center; flex-shrink: 0; }
-.topnav-logo img { height: 30px; width: auto; display: block; }
+/* 40px (was 30px) — the old size read as barely-there next to the nav icons.
+   No `display` here (left to the rules below) so it can't out-specificity
+   the dark/light toggle, which only has a single class to match against. */
+.topnav-logo img { height: 40px; width: auto; }
+
+/* Dark-theme logo (white wordmark) is the default; light theme swaps in the
+   navy-recolored variant so the wordmark doesn't vanish on a white surface. */
+.topnav-logo-dark { display: block; }
+.topnav-logo-light { display: none; }
+:root[data-theme="light"] .topnav-logo-dark { display: none; }
+:root[data-theme="light"] .topnav-logo-light { display: block; }
 
 .topnav-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 

@@ -442,6 +442,15 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-22: **Home top-nav logo replaced and enlarged.** Old logo
+  (`LegacyLink_Africa_logo_transparent.png`) was near-white and nearly
+  invisible in light mode. Replaced with a new network-node wordmark in two
+  theme-matched variants — `LegacyLink_Africa_logo_dark.png` (white
+  wordmark, for the dark theme) and `LegacyLink_Africa_logo_light.png` (the
+  same file with white pixels recolored navy, for the light theme) — swapped
+  purely in CSS off the existing `data-theme` attribute (`templates/partials/topnav.html`,
+  `static/css/theme.css`), no JS change. Size bumped 30px → 40px tall; the
+  old file is unreferenced now but left in place.
 - 2026-09-21: **Photos keep their original quality in the feed and in chat.**
   Cause of "faint" photos: `posts.post_image` and `config.views.message_attachment_image`
   served the small thumbnail by default (stretched to card width in the feed),
