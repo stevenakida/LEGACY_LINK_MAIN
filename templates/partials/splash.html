@@ -5,16 +5,32 @@ open in the Android WebView), covering the first seconds while fonts and
 icons finish loading so users never see the half-styled page. Included by
 base.html and login.html right after <body>; self-contained (no theme.css
 dependency) because login.html doesn't load the shared stylesheet.
+
+"Network Pulse" concept (2026-09-22): the network-node wordmark
+materializes with a soft glow and pulse rings, a signal travels down to the
+Reconnect / Rediscover / Rebuild. cascade, then the tagline and loading dots
+settle in. Everything below the logo is a one-shot sequence (fill-mode
+"both" -- plays once, holds at its final state); only the background glow,
+the orbiting dots and the loader dots keep animating for as long as the
+splash stays on screen. Uses a bold system-font stack rather than a webfont
+so the very first paint never waits on a network request.
 {% endcomment %}
 <div id="lla-splash" aria-hidden="true">
+    <div class="lla-splash-glow"></div>
     <div class="lla-splash-inner">
         <div class="lla-splash-logo-wrap">
             <span class="lla-splash-ring"></span>
             <span class="lla-splash-ring lla-splash-ring-2"></span>
-            <img src="{% static 'img/legacy-logo.png' %}" alt="" class="lla-splash-logo">
+            <span class="lla-splash-orbit"><span></span><span></span><span></span></span>
+            <img src="{% static 'images/LegacyLink_Africa_logo_dark.png' %}" alt="" class="lla-splash-logo">
         </div>
-        <div class="lla-splash-name">Legacy<span>Link</span> Africa</div>
-        <div class="lla-splash-tagline">Karibu &mdash; reconnecting alumni across Africa</div>
+        <div class="lla-splash-track"><span class="lla-splash-travel"></span></div>
+        <div class="lla-splash-words">
+            <div class="lla-splash-word lla-splash-word-1">Reconnect</div>
+            <div class="lla-splash-word lla-splash-word-2 lla-splash-word-accent">Rediscover</div>
+            <div class="lla-splash-word lla-splash-word-3">Rebuild.</div>
+        </div>
+        <div class="lla-splash-tagline">One Africa. One Network. Infinite Opportunities.</div>
         <div class="lla-splash-dots"><span></span><span></span><span></span></div>
     </div>
 </div>
@@ -33,7 +49,26 @@ dependency) because login.html doesn't load the shared stylesheet.
     }
     #lla-splash.lla-splash-out { opacity: 0; pointer-events: none; }
     html.lla-splash-active { overflow: hidden; }
+
+    .lla-splash-glow {
+        position: absolute;
+        z-index: 0;
+        top: 50%;
+        left: 50%;
+        width: 420px;
+        height: 420px;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(232, 166, 60, 0.16) 0%, rgba(47, 217, 196, 0.10) 45%, rgba(0, 0, 0, 0) 72%);
+        animation: lla-breathe 4.4s ease-in-out infinite;
+    }
+    @keyframes lla-breathe {
+        0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.92); }
+        50%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.05); }
+    }
+
     .lla-splash-inner {
+        position: relative;
+        z-index: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -42,53 +77,106 @@ dependency) because login.html doesn't load the shared stylesheet.
     }
     .lla-splash-logo-wrap {
         position: relative;
-        width: 108px;
-        height: 108px;
+        width: 250px;
+        height: 118px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 22px;
+        margin-bottom: 8px;
     }
     .lla-splash-logo {
-        width: 96px;
-        height: 96px;
-        border-radius: 24px;
+        width: 210px;
+        height: auto;
         object-fit: contain;
-        animation: lla-logo-in 0.6s ease both, lla-logo-pulse 2.2s ease-in-out 0.6s infinite;
+        animation: lla-logo-in 0.65s cubic-bezier(0.22, 0.9, 0.32, 1.1) both;
     }
     .lla-splash-ring {
         position: absolute;
-        inset: 0;
-        border-radius: 32px;
+        inset: 12px;
+        border-radius: 50%;
         border: 2px solid rgba(47, 217, 196, 0.55);
-        animation: lla-ring 2.2s ease-out 0.6s infinite;
+        animation: lla-ring 2.6s ease-out 0.55s infinite;
         opacity: 0;
     }
     .lla-splash-ring-2 {
         border-color: rgba(232, 166, 60, 0.45);
-        animation-delay: 1.3s;
+        animation-delay: 1.2s;
     }
-    .lla-splash-name {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-size: 1.55rem;
+    .lla-splash-orbit {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 150px;
+        height: 150px;
+        margin: -75px 0 0 -75px;
+        animation-name: lla-spin;
+        animation-duration: 8s;
+        animation-timing-function: linear;
+        animation-delay: 0.55s;
+        animation-iteration-count: infinite;
+        animation-fill-mode: backwards;
+    }
+    .lla-splash-orbit span {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        box-shadow: 0 0 8px 1px currentColor;
+    }
+    .lla-splash-orbit span:nth-child(1) { top: 0;   left: 50%; background: #2FD9C4; color: #2FD9C4; }
+    .lla-splash-orbit span:nth-child(2) { top: 78%; left: 92%; background: #E8A63C; color: #E8A63C; }
+    .lla-splash-orbit span:nth-child(3) { top: 78%; left: 6%;  background: #E8A63C; color: #E8A63C; }
+
+    .lla-splash-track {
+        position: relative;
+        width: 3px;
+        height: 30px;
+        margin: 4px 0 8px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 2px;
+    }
+    .lla-splash-travel {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: 8px;
+        height: 8px;
+        margin-left: -4px;
+        border-radius: 50%;
+        background: #2FD9C4;
+        box-shadow: 0 0 12px 2px rgba(47, 217, 196, 0.9);
+        opacity: 0;
+        animation: lla-travel 0.55s ease 0.55s both;
+    }
+
+    .lla-splash-words { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .lla-splash-word {
+        font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         font-weight: 800;
-        letter-spacing: 0.4px;
+        font-size: clamp(26px, 8vw, 34px);
+        line-height: 1.1;
+        letter-spacing: 0.2px;
         color: #ffffff;
-        animation: lla-fade-up 0.6s ease 0.25s both;
+        opacity: 0;
+        transform: translateY(10px) scale(0.9);
     }
-    .lla-splash-name span { color: #E8A63C; }
+    .lla-splash-word-accent { color: #E8A63C; }
+    .lla-splash-word-1 { animation: lla-word-in 0.45s ease 0.65s both; }
+    .lla-splash-word-2 { animation: lla-word-in 0.45s ease 0.9s both; }
+    .lla-splash-word-3 { animation: lla-word-in 0.45s ease 1.15s both; }
+
     .lla-splash-tagline {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         color: #94A3B8;
-        margin-top: 8px;
-        animation: lla-fade-up 0.6s ease 0.45s both;
+        margin-top: 16px;
+        animation: lla-fade-up 0.5s ease 1.4s both;
     }
     .lla-splash-dots {
         display: flex;
         gap: 7px;
-        margin-top: 30px;
-        animation: lla-fade-up 0.6s ease 0.65s both;
+        margin-top: 26px;
+        animation: lla-fade-up 0.5s ease 1.55s both;
     }
     .lla-splash-dots span {
         width: 7px;
@@ -99,17 +187,30 @@ dependency) because login.html doesn't load the shared stylesheet.
     }
     .lla-splash-dots span:nth-child(2) { animation-delay: 0.18s; }
     .lla-splash-dots span:nth-child(3) { animation-delay: 0.36s; }
+
     @keyframes lla-logo-in {
-        from { transform: scale(0.6); opacity: 0; }
-        to   { transform: scale(1); opacity: 1; }
-    }
-    @keyframes lla-logo-pulse {
-        0%, 100% { transform: scale(1); }
-        50%      { transform: scale(1.06); }
+        from { transform: scale(0.5) rotate(-8deg); opacity: 0; filter: blur(8px); }
+        to   { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0); }
     }
     @keyframes lla-ring {
         0%   { transform: scale(0.85); opacity: 0.9; }
-        100% { transform: scale(1.45); opacity: 0; }
+        100% { transform: scale(1.5); opacity: 0; }
+    }
+    @keyframes lla-spin {
+        0%   { opacity: 0; transform: rotate(0deg); }
+        3%   { opacity: 1; }
+        100% { opacity: 1; transform: rotate(360deg); }
+    }
+    @keyframes lla-travel {
+        0%   { opacity: 0; top: 0%; }
+        20%  { opacity: 1; }
+        80%  { opacity: 1; top: 100%; }
+        100% { opacity: 0; top: 100%; }
+    }
+    @keyframes lla-word-in {
+        0%   { opacity: 0; transform: translateY(10px) scale(0.9); }
+        70%  { opacity: 1; transform: translateY(0) scale(1.05); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
     }
     @keyframes lla-fade-up {
         from { transform: translateY(10px); opacity: 0; }
@@ -120,11 +221,15 @@ dependency) because login.html doesn't load the shared stylesheet.
         50%      { opacity: 1; transform: scale(1); }
     }
     @media (prefers-reduced-motion: reduce) {
-        .lla-splash-logo, .lla-splash-ring, .lla-splash-dots span,
-        .lla-splash-name, .lla-splash-tagline, .lla-splash-dots {
+        .lla-splash-glow, .lla-splash-logo, .lla-splash-ring, .lla-splash-orbit,
+        .lla-splash-travel, .lla-splash-word, .lla-splash-dots span,
+        .lla-splash-tagline, .lla-splash-dots {
             animation: none;
             opacity: 1;
+            transform: none;
+            filter: none;
         }
+        .lla-splash-travel { display: none; }
     }
 </style>
 <script>
@@ -141,8 +246,8 @@ dependency) because login.html doesn't load the shared stylesheet.
         try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
         document.documentElement.classList.add('lla-splash-active');
 
-        var MIN_SHOW = 1500;   /* let the animation breathe even on fast loads */
-        var MAX_SHOW = 5000;   /* never trap the user behind the splash */
+        var MIN_SHOW = 2100;
+        var MAX_SHOW = 5000;
         var start = Date.now();
 
         function dismiss() {
