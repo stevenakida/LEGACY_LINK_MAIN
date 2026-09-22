@@ -484,6 +484,11 @@ a { color: inherit; }
 .feed-post-kebab:hover { background: var(--card-soft); }
 .feed-post-kebab .material-symbols-rounded { font-size: 1.2rem; }
 .feed-post-menu { position: absolute; top: 100%; right: 0; z-index: 5; min-width: 170px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); padding: 0.35rem; display: flex; flex-direction: column; }
+/* Without this, the unconditional `display: flex` above beats the
+   browser's own `[hidden] { display: none }` rule (author styles always
+   win over the UA stylesheet, specificity tie or not) — same bug already
+   fixed for .chat-lightbox/.forward-modal below, and for .reply-preview. */
+.feed-post-menu[hidden] { display: none; }
 .feed-post-menu-item { background: none; border: none; color: var(--ink); font-size: 0.82rem; font-weight: 600; text-align: left; padding: 0.55rem 0.7rem; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; }
 .feed-post-menu-item:hover { background: rgba(232, 166, 60, 0.12); }
 /* The Block action is a real <form> (a full page POST+redirect, same as
@@ -500,6 +505,7 @@ a { color: inherit; }
 .feed-post-image[data-action="open-lightbox"] { cursor: pointer; }
 
 .feed-post-stats { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.6rem; font-size: 0.76rem; color: var(--muted); }
+.feed-post-stats[hidden] { display: none; }
 .feed-post-comment-count { background: none; border: none; color: var(--muted); font-size: 0.76rem; padding: 0; cursor: pointer; font-family: inherit; }
 .feed-post-comment-count:hover { text-decoration: underline; }
 
