@@ -84,6 +84,9 @@
     </div>
     <div class="feed-composer-photo" id="post-photo-preview" hidden>
         <img id="post-photo-preview-img" alt="">
+        <button type="button" class="feed-composer-photo-crop" id="post-photo-crop-btn" aria-label="{% trans 'Crop photo' %}">
+            <span class="material-symbols-rounded">crop</span>
+        </button>
         <button type="button" class="feed-composer-photo-remove" id="post-photo-remove" aria-label="{% trans 'Remove photo' %}">✕</button>
     </div>
 
@@ -326,6 +329,25 @@
         <div id="feed-share-modal-list" class="forward-modal-list"></div>
         <p class="feed-share-modal-status" id="feed-share-modal-status" hidden></p>
         <button type="button" id="feed-share-modal-cancel" class="btn btn-line btn-full">{% trans "Cancel" %}</button>
+    </div>
+</div>
+
+<div id="post-crop-modal" class="forward-modal" hidden>
+    <div class="crop-modal-inner">
+        <h3>{% trans "Crop photo" %}</h3>
+        <div class="crop-stage" id="crop-stage">
+            <img id="crop-stage-img" alt="">
+            <div class="crop-box" id="crop-box">
+                <span class="crop-handle" data-handle="nw"></span>
+                <span class="crop-handle" data-handle="ne"></span>
+                <span class="crop-handle" data-handle="sw"></span>
+                <span class="crop-handle" data-handle="se"></span>
+            </div>
+        </div>
+        <div class="crop-modal-actions">
+            <button type="button" id="crop-apply-btn" class="btn btn-gold btn-full">{% trans "Crop" %}</button>
+            <button type="button" id="crop-cancel-btn" class="btn btn-line btn-full">{% trans "Cancel" %}</button>
+        </div>
     </div>
 </div>
 {% endblock %}
