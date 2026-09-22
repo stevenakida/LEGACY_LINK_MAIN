@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -10,9 +10,11 @@ from media_assets import services as media_services
 from media_assets.models import MediaAsset
 from moderation.models import ModerationHold
 from moderation.services import InvalidReportCategory, file_report
+from notifications.models import Notification
+from notifications.services import notify
 from ratelimiting.services import is_rate_limited
 
-from .models import Post, PostHiddenFor
+from .models import Post, PostComment, PostHiddenFor, PostLike
 
 FEED_PAGE_SIZE = 20
 
@@ -96,11 +98,19 @@ def get_feed_for_user(user, limit=FEED_PAGE_SIZE):
     matches the rest of Home (cohort_users[:4], upcoming_events[:3]); no
     infinite scroll this pass."""
     muted_ids = UserRelationshipOverride.muted_author_ids(user)
-    return list(
+    posts = list(
         _visible_posts_queryset(user)
         .exclude(hidden_for__user=user)
-        .exclude(author_id__in=muted_ids)[:limit]
+        .exclude(author_id__in=muted_ids)
+        .annotate(like_count=Count('likes', distinct=True), comment_count=Count('comments', distinct=True))
+        [:limit]
     )
+    liked_post_ids = set(
+        PostLike.objects.filter(user=user, post_id__in=[p.id for p in posts]).values_list('post_id', flat=True)
+    )
+    for p in posts:
+        p.is_liked_by_viewer = p.id in liked_post_ids
+    return posts
 
 
 def can_view_post(viewer, post):
@@ -248,11 +258,10 @@ def edit_post(request, post_id):
 
 
 def delete_post(request, post_id):
-    """POST /posts/<id>/delete/ — author-only hard delete. No comments/
-    likes exist yet to cascade (Phase 4 build order builds post lifecycle
-    before engagement features for exactly this reason), so a straight
-    delete is safe today; revisit if/when child rows exist. The attached
-    MediaAsset is left in place (on_delete=SET_NULL on Post.media_asset)
+    """POST /posts/<id>/delete/ — author-only hard delete. PostLike and
+    PostComment both CASCADE off Post, so this stays a straight delete even
+    though likes/comments now exist. The attached MediaAsset is left in
+    place (on_delete=SET_NULL on Post.media_asset)
     rather than deleted, matching how MessageAttachment handles the same
     relationship — the asset just becomes unattached/orphaned rather than
     destroyed."""
@@ -357,3 +366,115 @@ def report_post_media(request, post_id):
     asset.moderation_hold = True
     asset.save(update_fields=['moderation_hold'])
     return JsonResponse({'ok': True})
+
+
+def toggle_like(request, post_id):
+    """POST /posts/<id>/like/ — a single endpoint toggles the requester's
+    like on/off (no separate like/unlike routes), matching Instagram's
+    one-tap model. Uses can_view_post so a post someone can't see can't be
+    probed or liked via this endpoint."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    post = get_object_or_404(Post.objects.select_related('author'), pk=post_id)
+    if not can_view_post(request.user, post):
+        raise Http404('post not found')
+
+    like, created = PostLike.objects.get_or_create(post=post, user=request.user)
+    if not created:
+        like.delete()
+
+    liked = created
+    if liked and post.author_id != request.user.id:
+        notify(
+            post.author, Notification.Verb.POST_LIKED, actor=request.user, target=post,
+            push_title=request.user.full_name, push_body='Liked your post',
+        )
+
+    count = post.likes.count()
+    sample_names = list(
+        post.likes.exclude(user=request.user).select_related('user')
+        .order_by('-created_at').values_list('user__full_name', flat=True)[:2]
+    )
+    return JsonResponse({'liked': liked, 'count': count, 'sample_names': sample_names})
+
+
+def _serialize_comment(comment, viewer):
+    return {
+        'id': str(comment.id),
+        'author_id': str(comment.author_id),
+        'author_name': comment.author.full_name,
+        'body': comment.body,
+        'created_at': comment.created_at.isoformat(),
+        'can_delete': comment.author_id == viewer.id,
+    }
+
+
+def list_comments(request, post_id):
+    """GET /posts/<id>/comments/ — comments load on demand rather than
+    with the feed itself, so opening the feed never pays for N extra
+    queries before anyone's actually asked to see a single comment."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+
+    post = get_object_or_404(Post, pk=post_id)
+    if not can_view_post(request.user, post):
+        raise Http404('post not found')
+
+    comments = post.comments.select_related('author').order_by('created_at')
+    return JsonResponse({
+        'comments': [_serialize_comment(c, request.user) for c in comments],
+        'count': comments.count(),
+    })
+
+
+def add_comment(request, post_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    post = get_object_or_404(Post.objects.select_related('author'), pk=post_id)
+    if not can_view_post(request.user, post):
+        raise Http404('post not found')
+
+    body = request.POST.get('body', '').strip()[:1000]
+    if not body:
+        return JsonResponse({'error': 'Write something before posting your comment.'}, status=400)
+
+    if is_rate_limited(
+        request.user, 'create_post_comment',
+        limit=settings.RATE_LIMIT_CREATE_COMMENT_MAX,
+        window_seconds=settings.RATE_LIMIT_CREATE_COMMENT_WINDOW_SECONDS,
+    ):
+        return JsonResponse({'error': "You're commenting too quickly — please wait a bit."}, status=429)
+
+    comment = PostComment.objects.create(post=post, author=request.user, body=body)
+
+    if post.author_id != request.user.id:
+        notify(
+            post.author, Notification.Verb.POST_COMMENTED, actor=request.user, target=post,
+            push_title=request.user.full_name, push_body=comment.body[:120],
+        )
+
+    return JsonResponse({'comment': _serialize_comment(comment, request.user), 'count': post.comments.count()})
+
+
+def delete_comment(request, comment_id):
+    """POST /posts/comments/<id>/delete/ — either the comment's own author
+    or the post's author may remove it, matching Instagram's "post owner
+    can moderate their own comments" rule."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    comment = get_object_or_404(PostComment.objects.select_related('post'), pk=comment_id)
+    if comment.author_id != request.user.id and comment.post.author_id != request.user.id:
+        raise Http404('comment not found')
+
+    post_id = comment.post_id
+    comment.delete()
+    return JsonResponse({'ok': True, 'count': PostComment.objects.filter(post_id=post_id).count()})

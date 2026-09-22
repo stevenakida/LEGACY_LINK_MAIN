@@ -18,6 +18,8 @@
                 <a href="/connections/" class="msg-row">
             {% elif notification.verb == 'new_message' %}
                 <a href="{% url 'messages_inbox' %}" class="msg-row">
+            {% elif notification.verb == 'post_liked' or notification.verb == 'post_commented' %}
+                <a href="{% url 'dashboard' %}#feed-post-{{ notification.object_id }}" class="msg-row">
             {% else %}
                 <div class="msg-row">
             {% endif %}
@@ -42,11 +44,15 @@
                             Your post was not approved
                         {% elif notification.verb == 'new_message' %}
                             {{ notification.actor.full_name }} sent you a message
+                        {% elif notification.verb == 'post_liked' %}
+                            {{ notification.actor.full_name }} liked your post
+                        {% elif notification.verb == 'post_commented' %}
+                            {{ notification.actor.full_name }} commented on your post
                         {% endif %}
                         <span class="time">{{ notification.created_at|timesince }} ago</span>
                     </div>
                 </div>
-            {% if notification.verb == 'connection_request' or notification.verb == 'connection_accepted' or notification.verb == 'new_message' %}
+            {% if notification.verb == 'connection_request' or notification.verb == 'connection_accepted' or notification.verb == 'new_message' or notification.verb == 'post_liked' or notification.verb == 'post_commented' %}
                 </a>
             {% else %}
                 </div>

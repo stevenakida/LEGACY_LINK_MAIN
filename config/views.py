@@ -34,7 +34,7 @@ from messaging.models import (
     Conversation, ConversationMember, Message as ChatMessage, MessageAttachment, MessageHiddenFor,
 )
 from posts.models import Post
-from posts.views import get_feed_for_user
+from posts.views import can_view_post, get_feed_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -444,6 +444,18 @@ def dashboard(request):
 
     feed_posts = get_feed_for_user(user)
 
+    # Share-to-connection targets for the feed's Share button (see
+    # share_post below) — same accepted-connection shape as
+    # posts.views._accepted_connection_ids, kept as a separate small query
+    # here rather than importing that private helper across apps.
+    accepted_ids = set()
+    for c in Connection.accepted_between(user):
+        accepted_ids.add(c.receiver_id if c.requester_id == user.id else c.requester_id)
+    share_targets = [
+        {'id': str(u.id), 'name': u.full_name}
+        for u in User.objects.filter(id__in=accepted_ids, is_active=True).exclude(id__in=blocked_ids).order_by('full_name')
+    ]
+
     return render(request, 'dashboard.html', {
         'user': user,
         'connections_count': connections_count,
@@ -458,6 +470,7 @@ def dashboard(request):
         'events_count': events_count,
         'upcoming_events': upcoming_events,
         'feed_posts': feed_posts,
+        'share_targets': share_targets,
         'active_tab': 'home',
     })
 
@@ -1412,6 +1425,68 @@ def messages_forward(request, message_id):
         'body': forwarded.body,
         'image_url': image_url,
     })
+
+
+def share_post(request, post_id):
+    """POST /posts/<id>/share/ — body: user_id. Sends the post as a chat
+    message to one of the requester's accepted connections (Instagram's
+    "send in a DM" pattern) rather than a public repost, so a post's
+    audience rules (see posts.views._visible_posts_queryset) are never
+    bypassed by the act of sharing — those rules govern who the ORIGINAL
+    author is willing to show the post to, not who the sharer happens to
+    know. Reuses the post's own MediaAsset the same way messages_forward
+    above reuses another message's asset: it's already legitimately
+    visible to the sharer, so re-attaching it to a new MessageAttachment
+    in the target conversation is the correct boundary, not a re-upload.
+
+    Lives here rather than in posts/views.py because it needs the
+    messaging models (Conversation/ChatMessage/MessageAttachment), and
+    posts/views.py is imported BY this module (get_feed_for_user,
+    can_view_post) — importing messaging back into posts/views.py would
+    be circular."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    post = get_object_or_404(Post.objects.select_related('author', 'media_asset'), pk=post_id)
+    if not can_view_post(request.user, post):
+        raise Http404('post not found')
+
+    try:
+        target_user = User.objects.get(id=request.POST.get('user_id', '').strip())
+    except (User.DoesNotExist, ValueError):
+        return JsonResponse({'error': 'User not found'}, status=404)
+
+    if not _has_accepted_connection(request.user, target_user):
+        return JsonResponse({'error': 'You can only share posts with accepted connections.'}, status=400)
+
+    key = Conversation.direct_key_for(request.user, target_user)
+    conversation, created = Conversation.objects.get_or_create(
+        direct_key=key, defaults={'type': Conversation.ConversationType.DIRECT}
+    )
+    if created:
+        ConversationMember.objects.create(conversation=conversation, user=request.user)
+        ConversationMember.objects.create(conversation=conversation, user=target_user)
+
+    if post.author_id == request.user.id:
+        prefix = 'Shared my post:'
+    else:
+        prefix = f"Shared {post.author.full_name}'s post:"
+    body = f"{prefix}\n\n{post.body}" if post.body else prefix
+    message = ChatMessage.objects.create(conversation=conversation, sender=request.user, body=body[:4000])
+
+    image_url = None
+    if post.media_asset_id is not None and post.media_asset.is_downloadable:
+        MessageAttachment.objects.create(message=message, media_asset=post.media_asset)
+        image_url = reverse('message_attachment_image', kwargs={'message_id': message.id})
+
+    notify(
+        target_user, Notification.Verb.NEW_MESSAGE, actor=request.user, target=message,
+        push_title=request.user.full_name, push_body=message.body[:120] or 'Shared a post',
+    )
+
+    return JsonResponse({'ok': True, 'conversation_id': str(conversation.id), 'image_url': image_url})
 
 
 def _get_authorized_attachment(request, message_id):

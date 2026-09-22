@@ -51,6 +51,8 @@ class Notification(models.Model):
         CONNECTION_ACCEPTED = 'connection_accepted', 'Connection request accepted'
         POST_APPROVED = 'post_approved', 'Post approved'
         POST_REJECTED = 'post_rejected', 'Post rejected'
+        POST_LIKED = 'post_liked', 'Post liked'
+        POST_COMMENTED = 'post_commented', 'Post commented'
         NEW_MESSAGE = 'new_message', 'New message'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

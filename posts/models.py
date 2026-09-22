@@ -62,6 +62,33 @@ class Post(models.Model):
         return f"Post by {self.author.full_name} at {self.created_at:%Y-%m-%d %H:%M}"
 
 
+class PostLike(models.Model):
+    """A single user's like on a post — one tap toggles it on/off (see
+    posts.views.toggle_like), matching Instagram's low-friction model
+    rather than LinkedIn's multi-reaction picker."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='likes')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='post_likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('post', 'user')
+        ordering = ['-created_at']
+
+
+class PostComment(models.Model):
+    """A flat (non-threaded) comment on a post. Deletable by its own
+    author or by the post's author — see posts.views.delete_comment."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='post_comments')
+    body = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+
 class PostHiddenFor(models.Model):
     """Per-user 'hide from my feed' — same shape as
     messaging.models.MessageHiddenFor: hiding a post here only affects what

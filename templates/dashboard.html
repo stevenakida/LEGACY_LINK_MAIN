@@ -107,7 +107,10 @@
 
 <div class="feed-list" id="feed-list">
     {% for post in feed_posts %}
-        <article class="card feed-post" data-post-id="{{ post.id }}" data-is-author="{% if post.author_id == user.id %}1{% else %}0{% endif %}">
+        <article class="card feed-post" id="feed-post-{{ post.id }}" data-post-id="{{ post.id }}"
+                 data-is-author="{% if post.author_id == user.id %}1{% else %}0{% endif %}"
+                 data-liked="{{ post.is_liked_by_viewer|yesno:'1,0' }}"
+                 data-like-count="{{ post.like_count }}" data-comment-count="{{ post.comment_count }}">
             <div class="feed-post-head">
                 <div class="greeting-avatar">
                     {% if post.author.avatar %}
@@ -121,15 +124,39 @@
                     {% if post.author.cohort_label %}<span class="feed-post-tag">{{ post.author.cohort_label }}</span>{% endif %}
                     <span class="feed-post-time">{{ post.created_at|timesince }} {% trans "ago" %}{% if post.edited_at %} · {% trans "edited" %}{% endif %}</span>
                 </div>
-                {% if post.audience == 'cohort' %}
-                    <span class="feed-post-audience-badge" title="{% trans 'Cohort' %}">
-                        <span class="material-symbols-rounded">school</span>
-                    </span>
-                {% elif post.audience == 'public' %}
-                    <span class="feed-post-audience-badge" title="{% trans 'Public' %}">
-                        <span class="material-symbols-rounded">public</span>
-                    </span>
-                {% endif %}
+                <div class="feed-post-head-right">
+                    {% if post.audience == 'cohort' %}
+                        <span class="feed-post-audience-badge" title="{% trans 'Cohort' %}">
+                            <span class="material-symbols-rounded">school</span>
+                        </span>
+                    {% elif post.audience == 'public' %}
+                        <span class="feed-post-audience-badge" title="{% trans 'Public' %}">
+                            <span class="material-symbols-rounded">public</span>
+                        </span>
+                    {% endif %}
+                    <div class="feed-post-menu-wrap">
+                        <button type="button" class="feed-post-kebab" data-action="toggle-menu" aria-label="{% trans 'Post options' %}">
+                            <span class="material-symbols-rounded">more_vert</span>
+                        </button>
+                        <div class="feed-post-menu" data-post-menu hidden>
+                            {% if post.author_id == user.id %}
+                                <button type="button" class="feed-post-menu-item" data-action="edit">{% trans "Edit" %}</button>
+                                <button type="button" class="feed-post-menu-item feed-post-menu-item-danger" data-action="delete">{% trans "Delete" %}</button>
+                            {% else %}
+                                <button type="button" class="feed-post-menu-item" data-action="hide">{% trans "Hide" %}</button>
+                                <button type="button" class="feed-post-menu-item" data-action="report">{% trans "Report" %}</button>
+                                {% if post.media_asset_id %}
+                                    <button type="button" class="feed-post-menu-item" data-action="report-media">{% trans "Report photo" %}</button>
+                                {% endif %}
+                                <form method="post" action="{% url 'block_user_web' post.author_id %}" class="feed-post-block-form" onsubmit="return confirm('Block {{ post.author.full_name|escapejs }}? They won’t be able to connect or message you, and you won’t see each other’s posts.');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{% url 'dashboard' %}">
+                                    <button type="submit" class="feed-post-menu-item feed-post-menu-item-danger">{% trans "Block" %}</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
             {% if post.approval_status == 'pending' %}
                 <p class="feed-post-pending">{% trans "Pending review — only you can see this until it's approved." %}</p>
@@ -138,24 +165,31 @@
             {% endif %}
             <p class="feed-post-body" data-post-body{% if not post.body %} hidden{% endif %}>{{ post.body|urlize }}</p>
             {% if post.media_asset_id %}
-                <img class="feed-post-image" src="{% url 'post_image' post.id %}" alt="" loading="lazy">
+                <img class="feed-post-image" src="{% url 'post_image' post.id %}" alt="" loading="lazy" data-action="open-lightbox">
             {% endif %}
-            <div class="feed-post-actions">
-                {% if post.author_id == user.id %}
-                    <button type="button" class="feed-post-action" data-action="edit">{% trans "Edit" %}</button>
-                    <button type="button" class="feed-post-action" data-action="delete">{% trans "Delete" %}</button>
-                {% else %}
-                    <button type="button" class="feed-post-action" data-action="hide">{% trans "Hide" %}</button>
-                    <button type="button" class="feed-post-action" data-action="report">{% trans "Report" %}</button>
-                    {% if post.media_asset_id %}
-                        <button type="button" class="feed-post-action" data-action="report-media">{% trans "Report photo" %}</button>
-                    {% endif %}
-                    <form method="post" action="{% url 'block_user_web' post.author_id %}" class="feed-post-block-form" onsubmit="return confirm('Block {{ post.author.full_name|escapejs }}? They won’t be able to connect or message you, and you won’t see each other’s posts.');">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{% url 'dashboard' %}">
-                        <button type="submit" class="feed-post-action feed-post-action-danger">{% trans "Block" %}</button>
-                    </form>
-                {% endif %}
+            <div class="feed-post-stats" data-post-stats {% if not post.like_count and not post.comment_count %}hidden{% endif %}>
+                <span class="feed-post-like-summary" data-like-summary {% if not post.like_count %}hidden{% endif %}></span>
+                <button type="button" class="feed-post-comment-count" data-action="view-comments" {% if not post.comment_count %}hidden{% endif %}>
+                    <span data-comment-count-text>{% blocktrans count counter=post.comment_count %}{{ counter }} comment{% plural %}{{ counter }} comments{% endblocktrans %}</span>
+                </button>
+            </div>
+            <div class="feed-post-engage">
+                <button type="button" class="feed-post-engage-btn{% if post.is_liked_by_viewer %} is-liked{% endif %}" data-action="like" aria-pressed="{{ post.is_liked_by_viewer|yesno:'true,false' }}">
+                    <span class="material-symbols-rounded">favorite</span> {% trans "Like" %}
+                </button>
+                <button type="button" class="feed-post-engage-btn" data-action="comment">
+                    <span class="material-symbols-rounded">chat_bubble</span> {% trans "Comment" %}
+                </button>
+                <button type="button" class="feed-post-engage-btn" data-action="share">
+                    <span class="material-symbols-rounded">share</span> {% trans "Share" %}
+                </button>
+            </div>
+            <div class="feed-post-comments" data-comments hidden>
+                <div class="feed-post-comment-list" data-comment-list></div>
+                <form class="feed-post-comment-form" data-comment-form>
+                    <input type="text" class="feed-post-comment-input" maxlength="1000" placeholder="{% trans 'Write a comment…' %}" data-comment-input>
+                    <button type="submit" class="feed-post-comment-send">{% trans "Post" %}</button>
+                </form>
             </div>
         </article>
     {% empty %}
@@ -252,6 +286,7 @@
 {% block extra_body %}
 <script src="{% static 'js/composer.js' %}" defer></script>
 <script src="{% static 'js/feed.js' %}" defer></script>
+{{ share_targets|json_script:"feed-share-targets-data" }}
 
 <!-- Placed in this block rather than the main content block deliberately:
      .main-content (which wraps the content block) has its own
@@ -277,6 +312,20 @@
             <button type="button" id="report-modal-submit" class="btn btn-gold btn-full">{% trans "Submit report" %}</button>
             <button type="button" id="report-modal-cancel" class="btn btn-line btn-full">{% trans "Cancel" %}</button>
         </div>
+    </div>
+</div>
+
+<div id="feed-lightbox" class="chat-lightbox" hidden>
+    <button type="button" id="feed-lightbox-close" class="chat-lightbox-close" aria-label="{% trans 'Close' %}">✕</button>
+    <img id="feed-lightbox-img" src="" alt="">
+</div>
+
+<div id="feed-share-modal" class="forward-modal" hidden>
+    <div class="forward-modal-inner">
+        <h3>{% trans "Share to…" %}</h3>
+        <div id="feed-share-modal-list" class="forward-modal-list"></div>
+        <p class="feed-share-modal-status" id="feed-share-modal-status" hidden></p>
+        <button type="button" id="feed-share-modal-cancel" class="btn btn-line btn-full">{% trans "Cancel" %}</button>
     </div>
 </div>
 {% endblock %}

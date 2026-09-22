@@ -207,6 +207,10 @@ FEATURE_PUBLIC_POST_REVIEW_REQUIRED = config('FEATURE_PUBLIC_POST_REVIEW_REQUIRE
 # at most this many posts per this many seconds, per user.
 RATE_LIMIT_CREATE_POST_MAX = config('RATE_LIMIT_CREATE_POST_MAX', default=5, cast=int)
 RATE_LIMIT_CREATE_POST_WINDOW_SECONDS = config('RATE_LIMIT_CREATE_POST_WINDOW_SECONDS', default=600, cast=int)
+# Comments are lower-friction/lower-risk than posts, so a more generous
+# allowance than RATE_LIMIT_CREATE_POST_MAX above.
+RATE_LIMIT_CREATE_COMMENT_MAX = config('RATE_LIMIT_CREATE_COMMENT_MAX', default=20, cast=int)
+RATE_LIMIT_CREATE_COMMENT_WINDOW_SECONDS = config('RATE_LIMIT_CREATE_COMMENT_WINDOW_SECONDS', default=600, cast=int)
 # Phase 7: connection requests (abuse deterrent, generous for real use).
 RATE_LIMIT_CONNECTION_REQUEST_MAX = config('RATE_LIMIT_CONNECTION_REQUEST_MAX', default=20, cast=int)
 RATE_LIMIT_CONNECTION_REQUEST_WINDOW_SECONDS = config('RATE_LIMIT_CONNECTION_REQUEST_WINDOW_SECONDS', default=600, cast=int)

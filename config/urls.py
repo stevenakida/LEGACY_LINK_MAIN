@@ -86,6 +86,10 @@ path('register/', views.register, name='register'),
     path('api/opportunities/', include('opportunities.urls')),
     path('api/messaging/', include('messaging.urls')),
     path('api/media/', include('media_assets.urls')),
+    # Lives in config.views (not posts.urls) — see share_post's docstring
+    # for why: it needs the messaging models, and posts.views is imported
+    # BY config.views, so the reverse import would be circular.
+    path('posts/<uuid:post_id>/share/', views.share_post, name='share_post'),
     path('posts/', include('posts.urls')),
     # Serve user-uploaded media (avatars, etc.) unconditionally — Django's
     # static() helper only wires this up when DEBUG=True, which left avatars

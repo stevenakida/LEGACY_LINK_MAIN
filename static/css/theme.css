@@ -470,23 +470,56 @@ a { color: inherit; }
 .feed-post-body { font-size: 0.88rem; color: var(--ink); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
 .feed-post-image { width: 100%; max-height: 420px; object-fit: cover; border-radius: var(--radius-sm); margin-top: 0.75rem; display: block; }
 
-.feed-post-audience-badge { margin-left: auto; color: var(--teal); flex-shrink: 0; }
+.feed-post-head-right { margin-left: auto; display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
+.feed-post-audience-badge { color: var(--teal); flex-shrink: 0; display: flex; }
 .feed-post-audience-badge .material-symbols-rounded { font-size: 1.1rem; }
 
 .feed-post-pending { font-size: 0.78rem; color: var(--gold); background: rgba(232, 166, 60, 0.12); border: 1px solid rgba(232, 166, 60, 0.3); border-radius: var(--radius-sm); padding: 0.5rem 0.7rem; margin-bottom: 0.6rem; }
 .feed-post-pending.is-rejected { color: var(--danger-soft); background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3); }
 
-.feed-post-actions { display: flex; gap: 0.4rem; margin-top: 0.75rem; }
-.feed-post-actions button { background: var(--card); border: 1px solid var(--border); color: var(--ink); font-size: 0.72rem; font-weight: 700; padding: 0.35rem 0.7rem; border-radius: 999px; cursor: pointer; font-family: inherit; }
-.feed-post-actions button:hover { background: rgba(232, 166, 60, 0.15); }
+/* ---------- post options (kebab) menu ---------- */
+
+.feed-post-menu-wrap { position: relative; }
+.feed-post-kebab { background: none; border: none; color: var(--muted); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.feed-post-kebab:hover { background: var(--card-soft); }
+.feed-post-kebab .material-symbols-rounded { font-size: 1.2rem; }
+.feed-post-menu { position: absolute; top: 100%; right: 0; z-index: 5; min-width: 170px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); padding: 0.35rem; display: flex; flex-direction: column; }
+.feed-post-menu-item { background: none; border: none; color: var(--ink); font-size: 0.82rem; font-weight: 600; text-align: left; padding: 0.55rem 0.7rem; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; }
+.feed-post-menu-item:hover { background: rgba(232, 166, 60, 0.12); }
 /* The Block action is a real <form> (a full page POST+redirect, same as
    public_profile.html's Block button) rather than a JS-driven fetch like
    its Hide/Report siblings — display:contents keeps the wrapping <form>
    out of the flex layout so its button still lines up like a plain sibling
-   button. */
+   menu item. */
 .feed-post-block-form { display: contents; }
-.feed-post-action-danger { color: var(--danger-soft); border-color: rgba(239, 68, 68, 0.4) !important; }
-.feed-post-action-danger:hover { background: rgba(239, 68, 68, 0.15) !important; }
+.feed-post-menu-item-danger { color: var(--danger-soft); }
+.feed-post-menu-item-danger:hover { background: rgba(239, 68, 68, 0.12); }
+
+/* ---------- engagement (like / comment / share) ---------- */
+
+.feed-post-image[data-action="open-lightbox"] { cursor: pointer; }
+
+.feed-post-stats { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.6rem; font-size: 0.76rem; color: var(--muted); }
+.feed-post-comment-count { background: none; border: none; color: var(--muted); font-size: 0.76rem; padding: 0; cursor: pointer; font-family: inherit; }
+.feed-post-comment-count:hover { text-decoration: underline; }
+
+.feed-post-engage { display: flex; gap: 0.25rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+.feed-post-engage-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.35rem; background: none; border: none; color: var(--muted); font-size: 0.8rem; font-weight: 700; padding: 0.5rem 0.4rem; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; }
+.feed-post-engage-btn:hover { background: var(--card-soft); }
+.feed-post-engage-btn .material-symbols-rounded { font-size: 1.15rem; }
+.feed-post-engage-btn.is-liked { color: var(--gold); }
+
+.feed-post-comments { margin-top: 0.6rem; }
+.feed-post-comment-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
+.feed-post-comment-item { display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.82rem; color: var(--ink); line-height: 1.4; }
+.feed-post-comment-item strong { flex-shrink: 0; }
+.feed-post-comment-item .feed-post-comment-body { word-wrap: break-word; flex: 1; }
+.feed-post-comment-delete { background: none; border: none; color: var(--muted); font-size: 0.7rem; padding: 0 0.2rem; cursor: pointer; flex-shrink: 0; }
+.feed-post-comment-delete:hover { color: var(--danger-soft); }
+.feed-post-comment-form { display: flex; gap: 0.4rem; }
+.feed-post-comment-input { flex: 1; font-family: inherit; font-size: 0.85rem; color: var(--ink); background: var(--card-soft); border: 1px solid var(--border); border-radius: 999px; padding: 0.5rem 0.85rem; }
+.feed-post-comment-send { background: none; border: none; color: var(--gold); font-weight: 700; font-size: 0.82rem; padding: 0 0.4rem; cursor: pointer; font-family: inherit; }
+.feed-post-comment-send:disabled { opacity: 0.5; cursor: default; }
 
 .feed-post-edit-box { margin-top: 0.5rem; }
 .feed-post-edit-input { width: 100%; min-height: 4.5rem; resize: vertical; font-family: inherit; font-size: 0.88rem; color: var(--ink); background: var(--card-soft); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.75rem; }
@@ -650,6 +683,7 @@ a { color: inherit; }
 .forward-modal-list { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
 .forward-modal-item { background: var(--card-soft); border: 1px solid var(--border); color: var(--ink); text-align: left; padding: 0.65rem 0.9rem; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; font-size: 0.88rem; }
 .forward-modal-item:hover { background: rgba(232, 166, 60, 0.12); }
+.feed-share-modal-status { font-size: 0.78rem; color: var(--muted); margin: 0 0 0.6rem; text-align: center; }
 .chat-scroll-pad { height: 3.5rem; }
 
 /* ---------- report modal (reuses .forward-modal/.forward-modal-inner shell) ---------- */

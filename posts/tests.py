@@ -10,7 +10,7 @@ from media_assets.models import MediaAsset
 from moderation.models import ContentReport, ModerationHold
 from notifications.models import Notification
 
-from .models import Post, PostHiddenFor
+from .models import Post, PostComment, PostHiddenFor, PostLike
 from .views import get_feed_for_user
 
 
@@ -753,3 +753,170 @@ class CreatePostRateLimitTests(TestCase):
         self.client.force_login(other)
         response = self.client.post(reverse('create_post'), {'body': 'hi from other', 'audience': 'connections'})
         self.assertEqual(response.status_code, 200)
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class ToggleLikeTests(TestCase):
+    def setUp(self):
+        self.author = make_user('+255700000301', 'Author')
+        self.viewer = make_user('+255700000302', 'Viewer')
+        self.stranger = make_user('+255700000303', 'Stranger')  # not connected, no shared cohort
+        connect(self.author, self.viewer)
+        self.post = Post.objects.create(author=self.author, body='hello')
+
+    def test_requires_authentication(self):
+        response = self.client.post(reverse('toggle_post_like', args=[self.post.id]))
+        self.assertEqual(response.status_code, 401)
+
+    def test_cannot_like_a_post_you_cannot_see(self):
+        self.client.force_login(self.stranger)
+        response = self.client.post(reverse('toggle_post_like', args=[self.post.id]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_first_tap_likes_and_notifies_the_author(self):
+        self.client.force_login(self.viewer)
+        response = self.client.post(reverse('toggle_post_like', args=[self.post.id]))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['liked'])
+        self.assertEqual(data['count'], 1)
+        self.assertTrue(PostLike.objects.filter(post=self.post, user=self.viewer).exists())
+        self.assertTrue(Notification.objects.filter(recipient=self.author, verb=Notification.Verb.POST_LIKED).exists())
+
+    def test_second_tap_unlikes_and_does_not_renotify(self):
+        self.client.force_login(self.viewer)
+        self.client.post(reverse('toggle_post_like', args=[self.post.id]))
+        response = self.client.post(reverse('toggle_post_like', args=[self.post.id]))
+        data = response.json()
+        self.assertFalse(data['liked'])
+        self.assertEqual(data['count'], 0)
+        self.assertFalse(PostLike.objects.filter(post=self.post, user=self.viewer).exists())
+        self.assertEqual(Notification.objects.filter(recipient=self.author, verb=Notification.Verb.POST_LIKED).count(), 1)
+
+    def test_liking_your_own_post_does_not_notify_yourself(self):
+        self.client.force_login(self.author)
+        self.client.post(reverse('toggle_post_like', args=[self.post.id]))
+        self.assertFalse(Notification.objects.filter(recipient=self.author, verb=Notification.Verb.POST_LIKED).exists())
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class PostCommentTests(TestCase):
+    def setUp(self):
+        self.author = make_user('+255700000311', 'Author')
+        self.viewer = make_user('+255700000312', 'Viewer')
+        self.stranger = make_user('+255700000313', 'Stranger')  # not connected, no shared cohort
+        connect(self.author, self.viewer)
+        self.post = Post.objects.create(author=self.author, body='hello')
+
+    def test_requires_authentication_to_add(self):
+        response = self.client.post(reverse('add_post_comment', args=[self.post.id]), {'body': 'nice!'})
+        self.assertEqual(response.status_code, 401)
+
+    def test_cannot_comment_on_a_post_you_cannot_see(self):
+        self.client.force_login(self.stranger)
+        response = self.client.post(reverse('add_post_comment', args=[self.post.id]), {'body': 'nice!'})
+        self.assertEqual(response.status_code, 404)
+
+    def test_empty_comment_is_rejected(self):
+        self.client.force_login(self.viewer)
+        response = self.client.post(reverse('add_post_comment', args=[self.post.id]), {'body': '   '})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(PostComment.objects.count(), 0)
+
+    def test_add_comment_notifies_the_author(self):
+        self.client.force_login(self.viewer)
+        response = self.client.post(reverse('add_post_comment', args=[self.post.id]), {'body': 'nice photo!'})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['comment']['author_name'], 'Viewer')
+        self.assertEqual(data['count'], 1)
+        self.assertTrue(Notification.objects.filter(recipient=self.author, verb=Notification.Verb.POST_COMMENTED).exists())
+
+    def test_commenting_on_your_own_post_does_not_notify_yourself(self):
+        self.client.force_login(self.author)
+        self.client.post(reverse('add_post_comment', args=[self.post.id]), {'body': 'update below'})
+        self.assertFalse(Notification.objects.filter(recipient=self.author, verb=Notification.Verb.POST_COMMENTED).exists())
+
+    def test_list_comments_requires_visibility(self):
+        PostComment.objects.create(post=self.post, author=self.author, body='first')
+        self.client.force_login(self.stranger)
+        response = self.client.get(reverse('list_post_comments', args=[self.post.id]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_list_comments_returns_oldest_first(self):
+        PostComment.objects.create(post=self.post, author=self.author, body='first')
+        PostComment.objects.create(post=self.post, author=self.viewer, body='second')
+        self.client.force_login(self.viewer)
+        response = self.client.get(reverse('list_post_comments', args=[self.post.id]))
+        bodies = [c['body'] for c in response.json()['comments']]
+        self.assertEqual(bodies, ['first', 'second'])
+
+    def test_comment_author_can_delete_their_own_comment(self):
+        comment = PostComment.objects.create(post=self.post, author=self.viewer, body='oops')
+        self.client.force_login(self.viewer)
+        response = self.client.post(reverse('delete_post_comment', args=[comment.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(PostComment.objects.filter(id=comment.id).exists())
+
+    def test_post_author_can_delete_someone_elses_comment(self):
+        comment = PostComment.objects.create(post=self.post, author=self.viewer, body='rude thing')
+        self.client.force_login(self.author)
+        response = self.client.post(reverse('delete_post_comment', args=[comment.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(PostComment.objects.filter(id=comment.id).exists())
+
+    def test_a_third_party_cannot_delete_someone_elses_comment(self):
+        third = make_user('+255700000314', 'Third')
+        connect(self.author, third)
+        comment = PostComment.objects.create(post=self.post, author=self.viewer, body='comment')
+        self.client.force_login(third)
+        response = self.client.post(reverse('delete_post_comment', args=[comment.id]))
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(PostComment.objects.filter(id=comment.id).exists())
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class FeedAnnotationTests(TestCase):
+    """get_feed_for_user must annotate like_count/comment_count and each
+    viewer's own is_liked_by_viewer without leaking one viewer's like state
+    into another's."""
+
+    def setUp(self):
+        self.author = make_user('+255700000321', 'Author')
+        self.viewer = make_user('+255700000322', 'Viewer')
+        self.other = make_user('+255700000323', 'Other')
+        connect(self.author, self.viewer)
+        connect(self.author, self.other)
+        self.post = Post.objects.create(author=self.author, body='hello')
+        PostLike.objects.create(post=self.post, user=self.viewer)
+        PostComment.objects.create(post=self.post, author=self.other, body='hi')
+
+    def test_counts_and_per_viewer_liked_state(self):
+        feed = get_feed_for_user(self.viewer)
+        post = next(p for p in feed if p.id == self.post.id)
+        self.assertEqual(post.like_count, 1)
+        self.assertEqual(post.comment_count, 1)
+        self.assertTrue(post.is_liked_by_viewer)
+
+        feed_other = get_feed_for_user(self.other)
+        post_other = next(p for p in feed_other if p.id == self.post.id)
+        self.assertEqual(post_other.like_count, 1)
+        self.assertFalse(post_other.is_liked_by_viewer)
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False, RATE_LIMIT_CREATE_COMMENT_MAX=2, RATE_LIMIT_CREATE_COMMENT_WINDOW_SECONDS=60)
+class CommentRateLimitTests(TestCase):
+    def setUp(self):
+        self.author = make_user('+255700000331', 'Author')
+        self.viewer = make_user('+255700000332', 'Viewer')
+        connect(self.author, self.viewer)
+        self.post = Post.objects.create(author=self.author, body='hello')
+        self.client.force_login(self.viewer)
+
+    def test_blocks_once_over_the_limit(self):
+        for _ in range(2):
+            response = self.client.post(reverse('add_post_comment', args=[self.post.id]), {'body': 'hi'})
+            self.assertEqual(response.status_code, 200)
+        response = self.client.post(reverse('add_post_comment', args=[self.post.id]), {'body': 'one too many'})
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(PostComment.objects.count(), 2)
