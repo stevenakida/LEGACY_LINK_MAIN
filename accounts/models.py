@@ -6,6 +6,8 @@ from django.db import models
 import re
 import uuid
 
+from .validators import validate_avatar_image
+
 
 def normalize_identifier(value):
     """Collapse the many equivalent ways a Tanzanian phone number gets typed
@@ -54,7 +56,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     phone_or_email = models.CharField(max_length=150, unique=True)
     full_name = models.CharField(max_length=200)
     bio = models.TextField(blank=True, max_length=300)
-    avatar = models.FileField(upload_to='avatars/', blank=True, null=True)
+    avatar = models.FileField(upload_to='avatars/', blank=True, null=True,
+                               validators=[validate_avatar_image])
 
     # Persists the EN/SW toggle across sessions/devices — set from the top
     # nav language switch (see config.views.set_language_web).

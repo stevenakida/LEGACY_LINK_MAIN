@@ -3,6 +3,7 @@ password, and the shortened email-verification copy."""
 import uuid
 from unittest import mock
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils.encoding import force_bytes
@@ -175,6 +176,52 @@ class VerificationCopyTests(TestCase):
         self.assertIn('Email verified! You can now use it to reset your password.', messages_of(response))
         self.user.refresh_from_db()
         self.assertTrue(self.user.email_verified)
+
+
+# A 1x1 transparent PNG — real, decodable pixel data, not just PNG-looking bytes.
+_TINY_PNG = (
+    b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08'
+    b'\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00'
+    b'\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+)
+
+
+@FAST_HASH
+class AvatarUploadValidationTests(TestCase):
+    """Regression coverage for the avatar-upload hole reported to Google
+    Safe Browsing as social engineering content: User.avatar used to accept
+    any uploaded file with no check on its actual content, and avatars are
+    served publicly/unauthenticated straight from storage with a
+    Content-Type inferred from the filename — so an HTML file renamed
+    avatar.jpg would have rendered as a live page on our own domain."""
+
+    def setUp(self):
+        self.user = person('+255744000020', 'Ada Avatar')
+        self.client.force_login(self.user)
+
+    def test_a_real_image_is_accepted(self):
+        upload = SimpleUploadedFile('avatar.png', _TINY_PNG, content_type='image/png')
+        response = self.client.post(reverse('profile_edit'), {'full_name': 'Ada Avatar', 'avatar': upload}, follow=True)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.avatar)
+        self.assertIn('Profile updated successfully!', messages_of(response))
+
+    def test_an_html_file_disguised_as_an_image_is_rejected(self):
+        payload = b'<html><body><script>alert("phish")</script></body></html>'
+        upload = SimpleUploadedFile('avatar.jpg', payload, content_type='image/jpeg')
+        response = self.client.post(reverse('profile_edit'), {'full_name': 'Ada Avatar', 'avatar': upload}, follow=True)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.avatar)
+        self.assertIn('Please upload a valid JPEG, PNG or WEBP image.', messages_of(response))
+
+    def test_an_oversized_image_is_rejected(self):
+        # The size check runs before Pillow ever decodes the file, so garbage
+        # bytes padded past the 8MB cap are enough to exercise it.
+        upload = SimpleUploadedFile('avatar.png', _TINY_PNG + b'\x00' * (8 * 1024 * 1024), content_type='image/png')
+        response = self.client.post(reverse('profile_edit'), {'full_name': 'Ada Avatar', 'avatar': upload}, follow=True)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.avatar)
+        self.assertIn('Image must be smaller than 8MB.', messages_of(response))
 
 
 @FAST_HASH

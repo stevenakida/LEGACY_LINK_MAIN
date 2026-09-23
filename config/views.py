@@ -19,6 +19,7 @@ from accounts import google_oauth
 from accounts.models import User, normalize_identifier
 from accounts.services import dispatch_email_verification, mask_email
 from accounts.tokens import email_verification_token
+from accounts.validators import validate_avatar_image
 from alumni.models import School
 from analytics.services import record_event
 from connections.models import Connection, UserRelationshipOverride
@@ -652,7 +653,12 @@ def profile_edit(request):
 
         # Handle avatar upload
         if 'avatar' in request.FILES:
-            user.avatar = request.FILES['avatar']
+            avatar_file = request.FILES['avatar']
+            try:
+                validate_avatar_image(avatar_file)
+                user.avatar = avatar_file
+            except ValidationError as e:
+                messages.error(request, ' '.join(e.messages))
         user.save()
         if email_changed and user.email:
             dispatch_email_verification(request, user)
