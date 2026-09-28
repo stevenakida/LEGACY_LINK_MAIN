@@ -264,6 +264,7 @@ TEMPLATES = [
                 'messaging.context_processors.unread_message_count',
                 'messaging.context_processors.total_unread_messages',
                 'notifications.context_processors.total_unread_notifications',
+                'accounts.context_processors.google_sign_in',
             ],
         },
     },

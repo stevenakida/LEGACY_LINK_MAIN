@@ -270,6 +270,7 @@
             <a href="/register/">Create Account</a>
         </div>
 
+        {% if google_sign_in_enabled %}
         <div class="divider"><span>OR</span></div>
 
         <div class="social-login">
@@ -281,6 +282,7 @@
         <p style="margin-top:16px;font-size:0.78em;color:#64748B;">
             By continuing with Google, you agree to our <a href="/terms/" style="color:#E8A63C;">Terms of Use</a>.
         </p>
+        {% endif %}
     </div>
 
     <script>

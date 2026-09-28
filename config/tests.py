@@ -502,6 +502,20 @@ class GoogleSiteVerificationTests(TestCase):
 
 
 class GoogleLoginTests(TestCase):
+    def test_button_hidden_on_login_and_register_when_not_configured(self):
+        # An unconfigured button bounces back to /login/ instead of Google,
+        # which Safe Browsing flagged as a fake Google sign-in page.
+        with self.settings(GOOGLE_OAUTH_CLIENT_ID='', GOOGLE_OAUTH_CLIENT_SECRET=''):
+            for url in ('/login/', '/register/'):
+                html = self.client.get(url).content.decode()
+                self.assertNotIn('/auth/google/login/', html)
+                self.assertNotIn('with Google', html)
+
+    @override_settings(GOOGLE_OAUTH_CLIENT_ID='test-id', GOOGLE_OAUTH_CLIENT_SECRET='test-secret')
+    def test_button_shown_on_login_and_register_when_configured(self):
+        self.assertContains(self.client.get('/login/'), 'Continue with Google')
+        self.assertContains(self.client.get('/register/'), 'Sign up with Google')
+
     def test_start_without_config_shows_error_and_redirects_to_login(self):
         with self.settings(GOOGLE_OAUTH_CLIENT_ID='', GOOGLE_OAUTH_CLIENT_SECRET=''):
             response = self.client.get('/auth/google/login/')
