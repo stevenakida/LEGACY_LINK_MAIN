@@ -516,6 +516,24 @@ class GoogleLoginTests(TestCase):
         self.assertContains(self.client.get('/login/'), 'Continue with Google')
         self.assertContains(self.client.get('/register/'), 'Sign up with Google')
 
+    ANDROID_WEBVIEW_UA = ('Mozilla/5.0 (Linux; Android 14; Pixel 7 Build/UQ1A.240205.004; wv) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/140.0.0.0 Mobile Safari/537.36')
+    ANDROID_CHROME_UA = ('Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 '
+                         '(KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36')
+
+    @override_settings(GOOGLE_OAUTH_CLIENT_ID='test-id', GOOGLE_OAUTH_CLIENT_SECRET='test-secret')
+    def test_button_hidden_inside_the_android_app_webview(self):
+        # The app hands accounts.google.com to the system browser, so the
+        # callback lands outside the app's session and the state check fails.
+        for url in ('/login/', '/register/'):
+            html = self.client.get(url, HTTP_USER_AGENT=self.ANDROID_WEBVIEW_UA).content.decode()
+            self.assertNotIn('/auth/google/login/', html)
+
+    @override_settings(GOOGLE_OAUTH_CLIENT_ID='test-id', GOOGLE_OAUTH_CLIENT_SECRET='test-secret')
+    def test_button_still_shown_in_android_chrome(self):
+        response = self.client.get('/login/', HTTP_USER_AGENT=self.ANDROID_CHROME_UA)
+        self.assertContains(response, 'Continue with Google')
+
     def test_start_without_config_shows_error_and_redirects_to_login(self):
         with self.settings(GOOGLE_OAUTH_CLIENT_ID='', GOOGLE_OAUTH_CLIENT_SECRET=''):
             response = self.client.get('/auth/google/login/')
