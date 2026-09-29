@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Delete account - LegacyLink Africa{% endblock %}
+
+{% block header %}
+<div class="chat-head">
+    <a href="{% url 'settings' %}" class="back">‹</a>
+    <div>
+        <div class="nm">Delete account</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card delete-account-card">
+    <h2 class="delete-account-title">Delete your LegacyLink account</h2>
+    <p class="delete-account-lead">This is permanent and happens straight away. It can’t be undone, and we can’t recover your account afterwards.</p>
+
+    <p class="delete-account-subhead">What gets deleted</p>
+    <ul class="delete-account-list">
+        <li>Your profile, photo, schools and contact details</li>
+        <li>Your posts, reposts, comments and likes</li>
+        <li>Your connections and connection requests</li>
+        <li>Your chats and the messages in them</li>
+        <li>Photos you uploaded, and your notifications</li>
+    </ul>
+
+    {% if is_staff_account %}
+        <p class="delete-account-note">This is an admin account, so it can’t be deleted here. Ask another admin to remove it in the admin panel.</p>
+    {% else %}
+        <form method="post" action="{% url 'delete_account' %}"
+              onsubmit="return confirm('Delete your account permanently? This cannot be undone.');">
+            {% csrf_token %}
+            {% if has_password %}
+                <label class="delete-account-label" for="delete-account-password">Enter your password to confirm</label>
+                <input type="password" id="delete-account-password" name="password" required autocomplete="current-password" class="delete-account-input">
+            {% else %}
+                <label class="delete-account-label" for="delete-account-confirm">You sign in with Google. Type <strong>DELETE</strong> to confirm</label>
+                <input type="text" id="delete-account-confirm" name="confirm" required autocomplete="off" autocapitalize="characters" class="delete-account-input">
+            {% endif %}
+            <button type="submit" class="btn btn-full delete-account-btn">Delete my account</button>
+        </form>
+    {% endif %}
+    <a href="{% url 'settings' %}" class="btn btn-line btn-full delete-account-cancel">Cancel</a>
+</div>
+{% endblock %}

@@ -107,6 +107,14 @@
             </div>
         </button>
     </form>
+    <a href="{% url 'delete_account' %}" class="settings-row danger">
+        <div class="settings-row-icon"><span class="material-symbols-rounded">delete_forever</span></div>
+        <div class="settings-row-body">
+            <div class="t">Delete account</div>
+            <div class="s">Permanently remove your account and data</div>
+        </div>
+        <span class="material-symbols-rounded settings-row-chevron">chevron_right</span>
+    </a>
 </div>
 {% endblock %}
 

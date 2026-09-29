@@ -854,6 +854,18 @@ a { color: inherit; }
 .settings-row.danger .settings-row-body .t { color: var(--danger-soft); }
 .settings-row.danger .settings-row-icon { color: var(--danger-soft); }
 
+/* ---------- delete account ---------- */
+
+.delete-account-title { font-size: 1.05rem; margin: 0 0 0.5rem; color: var(--ink); }
+.delete-account-lead { font-size: 0.85rem; line-height: 1.5; color: var(--danger-soft); margin-bottom: 1rem; }
+.delete-account-subhead { font-size: 0.8rem; font-weight: 700; color: var(--ink); margin-bottom: 0.35rem; }
+.delete-account-list { font-size: 0.83rem; line-height: 1.6; color: var(--muted); margin: 0 0 1.1rem 1.1rem; padding: 0; }
+.delete-account-note { font-size: 0.85rem; line-height: 1.5; color: var(--muted); margin-bottom: 1rem; }
+.delete-account-label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.35rem; }
+.delete-account-input { width: 100%; background: var(--card-soft); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.65rem 0.85rem; color: var(--ink); font-size: 0.9rem; margin-bottom: 1rem; }
+.delete-account-btn { background: var(--danger); color: #fff; font-size: 0.85rem; padding: 0.7rem 1rem; margin-bottom: 0.6rem; }
+.delete-account-btn:hover { filter: brightness(1.08); }
+
 /* ---------- messages banner (Django messages framework) ---------- */
 
 .page-messages { list-style: none; margin-bottom: 1rem; }

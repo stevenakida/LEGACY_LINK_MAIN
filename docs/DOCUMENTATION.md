@@ -442,6 +442,15 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-29: **Delete account (Google Play requirement).** Settings → Delete
+  account (`/settings/delete-account/`): immediate, permanent, confirmed with
+  the password (or typing `DELETE` for Google-only accounts); staff/superuser
+  accounts are refused. `accounts.services.delete_account` relies on every
+  User FK cascading, and additionally deletes the user's direct chats,
+  notifications they triggered for others, and — after the DB commit — their
+  stored media objects and avatar file. Logged-out visitors to the page are
+  sent to `/login/?next=…` and returned after sign-in (same-site paths only),
+  so the URL can be given to Play Console as the web deletion link.
 - 2026-09-29: **"My School" post audience, reposts, and multi-person sharing.**
   Posts now have four audiences: Connections, Cohort (same school + same
   year), **School** (anyone who attended any of the author's schools, any

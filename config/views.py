@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate, update_session_auth_hash
+from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib import messages
@@ -14,10 +14,10 @@ from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonRespons
 from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.encoding import force_bytes, force_str
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_encode, urlsafe_base64_decode
 from accounts import google_oauth
 from accounts.models import User, normalize_identifier
-from accounts.services import dispatch_email_verification, mask_email
+from accounts.services import delete_account, dispatch_email_verification, mask_email
 from accounts.tokens import email_verification_token
 from accounts.validators import validate_avatar_image
 from alumni.models import School
@@ -130,11 +130,23 @@ def google_site_verification(request):
     Google's spec, naming itself again inside the body."""
     return HttpResponse('google-site-verification: google53e347c5788d485a.html')
 
+def _safe_next_url(request):
+    """A same-site path to return to after login (e.g. the account-deletion
+    page linked from the Play Store listing), or '' — never an external URL."""
+    next_url = request.POST.get('next') or request.GET.get('next') or ''
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return next_url
+    return ''
+
+
 def login_view(request):
     """Custom login view that handles phone_or_email authentication"""
+    next_url = _safe_next_url(request)
     if request.user.is_authenticated:
-        return redirect('dashboard')
-    
+        return redirect(next_url or 'dashboard')
+
     if request.method == 'POST':
         phone_or_email = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
@@ -147,7 +159,7 @@ def login_view(request):
             # Returning users land in their saved language immediately,
             # without needing to re-toggle EN/SW after every login.
             translation.activate(user.preferred_language)
-            return _set_language_cookie(redirect('dashboard'), user.preferred_language)
+            return _set_language_cookie(redirect(next_url or 'dashboard'), user.preferred_language)
         else:
             # Check if user exists for better error messaging — same lookup
             # authenticate() itself uses (phone in any prefix format, or a
@@ -161,11 +173,15 @@ def login_view(request):
         return render(request, 'login.html', {
             'submitted_username': phone_or_email,
             'submitted_password': password,
+            'next_url': next_url,
         })
 
     # A successful password reset redirects here with ?identifier=... so the
     # login form only needs the password typed — see reset_password_confirm.
-    return render(request, 'login.html', {'submitted_username': request.GET.get('identifier', '')})
+    return render(request, 'login.html', {
+        'submitted_username': request.GET.get('identifier', ''),
+        'next_url': next_url,
+    })
 
 
 def set_language_web(request):
@@ -739,6 +755,37 @@ def change_password(request):
                 messages.success(request, 'Password set — you can now log in with it as well as with Google.')
             return redirect('settings')
     return render(request, 'settings_password.html', {'has_password': has_password, 'active_tab': 'profile'})
+
+
+def delete_account_view(request):
+    """Settings → Delete account. Permanent and immediate (Google Play requires
+    in-app account deletion). Confirmed with the current password, or by
+    typing DELETE for Google-only accounts that have no password. Staff
+    accounts are refused so an admin can't lock the team out of Django admin
+    from a phone."""
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('login')}?next={quote(request.path)}")
+    user = request.user
+    has_password = user.has_usable_password()
+
+    if request.method == 'POST':
+        if user.is_staff or user.is_superuser:
+            messages.error(request, 'Admin accounts can’t be deleted here. Ask another admin to remove it in the admin panel.')
+        elif has_password and not user.check_password(request.POST.get('password', '')):
+            messages.error(request, 'That password is incorrect.')
+        elif not has_password and request.POST.get('confirm', '').strip() != 'DELETE':
+            messages.error(request, 'Type DELETE in capital letters to confirm.')
+        else:
+            delete_account(user)
+            logout(request)
+            messages.success(request, 'Your account and all of its data have been deleted.')
+            return redirect('login')
+
+    return render(request, 'settings_delete_account.html', {
+        'has_password': has_password,
+        'is_staff_account': user.is_staff or user.is_superuser,
+        'active_tab': 'profile',
+    })
 
 
 def blocked_accounts(request):

@@ -62,3 +62,54 @@ def dispatch_email_verification(request, user):
         kwargs=dict(to_email=user.email, full_name=user.full_name, verify_url=verify_url),
         daemon=True,
     ).start()
+
+
+def delete_account(user):
+    """Permanently delete `user` and everything tied to them. Every foreign key
+    to User cascades, so the row delete removes their posts, comments, likes,
+    connections, messages, notifications and media records; this also drops
+    what cascading can't reach: their one-to-one chats (which would otherwise
+    linger with a single member), notifications they triggered for others,
+    and the uploaded files in storage. Files are only deleted once the
+    database transaction has committed, so a failed delete never leaves an
+    account pointing at missing photos."""
+    from django.db import transaction
+
+    from media_assets.models import MediaAsset
+    from media_assets.storage import get_media_backend
+    from messaging.models import Conversation
+    from notifications.models import Notification
+
+    user_id = user.id
+    # Collected up front: the MediaAsset rows are cascade-deleted with the user.
+    media_keys = [
+        key
+        for keys in MediaAsset.objects.filter(owner=user).exclude(status=MediaAsset.Status.DELETED)
+        .values_list('quarantine_storage_key', 'storage_key', 'thumbnail_storage_key')
+        for key in keys if key
+    ]
+    avatar_storage = user.avatar.storage if user.avatar else None
+    avatar_name = user.avatar.name if user.avatar else None
+
+    with transaction.atomic():
+        Conversation.objects.filter(
+            type=Conversation.ConversationType.DIRECT, participants__user=user,
+        ).delete()
+        Notification.objects.filter(actor=user).delete()
+        user.delete()
+
+    def purge_files():
+        backend = get_media_backend()
+        for key in media_keys:
+            try:
+                backend.delete_object(key)
+            except Exception:
+                logger.exception('delete_account: could not delete stored object %s', key)
+        if avatar_name:
+            try:
+                avatar_storage.delete(avatar_name)
+            except Exception:
+                logger.exception('delete_account: could not delete avatar for user %s', user_id)
+
+    transaction.on_commit(purge_files)
+    logger.info('Account deleted: user %s', user_id)

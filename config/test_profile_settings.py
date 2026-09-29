@@ -357,3 +357,117 @@ class ChangePasswordTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login', response.url)
         self.assertTrue(self.unchanged())
+
+
+@FAST_HASH
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class DeleteAccountTests(TestCase):
+    def setUp(self):
+        import tempfile
+        from django.core.files.base import ContentFile
+
+        from messaging.models import Conversation, ConversationMember, Message
+        from notifications.models import Notification
+
+        self.tmp_media = tempfile.mkdtemp()
+        self.media_override = override_settings(MEDIA_ROOT=self.tmp_media)
+        self.media_override.enable()
+
+        self.me = person('+255744000030', 'Leaving User')
+        self.friend = person('+255744000031', 'Staying Friend')
+        Connection.objects.create(requester=self.me, receiver=self.friend, status='accepted')
+        self.my_post = Post.objects.create(author=self.me, body='mine')
+        self.friend_post = Post.objects.create(author=self.friend, body='theirs')
+
+        conv = Conversation.objects.create(direct_key=Conversation.direct_key_for(self.me, self.friend))
+        ConversationMember.objects.create(conversation=conv, user=self.me)
+        ConversationMember.objects.create(conversation=conv, user=self.friend)
+        Message.objects.create(conversation=conv, sender=self.friend, body='hi')
+        self.conv_id = conv.id
+        Notification.objects.create(recipient=self.friend, actor=self.me, verb=Notification.Verb.POST_LIKED)
+
+        self.me.avatar.save('me.png', ContentFile(b'x'), save=True)
+        self.avatar_name = self.me.avatar.name
+        self.asset = asset(self.me)
+        self.client.force_login(self.me)
+
+    def tearDown(self):
+        import shutil
+        self.media_override.disable()
+        shutil.rmtree(self.tmp_media, ignore_errors=True)
+
+    def test_settings_menu_links_to_delete_account(self):
+        self.assertContains(self.client.get(reverse('settings')), reverse('delete_account'))
+
+    def test_wrong_password_keeps_the_account(self):
+        response = self.client.post(reverse('delete_account'), {'password': 'wrong'}, follow=True)
+        self.assertTrue(User.objects.filter(pk=self.me.pk).exists())
+        self.assertIn('That password is incorrect.', messages_of(response))
+
+    def test_correct_password_deletes_account_data_and_files(self):
+        from django.core.files.storage import default_storage
+
+        from messaging.models import Conversation
+        from notifications.models import Notification
+
+        with mock.patch('media_assets.storage.LocalMediaBackend.delete_object') as delete_object, \
+                self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse('delete_account'), {'password': OLD}, follow=True)
+
+        self.assertFalse(User.objects.filter(pk=self.me.pk).exists())
+        self.assertIn('Your account and all of its data have been deleted.', messages_of(response))
+        self.assertEqual(self.client.get(reverse('dashboard')).status_code, 302)  # logged out
+        self.assertFalse(Post.objects.filter(pk=self.my_post.pk).exists())
+        self.assertFalse(Connection.objects.filter(requester=self.me.pk).exists())
+        self.assertFalse(Conversation.objects.filter(pk=self.conv_id).exists())
+        self.assertFalse(Notification.objects.filter(recipient=self.friend).exists())
+        deleted_keys = {c.args[0] for c in delete_object.call_args_list}
+        self.assertIn(self.asset.storage_key, deleted_keys)
+        self.assertFalse(default_storage.exists(self.avatar_name))
+        # Nobody else is affected.
+        self.assertTrue(User.objects.filter(pk=self.friend.pk).exists())
+        self.assertTrue(Post.objects.filter(pk=self.friend_post.pk).exists())
+
+    def test_google_only_account_confirms_by_typing_delete(self):
+        self.me.set_unusable_password()
+        self.me.save()
+        self.client.force_login(self.me)
+        self.assertContains(self.client.get(reverse('delete_account')), 'Type <strong>DELETE</strong>')
+        self.client.post(reverse('delete_account'), {'confirm': 'delete'})
+        self.assertTrue(User.objects.filter(pk=self.me.pk).exists())
+        self.client.post(reverse('delete_account'), {'confirm': 'DELETE'})
+        self.assertFalse(User.objects.filter(pk=self.me.pk).exists())
+
+    def test_admin_accounts_cannot_delete_themselves(self):
+        self.me.is_staff = True
+        self.me.save()
+        self.client.force_login(self.me)
+        response = self.client.post(reverse('delete_account'), {'password': OLD}, follow=True)
+        self.assertTrue(User.objects.filter(pk=self.me.pk).exists())
+        self.assertNotContains(response, 'Delete my account')
+
+
+@FAST_HASH
+class LoginNextRedirectTests(TestCase):
+    """The account-deletion page is the web link given to Google Play, so a
+    logged-out visitor must land back on it after signing in."""
+
+    def setUp(self):
+        self.user = person('+255744000040', 'Nora Next')
+
+    def test_logged_out_delete_link_goes_to_login_with_next(self):
+        response = self.client.get(reverse('delete_account'))
+        self.assertRedirects(response, f"{reverse('login')}?next=/settings/delete-account/", fetch_redirect_response=False)
+        self.assertContains(self.client.get(response.url), 'name="next" value="/settings/delete-account/"')
+
+    def test_login_returns_to_next(self):
+        response = self.client.post(reverse('login'), {
+            'username': '+255744000040', 'password': OLD, 'next': '/settings/delete-account/',
+        })
+        self.assertRedirects(response, '/settings/delete-account/', fetch_redirect_response=False)
+
+    def test_external_next_is_ignored(self):
+        response = self.client.post(reverse('login'), {
+            'username': '+255744000040', 'password': OLD, 'next': 'https://evil.example.com/',
+        })
+        self.assertRedirects(response, reverse('dashboard'), fetch_redirect_response=False)

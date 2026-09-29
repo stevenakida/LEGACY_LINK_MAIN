@@ -250,6 +250,7 @@
 
         <form method="post" action="{% url 'login' %}">
             {% csrf_token %}
+            {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
             <div class="form-group">
                 <label for="id_username">Phone or Email</label>
                 <input type="text" name="username" id="id_username" placeholder="Enter your phone or email" value="{{ submitted_username|default:'' }}" required>
