@@ -356,51 +356,145 @@
 
         // ---------- share ----------
 
+        var MAX_SHARE_RECIPIENTS = 20;
         var shareModal = document.getElementById('feed-share-modal');
         var shareModalList = document.getElementById('feed-share-modal-list');
         var shareModalStatus = document.getElementById('feed-share-modal-status');
         var shareModalCancel = document.getElementById('feed-share-modal-cancel');
+        var shareFilter = document.getElementById('feed-share-filter');
+        var shareSendBtn = document.getElementById('feed-share-send-btn');
+        var repostForm = document.getElementById('feed-share-repost-form');
+        var repostUnavailable = document.getElementById('feed-share-repost-unavailable');
+        var repostBody = document.getElementById('feed-share-repost-body');
+        var repostAudienceSwitch = document.getElementById('feed-share-repost-audience');
+        var repostBtn = document.getElementById('feed-share-repost-btn');
         var shareTargetsData = document.getElementById('feed-share-targets-data');
         var shareTargets = shareTargetsData ? JSON.parse(shareTargetsData.textContent) : [];
         var sharePostId = null;
+        var repostAudience = 'connections';
+
+        function showShareStatus(text) {
+            shareModalStatus.textContent = text;
+            shareModalStatus.hidden = false;
+        }
+
+        function selectedTargetIds() {
+            return Array.prototype.map.call(
+                shareModalList.querySelectorAll('input[type="checkbox"]:checked'),
+                function (box) { return box.value; }
+            );
+        }
+
+        function refreshSendButton() {
+            if (!shareSendBtn) return;
+            var count = selectedTargetIds().length;
+            shareSendBtn.disabled = count === 0;
+            shareSendBtn.textContent = count > 1 ? 'Send to ' + count : 'Send';
+        }
+
+        function setRepostAudience(audience) {
+            repostAudience = audience;
+            repostAudienceSwitch.querySelectorAll('.tab-pill').forEach(function (p) {
+                p.classList.toggle('on', p.dataset.audience === audience);
+            });
+        }
 
         function closeShareModal() {
             if (shareModal) shareModal.hidden = true;
             sharePostId = null;
         }
-        function openShareModal(postId) {
+
+        function openShareModal(article) {
             if (!shareModal || !shareModalList) return;
-            sharePostId = postId;
+            sharePostId = article.dataset.postId;
             shareModalStatus.hidden = true;
+
+            var canRepost = article.dataset.canRepost === '1';
+            repostForm.hidden = !canRepost;
+            repostUnavailable.hidden = canRepost;
+            repostBody.value = '';
+            setRepostAudience('connections');
+
             shareModalList.innerHTML = '';
+            if (shareFilter) {
+                shareFilter.value = '';
+                shareFilter.hidden = shareTargets.length < 8;
+            }
             if (!shareTargets.length) {
                 var empty = document.createElement('p');
                 empty.className = 'suggested-empty';
                 empty.textContent = 'Connect with people to start sharing posts with them.';
                 shareModalList.appendChild(empty);
+                shareSendBtn.hidden = true;
             } else {
                 shareTargets.forEach(function (t) {
-                    var item = document.createElement('button');
-                    item.type = 'button';
-                    item.className = 'forward-modal-item';
-                    item.textContent = t.name;
-                    item.addEventListener('click', function () {
-                        post('/posts/' + sharePostId + '/share/', 'user_id=' + encodeURIComponent(t.id))
-                            .then(function () {
-                                shareModalStatus.textContent = 'Shared with ' + t.name + '.';
-                                shareModalStatus.hidden = false;
-                                setTimeout(closeShareModal, 900);
-                            })
-                            .catch(function (err) {
-                                shareModalStatus.textContent = err.message || 'Could not share this post.';
-                                shareModalStatus.hidden = false;
-                            });
+                    var row = document.createElement('label');
+                    row.className = 'forward-modal-item feed-share-target';
+                    row.dataset.name = t.name.toLowerCase();
+                    var box = document.createElement('input');
+                    box.type = 'checkbox';
+                    box.value = t.id;
+                    box.addEventListener('change', function () {
+                        if (box.checked && selectedTargetIds().length > MAX_SHARE_RECIPIENTS) {
+                            box.checked = false;
+                            showShareStatus('You can send a post to at most ' + MAX_SHARE_RECIPIENTS + ' people at once.');
+                        }
+                        refreshSendButton();
                     });
-                    shareModalList.appendChild(item);
+                    var name = document.createElement('span');
+                    name.textContent = t.name;
+                    row.appendChild(box);
+                    row.appendChild(name);
+                    shareModalList.appendChild(row);
                 });
+                shareSendBtn.hidden = false;
+                refreshSendButton();
             }
             shareModal.hidden = false;
         }
+
+        if (shareFilter) shareFilter.addEventListener('input', function () {
+            var q = shareFilter.value.trim().toLowerCase();
+            shareModalList.querySelectorAll('.feed-share-target').forEach(function (row) {
+                row.hidden = q && row.dataset.name.indexOf(q) === -1;
+            });
+        });
+
+        if (repostAudienceSwitch) repostAudienceSwitch.addEventListener('click', function (evt) {
+            var pill = evt.target.closest('.tab-pill');
+            if (pill) setRepostAudience(pill.dataset.audience);
+        });
+
+        if (repostBtn) repostBtn.addEventListener('click', function () {
+            repostBtn.disabled = true;
+            post('/posts/' + sharePostId + '/repost/',
+                'body=' + encodeURIComponent(repostBody.value.trim()) + '&audience=' + encodeURIComponent(repostAudience))
+                .then(function (data) {
+                    showShareStatus(data.approval_status === 'pending'
+                        ? 'Reposted. It will appear publicly once reviewed.'
+                        : 'Reposted to your feed.');
+                    setTimeout(function () { window.location.reload(); }, 900);
+                })
+                .catch(function (err) { showShareStatus(err.message || 'Could not repost this post.'); })
+                .finally(function () { repostBtn.disabled = false; });
+        });
+
+        if (shareSendBtn) shareSendBtn.addEventListener('click', function () {
+            var ids = selectedTargetIds();
+            if (!ids.length) return;
+            var body = ids.map(function (id) { return 'user_id=' + encodeURIComponent(id); }).join('&');
+            shareSendBtn.disabled = true;
+            post('/posts/' + sharePostId + '/share/', body)
+                .then(function (data) {
+                    showShareStatus('Sent to ' + data.shared_with + (data.shared_with === 1 ? ' person.' : ' people.'));
+                    setTimeout(closeShareModal, 900);
+                })
+                .catch(function (err) {
+                    showShareStatus(err.message || 'Could not share this post.');
+                    refreshSendButton();
+                });
+        });
+
         if (shareModalCancel) shareModalCancel.addEventListener('click', closeShareModal);
         if (shareModal) shareModal.addEventListener('click', function (e) {
             if (e.target === shareModal) closeShareModal();
@@ -483,7 +577,7 @@
             }
 
             if (action === 'share') {
-                openShareModal(postId);
+                openShareModal(article);
             }
         });
     });

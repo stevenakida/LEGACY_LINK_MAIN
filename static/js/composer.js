@@ -34,7 +34,7 @@
                 audienceSwitch.querySelectorAll('.tab-pill').forEach(function (p) {
                     p.classList.toggle('on', p === pill);
                 });
-                if (audienceHint) audienceHint.hidden = selectedAudience !== 'public';
+                if (audienceHint) audienceHint.textContent = pill.dataset.hint || '';
             });
         }
 

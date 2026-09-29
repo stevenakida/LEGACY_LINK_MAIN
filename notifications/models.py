@@ -53,6 +53,7 @@ class Notification(models.Model):
         POST_REJECTED = 'post_rejected', 'Post rejected'
         POST_LIKED = 'post_liked', 'Post liked'
         POST_COMMENTED = 'post_commented', 'Post commented'
+        POST_REPOSTED = 'post_reposted', 'Post reposted'
         NEW_MESSAGE = 'new_message', 'New message'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

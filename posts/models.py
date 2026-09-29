@@ -6,8 +6,8 @@ from django.db import models
 
 class Post(models.Model):
     """Home feed post (Phase 3 of the media/posts initiative). Text + at
-    most one image, three audiences per the Phase 0 pilot spec: My
-    Connections / School-or-Cohort / Public. Public posts require admin
+    most one image, four audiences: My Connections / My Cohort (same school
+    and year) / My School (same school, any year) / Public. Public posts require admin
     approval before anyone but the author can see them, gated behind
     settings.FEATURE_PUBLIC_POST_REVIEW_REQUIRED (off by default as of
     2026-09-04 — see posts.views.create_post) — see ApprovalStatus and
@@ -18,7 +18,8 @@ class Post(models.Model):
 
     class Audience(models.TextChoices):
         CONNECTIONS = 'connections', 'My Connections'
-        COHORT = 'cohort', 'School / Cohort'
+        COHORT = 'cohort', 'My Cohort'
+        SCHOOL = 'school', 'My School'
         PUBLIC = 'public', 'Public'
 
     class ApprovalStatus(models.TextChoices):
@@ -38,6 +39,14 @@ class Post(models.Model):
     )
     audience = models.CharField(
         max_length=20, choices=Audience.choices, default=Audience.CONNECTIONS
+    )
+    # A repost points at the root post, never at another repost. Only Public
+    # posts can be reposted (see posts.views.repost_post). SET_NULL so deleting
+    # the original leaves the repost behind, shown as "no longer available" —
+    # is_repost is what still marks it as a repost once reposted_from is gone.
+    is_repost = models.BooleanField(default=False)
+    reposted_from = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='reposts'
     )
     # Only meaningful for audience=PUBLIC (see posts.views.create_post,
     # which sets PENDING there only when FEATURE_PUBLIC_POST_REVIEW_REQUIRED

@@ -18,6 +18,9 @@ from .models import Post, PostComment, PostHiddenFor, PostLike
 
 FEED_PAGE_SIZE = 20
 
+# Approval states that don't hide a post from its audience.
+NOT_HELD = [Post.ApprovalStatus.NOT_REQUIRED, Post.ApprovalStatus.APPROVED]
+
 
 def _accepted_connection_ids(user):
     """IDs of users `user` has an accepted connection with, via the
@@ -79,14 +82,32 @@ def _visible_posts_queryset(viewer):
     absent from the feed listing."""
     connection_ids = _accepted_connection_ids(viewer)
     cohort_ids = _cohort_author_ids(viewer)
+    # Subquery rather than an in-memory ID set: a whole school's alumni can be
+    # far larger than one cohort.
+    schoolmates = viewer.schoolmates_queryset().values('id')
     blocked_ids = UserRelationshipOverride.blocked_partner_ids(viewer)
-    not_held = [Post.ApprovalStatus.NOT_REQUIRED, Post.ApprovalStatus.APPROVED]
     return Post.objects.filter(
         Q(author=viewer)
-        | Q(audience=Post.Audience.CONNECTIONS, author_id__in=connection_ids, approval_status__in=not_held)
-        | Q(audience=Post.Audience.COHORT, author_id__in=cohort_ids, approval_status__in=not_held)
-        | Q(audience=Post.Audience.PUBLIC, approval_status__in=not_held)
+        | Q(audience=Post.Audience.CONNECTIONS, author_id__in=connection_ids, approval_status__in=NOT_HELD)
+        | Q(audience=Post.Audience.COHORT, author_id__in=cohort_ids, approval_status__in=NOT_HELD)
+        | Q(audience=Post.Audience.SCHOOL, author_id__in=schoolmates, approval_status__in=NOT_HELD)
+        | Q(audience=Post.Audience.PUBLIC, approval_status__in=NOT_HELD)
     ).exclude(author_id__in=blocked_ids).select_related('author', 'media_asset')
+
+
+def _repost_root(post):
+    """The post a Repost action on `post` would actually repost: the original
+    for a repost (reposts always point at the root), the post itself otherwise.
+    None when a repost's original has been deleted."""
+    return post.reposted_from if post.is_repost else post
+
+
+def _is_repostable(root):
+    return (
+        root is not None
+        and root.audience == Post.Audience.PUBLIC
+        and root.approval_status in NOT_HELD
+    )
 
 
 def get_feed_for_user(user, limit=FEED_PAGE_SIZE):
@@ -102,14 +123,25 @@ def get_feed_for_user(user, limit=FEED_PAGE_SIZE):
         _visible_posts_queryset(user)
         .exclude(hidden_for__user=user)
         .exclude(author_id__in=muted_ids)
+        .select_related('reposted_from__author', 'reposted_from__media_asset')
         .annotate(like_count=Count('likes', distinct=True), comment_count=Count('comments', distinct=True))
         [:limit]
     )
     liked_post_ids = set(
         PostLike.objects.filter(user=user, post_id__in=[p.id for p in posts]).values_list('post_id', flat=True)
     )
+    # A repost only embeds its original while the viewer may still see it
+    # (the original can later be held by an admin, or its author may block
+    # the viewer) — the repost itself must never widen the original's reach.
+    original_ids = {p.reposted_from_id for p in posts if p.reposted_from_id}
+    visible_original_ids = set(
+        _visible_posts_queryset(user).filter(id__in=original_ids).values_list('id', flat=True)
+    ) if original_ids else set()
     for p in posts:
         p.is_liked_by_viewer = p.id in liked_post_ids
+        p.original_visible = p.reposted_from_id in visible_original_ids
+        root = _repost_root(p)
+        p.can_repost = _is_repostable(root) and (not p.is_repost or p.original_visible)
     return posts
 
 
@@ -194,6 +226,74 @@ def create_post(request):
     })
 
 
+def repost_post(request, post_id):
+    """POST /posts/<id>/repost/ — body (optional comment), audience. Creates a
+    new post on the requester's own feed that embeds the original. Only Public
+    posts can be reposted, so a repost can never carry a Connections/Cohort/
+    School post to people its author didn't choose. Reposting a repost reposts
+    its original."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    post = get_object_or_404(Post.objects.select_related('reposted_from'), pk=post_id)
+    if not can_view_post(request.user, post):
+        raise Http404('post not found')
+
+    root = _repost_root(post)
+    if root is None or not can_view_post(request.user, root):
+        return JsonResponse({'error': 'This post is no longer available.'}, status=400)
+    if not _is_repostable(root):
+        return JsonResponse({'error': 'Only public posts can be reposted.'}, status=400)
+
+    body = request.POST.get('body', '').strip()[:2000]
+    if not body and Post.objects.filter(author=request.user, reposted_from=root, body='').exists():
+        return JsonResponse({'error': "You've already reposted this."}, status=400)
+
+    audience = request.POST.get('audience', Post.Audience.CONNECTIONS)
+    if audience not in Post.Audience.values:
+        audience = Post.Audience.CONNECTIONS
+
+    if is_rate_limited(
+        request.user, 'create_post',
+        limit=settings.RATE_LIMIT_CREATE_POST_MAX,
+        window_seconds=settings.RATE_LIMIT_CREATE_POST_WINDOW_SECONDS,
+    ):
+        return JsonResponse({'error': "You're posting too quickly — please wait a bit before posting again."}, status=429)
+
+    # A plain repost adds nothing new, and the original was already cleared for
+    # Public, so only a repost that adds its own comment goes through review.
+    approval_status = (
+        Post.ApprovalStatus.PENDING
+        if audience == Post.Audience.PUBLIC and body and settings.FEATURE_PUBLIC_POST_REVIEW_REQUIRED
+        else Post.ApprovalStatus.NOT_REQUIRED
+    )
+
+    repost = Post.objects.create(
+        author=request.user,
+        body=body,
+        audience=audience,
+        approval_status=approval_status,
+        is_repost=True,
+        reposted_from=root,
+    )
+    if approval_status == Post.ApprovalStatus.PENDING:
+        ModerationHold.open_or_reopen(repost, ModerationHold.Reason.PUBLIC_AUDIENCE_REVIEW)
+
+    if root.author_id != request.user.id:
+        notify(
+            root.author, Notification.Verb.POST_REPOSTED, actor=request.user, target=root,
+            push_title=request.user.full_name, push_body='Reposted your post',
+        )
+
+    return JsonResponse({
+        'id': str(repost.id),
+        'audience': repost.audience,
+        'approval_status': repost.approval_status,
+    })
+
+
 def post_image(request, post_id):
     """GET /posts/<id>/image/ — the feed's <img src>. MediaAsset's own
     preview/download endpoints are owner-only by design (see that model's
@@ -243,7 +343,7 @@ def edit_post(request, post_id):
         raise Http404('post not found')
 
     body = request.POST.get('body', '').strip()[:2000]
-    if not body and not post.media_asset_id:
+    if not body and not post.media_asset_id and not post.is_repost:
         return JsonResponse({'error': 'A post needs text or a photo.'}, status=400)
 
     post.body = body

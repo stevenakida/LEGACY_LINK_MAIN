@@ -101,6 +101,33 @@ class SharePostTests(TestCase):
         message = Message.objects.get(conversation_id=response.json()['conversation_id'])
         self.assertEqual(message.attachment.media_asset_id, asset.id)
 
+    def test_share_to_several_connections_at_once(self):
+        carol = make_user('+255700000904', 'Carol')
+        connect(self.alice, carol)
+        self.client.force_login(self.alice)
+        response = self.client.post(
+            reverse('share_post', args=[self.post.id]), {'user_id': [str(self.bob.id), str(carol.id)]},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['shared_with'], 2)
+        for person in (self.bob, carol):
+            self.assertTrue(Message.objects.filter(
+                conversation__participants__user=person, sender=self.alice,
+            ).exists())
+
+    def test_one_non_connection_rejects_the_whole_share(self):
+        self.client.force_login(self.alice)
+        response = self.client.post(
+            reverse('share_post', args=[self.post.id]), {'user_id': [str(self.bob.id), str(self.stranger.id)]},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Message.objects.exists())
+
+    def test_share_needs_at_least_one_recipient(self):
+        self.client.force_login(self.alice)
+        response = self.client.post(reverse('share_post', args=[self.post.id]), {})
+        self.assertEqual(response.status_code, 400)
+
     def test_sharing_own_post_uses_the_my_post_wording(self):
         self.client.force_login(self.alice)
         response = self.client.post(reverse('share_post', args=[self.post.id]), {'user_id': str(self.bob.id)})

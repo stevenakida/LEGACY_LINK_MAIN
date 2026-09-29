@@ -495,6 +495,16 @@ a { color: inherit; }
 .feed-post-audience-badge { color: var(--teal); flex-shrink: 0; display: flex; }
 .feed-post-audience-badge .material-symbols-rounded { font-size: 1.1rem; }
 
+.feed-post-repost-label { display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.72rem; color: var(--muted); }
+.feed-post-repost-label .material-symbols-rounded { font-size: 0.95rem; }
+.feed-repost-embed { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.7rem 0.8rem; margin: 0.2rem 0 0.7rem; background: var(--card-soft); }
+.feed-repost-embed.is-unavailable { color: var(--muted); font-size: 0.82rem; font-style: italic; }
+.feed-repost-embed-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.45rem; flex-wrap: wrap; }
+.feed-repost-embed-head strong { font-size: 0.85rem; }
+.feed-repost-embed-avatar { width: 28px; height: 28px; font-size: 0.75rem; }
+.feed-repost-embed .feed-post-body { margin-bottom: 0.5rem; }
+.feed-repost-embed .feed-post-image { margin-bottom: 0; }
+
 .feed-post-pending { font-size: 0.78rem; color: var(--gold); background: rgba(232, 166, 60, 0.12); border: 1px solid rgba(232, 166, 60, 0.3); border-radius: var(--radius-sm); padding: 0.5rem 0.7rem; margin-bottom: 0.6rem; }
 .feed-post-pending.is-rejected { color: var(--danger-soft); background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3); }
 
@@ -711,6 +721,16 @@ a { color: inherit; }
 .forward-modal-item { background: var(--card-soft); border: 1px solid var(--border); color: var(--ink); text-align: left; padding: 0.65rem 0.9rem; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; font-size: 0.88rem; }
 .forward-modal-item:hover { background: rgba(232, 166, 60, 0.12); }
 .feed-share-modal-status { font-size: 0.78rem; color: var(--muted); margin: 0 0 0.6rem; text-align: center; }
+.feed-share-inner { max-height: 88vh; overflow-y: auto; }
+.feed-share-section { border-top: 1px solid var(--border); padding-top: 0.75rem; margin-bottom: 0.85rem; }
+.feed-share-section h4 { font-size: 0.82rem; font-weight: 700; color: var(--ink); margin: 0 0 0.55rem; }
+.feed-share-section .feed-audience-switch { margin: 0 0 0.65rem; }
+.feed-share-filter { width: 100%; font-family: inherit; font-size: 0.85rem; color: var(--ink); background: var(--card-soft); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.7rem; margin-bottom: 0.55rem; }
+.feed-share-list { max-height: 40vh; overflow-y: auto; margin-bottom: 0.65rem; }
+.feed-share-target { display: flex; align-items: center; gap: 0.6rem; }
+.feed-share-target[hidden] { display: none; }
+.feed-share-target input { width: 1.05rem; height: 1.05rem; accent-color: var(--gold); flex-shrink: 0; }
+#feed-share-send-btn:disabled, #feed-share-repost-btn:disabled { opacity: 0.55; cursor: default; }
 .chat-scroll-pad { height: 3.5rem; }
 
 /* ---------- report modal (reuses .forward-modal/.forward-modal-inner shell) ---------- */
@@ -792,6 +812,7 @@ a { color: inherit; }
 
 .ig-post-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-bottom: 0.5rem; }
 .ig-post-tile {
+    position: relative;
     aspect-ratio: 1 / 1; display: block; overflow: hidden;
     background: var(--card-soft); border: 1px solid var(--border);
     text-decoration: none;
@@ -801,6 +822,10 @@ a { color: inherit; }
     width: 100%; height: 100%; padding: 0.6rem;
     font-size: 0.7rem; line-height: 1.35; color: var(--muted);
     display: flex; align-items: center; overflow: hidden;
+}
+.ig-post-tile-repost {
+    position: absolute; top: 4px; right: 4px; font-size: 1rem; color: #fff;
+    background: rgba(0, 0, 0, 0.45); border-radius: 50%; padding: 2px;
 }
 
 /* ---------- settings (menu reached from profile's ☰ icon) ---------- */

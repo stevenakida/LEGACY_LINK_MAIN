@@ -285,6 +285,24 @@ class User(AbstractBaseUser, PermissionsMixin):
             return User.objects.none()
         return User.objects.filter(match).exclude(id=self.id)
 
+    def schoolmates_queryset(self):
+        """Other users who attended any of this user's schools, in any year and
+        at any level (the same institution can appear at different levels for
+        different people, so school IDs are matched across all four fields)."""
+        school_ids = [
+            sid for sid in (self.primary_school_id, self.secondary_school_id,
+                            self.high_school_id, self.tertiary_school_id)
+            if sid
+        ]
+        if not school_ids:
+            return User.objects.none()
+        return User.objects.filter(
+            models.Q(primary_school_id__in=school_ids)
+            | models.Q(secondary_school_id__in=school_ids)
+            | models.Q(high_school_id__in=school_ids)
+            | models.Q(tertiary_school_id__in=school_ids)
+        ).exclude(id=self.id)
+
     # Weights for the Identity Score (profile completion meter). Education is
     # split across the three school levels; together they total 35%.
     IDENTITY_SCORE_WEIGHTS = {

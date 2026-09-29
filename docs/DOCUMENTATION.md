@@ -442,6 +442,33 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-29: **"My School" post audience, reposts, and multi-person sharing.**
+  Posts now have four audiences: Connections, Cohort (same school + same
+  year), **School** (anyone who attended any of the author's schools, any
+  year, at any level — `User.schoolmates_queryset`), Public. The composer
+  explains who will see each choice. **Repost**: `POST /posts/<id>/repost/`
+  (optional comment + audience) creates a post with `is_repost=True` and
+  `reposted_from` → the root post; only Public, non-held posts can be
+  reposted, so a repost never widens a restricted post's reach. The feed
+  embeds the original only while the viewer can still see it (else "no
+  longer available"); a plain repost of an approved Public post skips review,
+  one with its own comment follows `FEATURE_PUBLIC_POST_REVIEW_REQUIRED`;
+  one plain repost per person per post; the original author gets a
+  `post_reposted` notification. **Share → Send in a message** now takes up to
+  20 connections at once (`share_post` accepts repeated `user_id`).
+- 2026-09-29: **Google sign-in live in browsers, hidden in the Android app.**
+  Google OAuth configured in production (client "LegacyLink web"). The
+  button is only rendered when OAuth is configured and not inside Android
+  System WebView (the app hands `accounts.google.com` to the system browser,
+  so the callback loses the app's session). In-app Google sign-in is future
+  work.
+- 2026-09-28: **Google Safe Browsing "Deceptive pages" flag resolved.** Likely
+  cause: the "Continue with Google" link was live while OAuth wasn't
+  configured, so it bounced back to `/login/` (looks like a fake Google
+  sign-in). Also closed an unrelated hole: `User.avatar` accepted any file
+  type (now Pillow-validated JPEG/PNG/WEBP, max 8MB; read-only
+  `audit_avatar_files` command found nothing malicious in prod).
+
 - 2026-09-22: **Home top-nav logo replaced and enlarged.** Old logo
   (`LegacyLink_Africa_logo_transparent.png`) was near-white and nearly
   invisible in light mode. Replaced with a new network-node wordmark in two

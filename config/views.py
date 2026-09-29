@@ -561,7 +561,7 @@ def profile(request):
     else:
         trust_label = 'Getting Started'
 
-    own_posts = Post.objects.filter(author=user).select_related('media_asset').order_by('-created_at')
+    own_posts = Post.objects.filter(author=user).select_related('media_asset', 'reposted_from').order_by('-created_at')
 
     return render(request, 'profile.html', {
         'user': user,
@@ -1059,6 +1059,7 @@ def onboarding(request):
 
 MESSAGES_PAGE_SIZE = 30
 SEND_RATE_LIMIT = 20  # messages per user per rolling minute
+SHARE_POST_MAX_RECIPIENTS = 20
 
 
 def _has_accepted_connection(user_a, user_b):
@@ -1434,8 +1435,9 @@ def messages_forward(request, message_id):
 
 
 def share_post(request, post_id):
-    """POST /posts/<id>/share/ — body: user_id. Sends the post as a chat
-    message to one of the requester's accepted connections (Instagram's
+    """POST /posts/<id>/share/ — body: user_id (repeatable, up to
+    SHARE_POST_MAX_RECIPIENTS). Sends the post as a chat message to each of
+    the chosen accepted connections (Instagram's
     "send in a DM" pattern) rather than a public repost, so a post's
     audience rules (see posts.views._visible_posts_queryset) are never
     bypassed by the act of sharing — those rules govern who the ORIGINAL
@@ -1455,44 +1457,64 @@ def share_post(request, post_id):
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
 
-    post = get_object_or_404(Post.objects.select_related('author', 'media_asset'), pk=post_id)
+    post = get_object_or_404(Post.objects.select_related('author', 'media_asset', 'reposted_from__author', 'reposted_from__media_asset'), pk=post_id)
     if not can_view_post(request.user, post):
         raise Http404('post not found')
 
+    # Sharing a repost sends the original it embeds, as long as the sharer can
+    # still see that original.
+    if post.is_repost and post.reposted_from is not None and can_view_post(request.user, post.reposted_from):
+        post = post.reposted_from
+
+    raw_ids = [uid.strip() for uid in request.POST.getlist('user_id') if uid.strip()]
+    if not raw_ids:
+        return JsonResponse({'error': 'Choose at least one connection.'}, status=400)
+    if len(raw_ids) > SHARE_POST_MAX_RECIPIENTS:
+        return JsonResponse({'error': f'You can send a post to at most {SHARE_POST_MAX_RECIPIENTS} people at once.'}, status=400)
     try:
-        target_user = User.objects.get(id=request.POST.get('user_id', '').strip())
-    except (User.DoesNotExist, ValueError):
+        targets = list(User.objects.filter(id__in=raw_ids, is_active=True))
+    except ValidationError:
         return JsonResponse({'error': 'User not found'}, status=404)
-
-    if not _has_accepted_connection(request.user, target_user):
+    if len(targets) != len(set(raw_ids)):
+        return JsonResponse({'error': 'User not found'}, status=404)
+    if not all(_has_accepted_connection(request.user, t) for t in targets):
         return JsonResponse({'error': 'You can only share posts with accepted connections.'}, status=400)
-
-    key = Conversation.direct_key_for(request.user, target_user)
-    conversation, created = Conversation.objects.get_or_create(
-        direct_key=key, defaults={'type': Conversation.ConversationType.DIRECT}
-    )
-    if created:
-        ConversationMember.objects.create(conversation=conversation, user=request.user)
-        ConversationMember.objects.create(conversation=conversation, user=target_user)
 
     if post.author_id == request.user.id:
         prefix = 'Shared my post:'
     else:
         prefix = f"Shared {post.author.full_name}'s post:"
     body = f"{prefix}\n\n{post.body}" if post.body else prefix
-    message = ChatMessage.objects.create(conversation=conversation, sender=request.user, body=body[:4000])
+    attach_media = post.media_asset_id is not None and post.media_asset.is_downloadable
 
+    conversation_ids = []
     image_url = None
-    if post.media_asset_id is not None and post.media_asset.is_downloadable:
-        MessageAttachment.objects.create(message=message, media_asset=post.media_asset)
-        image_url = reverse('message_attachment_image', kwargs={'message_id': message.id})
+    for target_user in targets:
+        key = Conversation.direct_key_for(request.user, target_user)
+        conversation, created = Conversation.objects.get_or_create(
+            direct_key=key, defaults={'type': Conversation.ConversationType.DIRECT}
+        )
+        if created:
+            ConversationMember.objects.create(conversation=conversation, user=request.user)
+            ConversationMember.objects.create(conversation=conversation, user=target_user)
 
-    notify(
-        target_user, Notification.Verb.NEW_MESSAGE, actor=request.user, target=message,
-        push_title=request.user.full_name, push_body=message.body[:120] or 'Shared a post',
-    )
+        message = ChatMessage.objects.create(conversation=conversation, sender=request.user, body=body[:4000])
+        if attach_media:
+            MessageAttachment.objects.create(message=message, media_asset=post.media_asset)
+            image_url = image_url or reverse('message_attachment_image', kwargs={'message_id': message.id})
 
-    return JsonResponse({'ok': True, 'conversation_id': str(conversation.id), 'image_url': image_url})
+        notify(
+            target_user, Notification.Verb.NEW_MESSAGE, actor=request.user, target=message,
+            push_title=request.user.full_name, push_body=message.body[:120] or 'Shared a post',
+        )
+        conversation_ids.append(str(conversation.id))
+
+    return JsonResponse({
+        'ok': True,
+        'shared_with': len(targets),
+        'conversation_id': conversation_ids[0],
+        'image_url': image_url,
+    })
 
 
 def _get_authorized_attachment(request, message_id):

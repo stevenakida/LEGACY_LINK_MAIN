@@ -147,6 +147,45 @@ class CohortAudienceTests(TestCase):
         self.assertNotIn(post, feed)
 
 
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False)
+class SchoolAudienceTests(TestCase):
+    def setUp(self):
+        self.school = make_school()
+        self.other_school = make_school('Other Secondary')
+        self.alice = make_user('+255700000151', 'Alice', secondary_school=self.school, secondary_completion_year=2015)
+        # Same school, different year: a schoolmate but not a cohort-mate.
+        self.carol = make_user('+255700000152', 'Carol', secondary_school=self.school, secondary_completion_year=2019)
+        # Same institution recorded at a different level still counts.
+        self.dan = make_user('+255700000153', 'Dan', high_school=self.school, high_school_completion_year=2010)
+        self.erin = make_user('+255700000154', 'Erin', secondary_school=self.other_school, secondary_completion_year=2015)
+        self.nobody = make_user('+255700000155', 'No School')
+        self.post = Post.objects.create(author=self.alice, body='school news', audience=Post.Audience.SCHOOL)
+
+    def test_visible_to_schoolmate_from_a_different_year(self):
+        self.assertIn(self.post, get_feed_for_user(self.carol))
+
+    def test_visible_when_the_school_is_recorded_at_another_level(self):
+        self.assertIn(self.post, get_feed_for_user(self.dan))
+
+    def test_not_visible_to_another_school_or_no_school(self):
+        self.assertNotIn(self.post, get_feed_for_user(self.erin))
+        self.assertNotIn(self.post, get_feed_for_user(self.nobody))
+
+    def test_cohort_post_still_needs_the_same_year(self):
+        cohort_post = Post.objects.create(author=self.alice, body='class of 2015', audience=Post.Audience.COHORT)
+        self.assertNotIn(cohort_post, get_feed_for_user(self.carol))
+
+    def test_create_post_accepts_school_audience(self):
+        self.client.force_login(self.alice)
+        response = self.client.post(reverse('create_post'), {'body': 'hi school', 'audience': 'school'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['audience'], 'school')
+
+    def test_composer_offers_the_school_choice(self):
+        self.client.force_login(self.alice)
+        self.assertContains(self.client.get(reverse('dashboard')), 'data-audience="school"')
+
+
 @override_settings(MEDIA_ASSETS_S3_ENABLED=False, FEATURE_PUBLIC_POST_REVIEW_REQUIRED=True)
 class PublicAudienceApprovalTests(TestCase):
     """The review-required mechanism itself (admin approve/reject, the
@@ -920,3 +959,91 @@ class CommentRateLimitTests(TestCase):
         response = self.client.post(reverse('add_post_comment', args=[self.post.id]), {'body': 'one too many'})
         self.assertEqual(response.status_code, 429)
         self.assertEqual(PostComment.objects.count(), 2)
+
+
+@override_settings(MEDIA_ASSETS_S3_ENABLED=False, FEATURE_PUBLIC_POST_REVIEW_REQUIRED=False)
+class RepostTests(TestCase):
+    def setUp(self):
+        self.author = make_user('+255700000961', 'Author')
+        self.reposter = make_user('+255700000962', 'Reposter')
+        self.friend = make_user('+255700000963', 'Friend of reposter')
+        connect(self.reposter, self.friend)
+        self.public_post = Post.objects.create(author=self.author, body='big news', audience=Post.Audience.PUBLIC)
+        self.client.force_login(self.reposter)
+
+    def repost(self, post, **data):
+        return self.client.post(reverse('repost_post', args=[post.id]), data)
+
+    def test_repost_of_a_public_post_lands_in_the_chosen_audience(self):
+        response = self.repost(self.public_post, body='worth reading', audience='connections')
+        self.assertEqual(response.status_code, 200)
+        repost = Post.objects.get(id=response.json()['id'])
+        self.assertTrue(repost.is_repost)
+        self.assertEqual(repost.reposted_from, self.public_post)
+        self.assertEqual(repost.author, self.reposter)
+        self.assertIn(repost, get_feed_for_user(self.friend))
+
+    def test_repost_notifies_the_original_author(self):
+        self.repost(self.public_post, audience='connections')
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.author, verb=Notification.Verb.POST_REPOSTED, actor=self.reposter,
+        ).exists())
+
+    def test_non_public_posts_cannot_be_reposted(self):
+        for audience in (Post.Audience.CONNECTIONS, Post.Audience.COHORT, Post.Audience.SCHOOL):
+            post = Post.objects.create(author=self.reposter, body='limited', audience=audience)
+            response = self.repost(post, audience='public')
+            self.assertEqual(response.status_code, 400, audience)
+        self.assertFalse(Post.objects.filter(is_repost=True).exists())
+
+    def test_pending_public_post_cannot_be_reposted(self):
+        pending = Post.objects.create(
+            author=self.reposter, body='waiting', audience=Post.Audience.PUBLIC,
+            approval_status=Post.ApprovalStatus.PENDING,
+        )
+        self.assertEqual(self.repost(pending).status_code, 400)
+
+    def test_reposting_a_repost_points_at_the_original(self):
+        first = Post.objects.get(id=self.repost(self.public_post, audience='public').json()['id'])
+        self.client.force_login(self.friend)
+        second_id = self.client.post(reverse('repost_post', args=[first.id]), {'audience': 'connections'}).json()['id']
+        self.assertEqual(Post.objects.get(id=second_id).reposted_from, self.public_post)
+
+    def test_a_plain_repost_can_only_be_made_once(self):
+        self.assertEqual(self.repost(self.public_post).status_code, 200)
+        self.assertEqual(self.repost(self.public_post).status_code, 400)
+        self.assertEqual(self.repost(self.public_post, body='now with a comment').status_code, 200)
+
+    @override_settings(FEATURE_PUBLIC_POST_REVIEW_REQUIRED=True)
+    def test_public_repost_is_reviewed_only_when_it_adds_a_comment(self):
+        plain = self.repost(self.public_post, audience='public').json()
+        commented = self.repost(self.public_post, body='my take', audience='public').json()
+        self.assertEqual(plain['approval_status'], Post.ApprovalStatus.NOT_REQUIRED)
+        self.assertEqual(commented['approval_status'], Post.ApprovalStatus.PENDING)
+
+    def test_feed_embeds_the_original_and_marks_it_unavailable_once_deleted(self):
+        repost = Post.objects.get(id=self.repost(self.public_post, audience='connections').json()['id'])
+        feed_repost = next(p for p in get_feed_for_user(self.friend) if p.id == repost.id)
+        self.assertTrue(feed_repost.original_visible)
+        self.assertTrue(feed_repost.can_repost)
+
+        self.public_post.delete()
+        feed_repost = next(p for p in get_feed_for_user(self.friend) if p.id == repost.id)
+        self.assertFalse(feed_repost.original_visible)
+        self.assertFalse(feed_repost.can_repost)
+        self.client.force_login(self.friend)
+        self.assertContains(self.client.get(reverse('dashboard')), 'This post is no longer available.')
+
+    def test_original_hidden_from_a_viewer_the_author_blocked(self):
+        repost = Post.objects.get(id=self.repost(self.public_post, audience='connections').json()['id'])
+        UserRelationshipOverride.objects.create(
+            actor=self.author, target=self.friend, type=UserRelationshipOverride.Type.BLOCK,
+        )
+        feed_repost = next(p for p in get_feed_for_user(self.friend) if p.id == repost.id)
+        self.assertFalse(feed_repost.original_visible)
+
+    def test_share_menu_only_offers_repost_for_public_posts(self):
+        Post.objects.create(author=self.friend, body='just us', audience=Post.Audience.CONNECTIONS)
+        html = self.client.get(reverse('dashboard')).content.decode()
+        self.assertIn(f'id="feed-post-{self.public_post.id}"', html)
+        self.assertEqual(html.count('data-can-repost="1"'), 1)

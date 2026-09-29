@@ -116,6 +116,18 @@ msgstr "Hadharani"
 msgid "Public posts are reviewed before everyone can see them."
 msgstr "Machapisho ya hadharani hukaguliwa kabla kila mtu hajaweza kuyaona."
 
+msgid "Only your connections will see this."
+msgstr "Watu uliounganishwa nao pekee ndio wataona hili."
+
+msgid "Your classmates (same school, same year) will see this."
+msgstr "Wanafunzi wenzako (shule moja, mwaka mmoja) wataona hili."
+
+msgid "Everyone from your schools, any year, will see this."
+msgstr "Kila mtu kutoka shule zako, mwaka wowote, ataona hili."
+
+msgid "Everyone on LegacyLink can see this. Public posts are reviewed first."
+msgstr "Kila mtu kwenye LegacyLink anaweza kuona hili. Machapisho ya hadharani hukaguliwa kwanza."
+
 msgid "Pending review — only you can see this until it's approved."
 msgstr "Inasubiri ukaguzi — ni wewe pekee unaweza kuona hadi ithibitishwe."
 

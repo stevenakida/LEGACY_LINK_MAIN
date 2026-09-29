@@ -90,12 +90,17 @@
         <button type="button" class="feed-composer-photo-remove" id="post-photo-remove" aria-label="{% trans 'Remove photo' %}">✕</button>
     </div>
 
+    {% trans "Only your connections will see this." as hint_connections %}
+    {% trans "Your classmates (same school, same year) will see this." as hint_cohort %}
+    {% trans "Everyone from your schools, any year, will see this." as hint_school %}
+    {% trans "Everyone on LegacyLink can see this. Public posts are reviewed first." as hint_public %}
     <div class="tab-switch feed-audience-switch" id="post-audience-switch">
-        <button type="button" class="tab-pill on" data-audience="connections">{% trans "Connections" %}</button>
-        <button type="button" class="tab-pill" data-audience="cohort">{% trans "Cohort" %}</button>
-        <button type="button" class="tab-pill" data-audience="public">{% trans "Public" %}</button>
+        <button type="button" class="tab-pill on" data-audience="connections" data-hint="{{ hint_connections }}">{% trans "Connections" %}</button>
+        <button type="button" class="tab-pill" data-audience="cohort" data-hint="{{ hint_cohort }}">{% trans "Cohort" %}</button>
+        <button type="button" class="tab-pill" data-audience="school" data-hint="{{ hint_school }}">{% trans "School" %}</button>
+        <button type="button" class="tab-pill" data-audience="public" data-hint="{{ hint_public }}">{% trans "Public" %}</button>
     </div>
-    <p class="feed-composer-hint" id="post-audience-hint" hidden>{% trans "Public posts are reviewed before everyone can see them." %}</p>
+    <p class="feed-composer-hint" id="post-audience-hint">{{ hint_connections }}</p>
 
     <p class="feed-composer-error" id="post-error" hidden></p>
     <div class="feed-composer-actions">
@@ -112,6 +117,7 @@
     {% for post in feed_posts %}
         <article class="card feed-post" id="feed-post-{{ post.id }}" data-post-id="{{ post.id }}"
                  data-is-author="{% if post.author_id == user.id %}1{% else %}0{% endif %}"
+                 data-can-repost="{{ post.can_repost|yesno:'1,0' }}"
                  data-liked="{{ post.is_liked_by_viewer|yesno:'1,0' }}"
                  data-like-count="{{ post.like_count }}" data-comment-count="{{ post.comment_count }}">
             <div class="feed-post-head">
@@ -124,12 +130,18 @@
                 </div>
                 <div class="feed-post-who">
                     <strong>{{ post.author.full_name }}</strong>
-                    {% if post.author.cohort_label %}<span class="feed-post-tag">{{ post.author.cohort_label }}</span>{% endif %}
+                    {% if post.is_repost %}
+                        <span class="feed-post-repost-label"><span class="material-symbols-rounded">repeat</span>{% trans "reposted" %}</span>
+                    {% elif post.author.cohort_label %}<span class="feed-post-tag">{{ post.author.cohort_label }}</span>{% endif %}
                     <span class="feed-post-time">{{ post.created_at|timesince }} {% trans "ago" %}{% if post.edited_at %} · {% trans "edited" %}{% endif %}</span>
                 </div>
                 <div class="feed-post-head-right">
                     {% if post.audience == 'cohort' %}
                         <span class="feed-post-audience-badge" title="{% trans 'Cohort' %}">
+                            <span class="material-symbols-rounded">groups</span>
+                        </span>
+                    {% elif post.audience == 'school' %}
+                        <span class="feed-post-audience-badge" title="{% trans 'School' %}">
                             <span class="material-symbols-rounded">school</span>
                         </span>
                     {% elif post.audience == 'public' %}
@@ -169,6 +181,31 @@
             <p class="feed-post-body" data-post-body{% if not post.body %} hidden{% endif %}>{{ post.body|urlize }}</p>
             {% if post.media_asset_id %}
                 <img class="feed-post-image" src="{% url 'post_image' post.id %}" alt="" loading="lazy" data-action="open-lightbox">
+            {% endif %}
+            {% if post.is_repost %}
+                {% if post.original_visible %}
+                    {% with original=post.reposted_from %}
+                    <div class="feed-repost-embed">
+                        <div class="feed-repost-embed-head">
+                            <div class="greeting-avatar feed-repost-embed-avatar">
+                                {% if original.author.avatar %}
+                                    <img src="{{ original.author.avatar.url }}" alt="{{ original.author.full_name }}">
+                                {% else %}
+                                    <span>{{ original.author.full_name|first }}</span>
+                                {% endif %}
+                            </div>
+                            <strong>{{ original.author.full_name }}</strong>
+                            <span class="feed-post-time">{{ original.created_at|timesince }} {% trans "ago" %}</span>
+                        </div>
+                        {% if original.body %}<p class="feed-post-body">{{ original.body|urlize }}</p>{% endif %}
+                        {% if original.media_asset_id %}
+                            <img class="feed-post-image" src="{% url 'post_image' original.id %}" alt="" loading="lazy" data-action="open-lightbox">
+                        {% endif %}
+                    </div>
+                    {% endwith %}
+                {% else %}
+                    <div class="feed-repost-embed is-unavailable">{% trans "This post is no longer available." %}</div>
+                {% endif %}
             {% endif %}
             <div class="feed-post-stats" data-post-stats {% if not post.like_count and not post.comment_count %}hidden{% endif %}>
                 <span class="feed-post-like-summary" data-like-summary {% if not post.like_count %}hidden{% endif %}></span>
@@ -324,9 +361,32 @@
 </div>
 
 <div id="feed-share-modal" class="forward-modal" hidden>
-    <div class="forward-modal-inner">
-        <h3>{% trans "Share to…" %}</h3>
-        <div id="feed-share-modal-list" class="forward-modal-list"></div>
+    <div class="forward-modal-inner feed-share-inner">
+        <h3>{% trans "Share post" %}</h3>
+
+        <section class="feed-share-section" id="feed-share-repost">
+            <h4>{% trans "Repost to your feed" %}</h4>
+            <div id="feed-share-repost-form">
+                <textarea id="feed-share-repost-body" class="report-modal-description" maxlength="2000"
+                    placeholder="{% trans 'Add your thoughts (optional)' %}"></textarea>
+                <div class="tab-switch feed-audience-switch" id="feed-share-repost-audience">
+                    <button type="button" class="tab-pill on" data-audience="connections">{% trans "Connections" %}</button>
+                    <button type="button" class="tab-pill" data-audience="cohort">{% trans "Cohort" %}</button>
+                    <button type="button" class="tab-pill" data-audience="school">{% trans "School" %}</button>
+                    <button type="button" class="tab-pill" data-audience="public">{% trans "Public" %}</button>
+                </div>
+                <button type="button" id="feed-share-repost-btn" class="btn btn-gold btn-full">{% trans "Repost" %}</button>
+            </div>
+            <p class="feed-composer-hint" id="feed-share-repost-unavailable" hidden>{% trans "Only public posts can be reposted." %}</p>
+        </section>
+
+        <section class="feed-share-section">
+            <h4>{% trans "Send in a message" %}</h4>
+            <input type="search" id="feed-share-filter" class="feed-share-filter" placeholder="{% trans 'Search connections' %}" hidden>
+            <div id="feed-share-modal-list" class="forward-modal-list feed-share-list"></div>
+            <button type="button" id="feed-share-send-btn" class="btn btn-gold btn-full" hidden disabled>{% trans "Send" %}</button>
+        </section>
+
         <p class="feed-share-modal-status" id="feed-share-modal-status" hidden></p>
         <button type="button" id="feed-share-modal-cancel" class="btn btn-line btn-full">{% trans "Cancel" %}</button>
     </div>
