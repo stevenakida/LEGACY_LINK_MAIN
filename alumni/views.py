@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import models
 from .models import School
+from .search import search_schools
 from .serializers import SchoolSerializer
 
 
@@ -11,17 +12,14 @@ class SchoolSearchView(generics.ListAPIView):
     serializer_class = SchoolSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        query = self.request.query_params.get('q', '').strip()
-        school_type = self.request.query_params.get('type', '').strip()
-        qs = School.objects.filter(is_active=True)
-        if school_type in dict(School.TYPE_CHOICES):
-            qs = qs.filter(school_type=school_type)
-        if query:
-            qs = qs.filter(name__icontains=query)
-        else:
-            return qs.none()
-        return qs.order_by('name')[:20]
+    def list(self, request, *args, **kwargs):
+        query = request.query_params.get('q', '').strip()
+        school_type = request.query_params.get('type', '').strip()
+        if not query:
+            return Response([])
+        if school_type not in dict(School.TYPE_CHOICES):
+            school_type = None
+        return Response(self.get_serializer(search_schools(query, school_type), many=True).data)
 
 
 class CompleteOnboardingView(APIView):

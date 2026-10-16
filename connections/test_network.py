@@ -340,7 +340,8 @@ class ConnectedTests(NetworkBase):
         card = self.cards()['Nina NoYear']
         self.assertEqual(card.match.reason_code, m.SAME_O_LEVEL)
         response = self.page('connected')
-        self.assertContains(response, 'Same O-Level')
+        self.assertContains(response, 'Schoolmate')
+        self.assertContains(response, 'O-Level')     # the level stays visible on the card line above the badge
         self.assertNotContains(response, 'Unknown school')
 
     def test_never_shows_unknown_school(self):

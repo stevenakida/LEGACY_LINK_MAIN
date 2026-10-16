@@ -21,6 +21,7 @@ from accounts.services import delete_account, dispatch_email_verification, mask_
 from accounts.tokens import email_verification_token
 from accounts.validators import validate_avatar_image
 from alumni.models import School
+from alumni.search import search_schools
 from analytics.services import record_event
 from connections.models import Connection, UserRelationshipOverride
 from connections.services import network_state
@@ -879,9 +880,7 @@ def school_search(request):
     if not query or school_type not in dict(School.TYPE_CHOICES):
         return JsonResponse({'results': []})
 
-    matches = School.objects.filter(
-        is_active=True, school_type=school_type, name__icontains=query
-    ).order_by('name')[:20]
+    matches = search_schools(query, school_type)
 
     results = [
         {

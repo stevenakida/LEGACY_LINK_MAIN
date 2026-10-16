@@ -442,6 +442,17 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-10-16: **School search + "Schoolmate" wording** (CEO checklist items 1/2/16, part 1).
+  School search (`alumni/search.py`, shared by `/schools/search/` and the mobile API)
+  now splits the query into words, drops filler words ("Secondary School", "Primary",
+  "High School") for school-level types, requires every remaining word in any order,
+  and ranks exact > whole-word > prefix > substring. The master list stores bare names
+  ("Arusha"), so typing the official "Arusha Secondary School" used to find nothing.
+  Universities keep every word. Same-institution/different-or-missing-year badges now
+  read **Schoolmate** (same year stays **Classmate**); reason codes are unchanged and
+  Swahili strings were added (native review pending). Not yet done from the same item:
+  aliases, a "my school isn't listed" request, and backfilling blank regions (5,024 of
+  5,964 O-Level rows have none, so the dropdown shows no location for them).
 - 2026-09-29: **Google Play prep (Android app + privacy policy).** Android
   (`legacy-link-android`): asks for POST_NOTIFICATIONS once the signed-in
   Home feed loads (Android 13+), creates the notification channel at start-up,

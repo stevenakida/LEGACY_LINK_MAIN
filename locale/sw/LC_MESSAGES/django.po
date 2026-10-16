@@ -151,3 +151,9 @@ msgstr "Hakuna matukio bado"
 
 msgid "Check back soon"
 msgstr "Rudi tena hivi karibuni"
+
+msgid "Classmate"
+msgstr "Mwanafunzi mwenzako"
+
+msgid "Schoolmate"
+msgstr "Mwanafunzi wa shule moja"

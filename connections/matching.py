@@ -54,13 +54,17 @@ SAME_A_LEVEL = 'SAME_A_LEVEL'
 SAME_UNIVERSITY = 'SAME_UNIVERSITY'
 SAME_SCHOOL = 'SAME_SCHOOL'
 
+# Same institution + level but a different or unknown year is a "Schoolmate"
+# (same year is a "Classmate"). The reason *codes* still distinguish the
+# level; the card already shows the school and level on the line above the
+# badge, so the badge itself doesn't repeat it.
 REASON_LABELS = {
     CLASSMATE: _('Classmate'),
-    SAME_PRIMARY: _('Same primary school'),
-    SAME_O_LEVEL: _('Same O-Level'),
-    SAME_A_LEVEL: _('Same A-Level'),
-    SAME_UNIVERSITY: _('Same university'),
-    SAME_SCHOOL: _('Same school'),
+    SAME_PRIMARY: _('Schoolmate'),
+    SAME_O_LEVEL: _('Schoolmate'),
+    SAME_A_LEVEL: _('Schoolmate'),
+    SAME_UNIVERSITY: _('Schoolmate'),
+    SAME_SCHOOL: _('Schoolmate'),
 }
 
 # Strength order from the Phase 7 spec: lower rank wins when several

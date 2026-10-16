@@ -83,6 +83,20 @@ class RecordMatchingRules(SimpleTestCase):
         order = [x.reason_code for x in m.match_records(mine, theirs).all_matches]
         self.assertEqual(order, [m.SAME_PRIMARY, m.SAME_O_LEVEL, m.SAME_A_LEVEL, m.SAME_UNIVERSITY])
 
+    def test_labels_are_classmate_for_same_year_and_schoolmate_otherwise(self):
+        # The CEO's scenario: Arusha Secondary 2004. Same year -> classmates,
+        # a different (or missing) year -> schoolmates, at every level.
+        mine = self.rec(m.O_LEVEL, 1, 2004)
+        for level in (m.PRIMARY, m.O_LEVEL, m.A_LEVEL, m.UNIVERSITY):
+            same_year = m.match_records([self.rec(level, 1, 2004)], [self.rec(level, 1, 2004)]).best
+            other_year = m.match_records([self.rec(level, 1, 2004)], [self.rec(level, 1, 2006)]).best
+            no_year = m.match_records([self.rec(level, 1, 2004)], [self.rec(level, 1, None)]).best
+            self.assertEqual(str(same_year.display_label), 'Classmate')
+            self.assertEqual(str(other_year.display_label), 'Schoolmate')
+            self.assertEqual(str(no_year.display_label), 'Schoolmate')
+        cross_level = m.match_records([mine], [self.rec(m.A_LEVEL, 1, 2006)]).best
+        self.assertEqual(str(cross_level.display_label), 'Schoolmate')
+
     def test_as_dict_is_structured_not_a_string(self):
         d = m.match_records([self.rec(m.O_LEVEL, 1, 2004, 'Arusha Secondary')],
                             [self.rec(m.O_LEVEL, 1, 2004)]).best.as_dict()
