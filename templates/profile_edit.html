@@ -19,6 +19,7 @@
     input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); background: var(--fill-subtle-strong); }
     textarea { resize: vertical; font-family: inherit; }
     .school-autocomplete { position: relative; }
+    .school-autocomplete-input { width: 100%; box-sizing: border-box; }
     .school-autocomplete-results {
         display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px;
         overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 8px; z-index: 30;
@@ -102,9 +103,14 @@
         <input type="text" name="company_name" id="id_company_name" placeholder="e.g., LegacyLink Africa" value="{{ user.company_name }}">
 
         <h3 class="section-h3">Educational Background</h3>
+        {% for r in pending_school_requests %}
+            <p class="pending-school-request" style="font-size:0.8rem;color:var(--muted,#94a3b8);margin:0 0 0.5rem;">
+                Reviewing your request to add &ldquo;{{ r.name }}&rdquo; ({{ r.get_school_type_display }}) &mdash; we&rsquo;ll fill it in and notify you.
+            </p>
+        {% endfor %}
 
         <label for="id_primary_school_input">Primary School</label>
-        <div class="school-autocomplete" data-type="primary" data-endpoint="{% url 'school_search' %}">
+        <div class="school-autocomplete" data-type="primary" data-endpoint="{% url 'school_search' %}" data-request-endpoint="{% url 'school_request' %}">
             <input type="text" class="school-autocomplete-input" id="id_primary_school_input" autocomplete="off"
                    placeholder="Start typing to search, then select an option."
                    value="{% if user.primary_school %}{{ user.primary_school.name }}{% if user.primary_school.region %} ({{ user.primary_school.region }}){% endif %}{% endif %}">
@@ -116,7 +122,7 @@
         <input type="number" name="primary_completion_year" id="id_primary_completion_year" min="1950" max="2030" placeholder="e.g., 2005" value="{{ user.primary_completion_year }}">
 
         <label for="id_secondary_school_input">Secondary School (O-Level)</label>
-        <div class="school-autocomplete" data-type="secondary" data-endpoint="{% url 'school_search' %}">
+        <div class="school-autocomplete" data-type="secondary" data-endpoint="{% url 'school_search' %}" data-request-endpoint="{% url 'school_request' %}">
             <input type="text" class="school-autocomplete-input" id="id_secondary_school_input" autocomplete="off"
                    placeholder="Start typing to search, then select an option."
                    value="{% if user.secondary_school %}{{ user.secondary_school.name }}{% if user.secondary_school.region %} ({{ user.secondary_school.region }}){% endif %}{% endif %}">
@@ -128,7 +134,7 @@
         <input type="number" name="secondary_completion_year" id="id_secondary_completion_year" min="1950" max="2030" placeholder="e.g., 2010" value="{{ user.secondary_completion_year }}">
 
         <label for="id_high_school_input">High School (A-Level)</label>
-        <div class="school-autocomplete" data-type="high_school" data-endpoint="{% url 'school_search' %}">
+        <div class="school-autocomplete" data-type="high_school" data-endpoint="{% url 'school_search' %}" data-request-endpoint="{% url 'school_request' %}">
             <input type="text" class="school-autocomplete-input" id="id_high_school_input" autocomplete="off"
                    placeholder="Start typing to search, then select an option."
                    value="{% if user.high_school %}{{ user.high_school.name }}{% if user.high_school.region %} ({{ user.high_school.region }}){% endif %}{% endif %}">
@@ -140,7 +146,7 @@
         <input type="number" name="high_school_completion_year" id="id_high_school_completion_year" min="1950" max="2030" placeholder="e.g., 2012" value="{{ user.high_school_completion_year }}">
 
         <label for="id_tertiary_school_input">University / Tertiary Institution</label>
-        <div class="school-autocomplete" data-type="university" data-endpoint="{% url 'school_search' %}">
+        <div class="school-autocomplete" data-type="university" data-endpoint="{% url 'school_search' %}" data-request-endpoint="{% url 'school_request' %}">
             <input type="text" class="school-autocomplete-input" id="id_tertiary_school_input" autocomplete="off"
                    placeholder="Start typing to search, then select an option."
                    value="{% if user.tertiary_school %}{{ user.tertiary_school.name }}{% if user.tertiary_school.region %} ({{ user.tertiary_school.region }}){% endif %}{% endif %}">

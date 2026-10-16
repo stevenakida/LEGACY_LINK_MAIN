@@ -442,6 +442,22 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-10-16: **School aliases + "My school isn't listed"** (CEO checklist item 16, part 2).
+  `alumni.SchoolAlias`: extra names a school is found by (acronyms, Swahili names,
+  spelling variants, former names); search matches them like the real name but always
+  shows/stores the canonical school, so an alias never creates a second row. 26 starting
+  aliases are seeded by migration `alumni.0005` (list in `alumni/alias_seed.py`, re-runnable
+  with `manage.py seed_school_aliases`); more are added inline on each school in the admin.
+  `alumni.SchoolRequest`: the autocomplete now ends every result list with "My school isn't
+  listed", opening a small form (name, region, district) -> `POST /schools/request/`.
+  Already-listed names (official wording, alias, same region) are refused with the match to
+  pick instead; 5 requests/day (`RATE_LIMIT_SCHOOL_REQUEST_*`). Admin (Alumni -> School
+  requests) has three actions: approve as a NEW school, approve as an EXISTING school (pick
+  it under "Resolved school"; the requested spelling becomes its alias), or reject. Approving
+  fills the requester's own school field if still empty and sends an in-app notification
+  (`school_request_approved/rejected`); pending requests show on Edit Profile. Also: school
+  inputs on Edit Profile are now full width (they cut off placeholders/long names).
+  Still to do from the same item: backfilling blank regions (5,024 of 5,964 O-Level rows).
 - 2026-10-16: **School search + "Schoolmate" wording** (CEO checklist items 1/2/16, part 1).
   School search (`alumni/search.py`, shared by `/schools/search/` and the mobile API)
   now splits the query into words, drops filler words ("Secondary School", "Primary",

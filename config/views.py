@@ -21,6 +21,7 @@ from accounts.services import delete_account, dispatch_email_verification, mask_
 from accounts.tokens import email_verification_token
 from accounts.validators import validate_avatar_image
 from alumni.models import School
+from alumni import services as school_services
 from alumni.search import search_schools
 from analytics.services import record_event
 from connections.models import Connection, UserRelationshipOverride
@@ -36,6 +37,7 @@ from messaging.models import (
     Conversation, ConversationMember, Message as ChatMessage, MessageAttachment, MessageHiddenFor,
 )
 from posts.models import Post
+from ratelimiting.services import is_rate_limited
 from posts.views import can_view_post, get_feed_for_user
 
 logger = logging.getLogger(__name__)
@@ -693,6 +695,9 @@ def profile_edit(request):
         'phone_number_value': phone_number_value,
         'email_value': email_value,
         'employment_status_choices': User.EMPLOYMENT_STATUS_CHOICES,
+        'pending_school_requests': list(
+            request.user.school_requests.filter(status='pending').order_by('created_at')
+        ),
         'active_tab': 'profile',
     })
 
@@ -892,6 +897,46 @@ def school_search(request):
         for s in matches
     ]
     return JsonResponse({'results': results})
+
+def school_request(request):
+    """POST /schools/request/ — the "my school isn't listed" form behind the
+    school autocomplete. Session-authenticated JSON, like school_search.
+    409 means the school is already on the list (the response carries the
+    matches so the form can offer them instead of creating a duplicate)."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        school_req, created = school_services.create_request(
+            request.user,
+            request.POST.get('school_type', '').strip(),
+            request.POST.get('name', ''),
+            request.POST.get('region', ''),
+            request.POST.get('district', ''),
+            rate_limited=lambda: is_rate_limited(
+                request.user, 'school_request',
+                limit=settings.RATE_LIMIT_SCHOOL_REQUEST_MAX,
+                window_seconds=settings.RATE_LIMIT_SCHOOL_REQUEST_WINDOW_SECONDS,
+            ),
+        )
+    except school_services.InvalidRequest as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+    except school_services.AlreadyListed as exc:
+        return JsonResponse({
+            'listed': True,
+            'matches': [
+                {'id': s.id, 'name': s.name, 'region': s.region, 'district': s.district}
+                for s in exc.matches[:5]
+            ],
+        }, status=409)
+    except school_services.RateLimited:
+        return JsonResponse(
+            {'error': "You've sent several requests today — please wait until tomorrow to send more."}, status=429
+        )
+    return JsonResponse({'ok': True, 'created': created, 'name': school_req.name})
+
 
 def submit_feedback(request):
     """POST /feedback/submit/ — session-authenticated JSON endpoint used by the

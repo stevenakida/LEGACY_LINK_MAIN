@@ -53,6 +53,8 @@ class Notification(models.Model):
         POST_REJECTED = 'post_rejected', 'Post rejected'
         POST_LIKED = 'post_liked', 'Post liked'
         POST_COMMENTED = 'post_commented', 'Post commented'
+        SCHOOL_REQUEST_APPROVED = 'school_request_approved', 'School request approved'
+        SCHOOL_REQUEST_REJECTED = 'school_request_rejected', 'School request rejected'
         POST_REPOSTED = 'post_reposted', 'Post reposted'
         NEW_MESSAGE = 'new_message', 'New message'
 

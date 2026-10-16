@@ -8,6 +8,7 @@ filler words are dropped for school-level types, every remaining word must
 appear in the name (any order), and results are ranked best-first."""
 import re
 
+from django.db.models import Q
 from django.db.models.functions import Length
 
 from .models import School
@@ -60,8 +61,20 @@ def search_schools(query, school_type=None, limit=DEFAULT_LIMIT):
     qs = School.objects.filter(is_active=True)
     if school_type:
         qs = qs.filter(school_type=school_type)
+    # A school matches when every word is in its own name, or every word is
+    # in one of its aliases (one Q so both words must hit the same alias).
+    name_q, alias_q = Q(), Q()
     for token in tokens:
-        qs = qs.filter(name__icontains=token)
-    candidates = list(qs.annotate(name_len=Length('name')).order_by('name_len', 'name')[:_CANDIDATE_CAP])
-    candidates.sort(key=lambda s: (_rank(s.name, tokens), len(s.name), s.name))
+        name_q &= Q(name__icontains=token)
+        alias_q &= Q(aliases__alias__icontains=token)
+    candidates = list(
+        qs.filter(name_q | alias_q).distinct()
+        .annotate(name_len=Length('name')).order_by('name_len', 'name')
+        .prefetch_related('aliases')[:_CANDIDATE_CAP]
+    )
+
+    def best_rank(school):
+        return min([_rank(school.name, tokens)] + [_rank(a.alias, tokens) for a in school.aliases.all()])
+
+    candidates.sort(key=lambda s: (best_rank(s), len(s.name), s.name))
     return candidates[:limit]

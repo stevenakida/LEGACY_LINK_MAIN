@@ -260,7 +260,7 @@
         <form method="post">
             {% csrf_token %}
             <label for="id_school_input">Select Your School (Secondary / O-Level)</label>
-            <div class="school-autocomplete" data-type="secondary" data-endpoint="{% url 'school_search' %}">
+            <div class="school-autocomplete" data-type="secondary" data-endpoint="{% url 'school_search' %}" data-request-endpoint="{% url 'school_request' %}">
                 <input type="text" class="school-autocomplete-input" id="id_school_input" autocomplete="off"
                        placeholder="Start typing to search, then select an option.">
                 <input type="hidden" class="school-autocomplete-hidden" name="school" id="id_school">

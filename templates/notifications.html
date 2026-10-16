@@ -20,6 +20,8 @@
                 <a href="{% url 'messages_inbox' %}" class="msg-row">
             {% elif notification.verb == 'post_liked' or notification.verb == 'post_commented' or notification.verb == 'post_reposted' %}
                 <a href="{% url 'dashboard' %}#feed-post-{{ notification.object_id }}" class="msg-row">
+            {% elif notification.verb == 'school_request_approved' %}
+                <a href="{% url 'profile_edit' %}" class="msg-row">
             {% else %}
                 <div class="msg-row">
             {% endif %}
@@ -50,11 +52,15 @@
                             {{ notification.actor.full_name }} commented on your post
                         {% elif notification.verb == 'post_reposted' %}
                             {{ notification.actor.full_name }} reposted your post
+                        {% elif notification.verb == 'school_request_approved' %}
+                            "{{ notification.target.name }}" is now on the school list
+                        {% elif notification.verb == 'school_request_rejected' %}
+                            We couldn't add "{{ notification.target.name }}" to the school list
                         {% endif %}
                         <span class="time">{{ notification.created_at|timesince }} ago</span>
                     </div>
                 </div>
-            {% if notification.verb == 'connection_request' or notification.verb == 'connection_accepted' or notification.verb == 'new_message' or notification.verb == 'post_liked' or notification.verb == 'post_commented' or notification.verb == 'post_reposted' %}
+            {% if notification.verb == 'connection_request' or notification.verb == 'connection_accepted' or notification.verb == 'new_message' or notification.verb == 'post_liked' or notification.verb == 'post_commented' or notification.verb == 'post_reposted' or notification.verb == 'school_request_approved' %}
                 </a>
             {% else %}
                 </div>
