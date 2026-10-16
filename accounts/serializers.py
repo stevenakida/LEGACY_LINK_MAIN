@@ -1,14 +1,30 @@
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from .models import User
 from .services import dispatch_email_verification
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=6)
+    # No separate min_length: the project's AUTH_PASSWORD_VALIDATORS (below)
+    # are the single rule, the same one the web form and password reset use.
+    password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
         fields = ['full_name', 'phone_or_email', 'password']
+
+    def validate_password(self, value):
+        identifier = self.initial_data.get('phone_or_email') or ''
+        candidate = User(
+            phone_or_email=identifier, full_name=self.initial_data.get('full_name') or '',
+            email=identifier if '@' in identifier else '',
+        )
+        try:
+            validate_password(value, user=candidate)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        return value
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)

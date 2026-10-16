@@ -442,6 +442,12 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-10-16: **Registration enforces the password rules** (found by an end-to-end QA
+  pass). The web sign-up form called `create_user` directly and never ran
+  `AUTH_PASSWORD_VALIDATORS`, so passwords like "123" were accepted, while the mobile API
+  used a separate 6-character rule. Both now use the project validators (8+ characters, not
+  common, not all digits, not too similar to the name or email), the reasons are shown on
+  the form, and what was typed (never the password) is kept after an error.
 - 2026-10-16: **School aliases + "My school isn't listed"** (CEO checklist item 16, part 2).
   `alumni.SchoolAlias`: extra names a school is found by (acronyms, Swahili names,
   spelling variants, former names); search matches them like the real name but always

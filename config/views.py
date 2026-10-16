@@ -347,10 +347,31 @@ def register(request):
         full_name = request.POST.get('full_name')
         password = request.POST.get('password')
         agree_terms = request.POST.get('agree_terms')
+        # Typed values come back after an error so the person only fixes what
+        # was wrong. The password is never echoed.
+        form_values = {
+            'submitted_full_name': full_name or '',
+            'submitted_phone_or_email': phone_or_email or '',
+        }
 
         if not agree_terms:
             messages.error(request, 'You must accept the Terms of Use, Privacy and Data Usage Policy to create an account.')
-            return render(request, 'register.html')
+            return render(request, 'register.html', form_values)
+
+        # The same rules as every other place a password is set (change and
+        # reset) -- registration used to skip them, so "123" was accepted.
+        if not password:
+            messages.error(request, 'Please choose a password.')
+            return render(request, 'register.html', form_values)
+        try:
+            validate_password(password, user=User(
+                phone_or_email=phone_or_email or '', full_name=full_name or '',
+                email=phone_or_email if '@' in (phone_or_email or '') else '',
+            ))
+        except ValidationError as exc:
+            for message in exc.messages:
+                messages.error(request, message)
+            return render(request, 'register.html', form_values)
 
         try:
             user = User.objects.create_user(phone_or_email, password, full_name=full_name)
@@ -358,7 +379,7 @@ def register(request):
             return redirect('dashboard')
         except Exception as e:
             messages.error(request, f'Registration failed: {str(e)}')
-            return render(request, 'register.html')
+            return render(request, 'register.html', form_values)
     return render(request, 'register.html')
 
 def google_login_start(request):
