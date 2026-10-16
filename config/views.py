@@ -25,7 +25,7 @@ from alumni import services as school_services
 from alumni.search import search_schools
 from analytics.services import record_event
 from connections.models import Connection, UserRelationshipOverride
-from connections.services import network_state
+from connections.services import home_suggestions, network_state
 from feedback.models import Feedback
 from opportunities.models import Opportunity, OpportunityInterest
 from media_assets import services as media_services
@@ -59,27 +59,6 @@ def _set_language_cookie(response, code):
         samesite=settings.LANGUAGE_COOKIE_SAMESITE,
     )
     return response
-
-
-def _annotate_connection_status(user, people):
-    """Attach a `.connection_status` ('none' / 'pending' / 'accepted' /
-    'declined') to each User instance in `people`, based on any existing
-    Connection with `user` — so templates can show Connect vs. Pending vs.
-    Connected instead of always offering to send a duplicate request."""
-    people = list(people)
-    if not people:
-        return people
-    ids = [p.id for p in people]
-    existing = Connection.objects.filter(
-        (Q(requester=user) & Q(receiver_id__in=ids)) | (Q(receiver=user) & Q(requester_id__in=ids))
-    )
-    status_map = {}
-    for c in existing:
-        other_id = c.receiver_id if c.requester_id == user.id else c.requester_id
-        status_map[other_id] = c.status
-    for p in people:
-        p.connection_status = status_map.get(p.id, 'none')
-    return people
 
 
 def _send_feedback_notification(subject, message, from_email, recipient_list, feedback_id):
@@ -452,12 +431,11 @@ def dashboard(request):
 
     user = request.user
 
-    # Exclude blocked users same as the Discover tab (connections()) — a
-    # blocked person shouldn't be suggested here either.
     blocked_ids = UserRelationshipOverride.blocked_partner_ids(user)
-    cohort_full_qs = user.cohort_queryset().exclude(id__in=blocked_ids)
-    cohort_count = cohort_full_qs.count()
-    cohort_users = _annotate_connection_status(user, cohort_full_qs[:4])
+
+    # "Suggested for you" is Discover's own candidate list (never anyone
+    # already connected, pending, declined, dismissed or blocked).
+    suggestions, suggestions_has_education = home_suggestions(user)
 
     # Same counts the Network tabs show (Phase 7): accepted connections, and
     # incoming requests only -- outgoing ones are not "pending" for this user.
@@ -500,8 +478,8 @@ def dashboard(request):
         'user': user,
         'connections_count': connections_count,
         'pending_count': pending_count,
-        'cohort_count': cohort_count,
-        'cohort_users': cohort_users,
+        'suggestions': suggestions,
+        'suggestions_has_education': suggestions_has_education,
         'identity_score': user.identity_score,
         'identity_score_suggestions': user.identity_score_suggestions[:4],
         'greeting': greeting,
@@ -594,7 +572,7 @@ def profile(request):
         'connections_count': connections_count,
         'cohort_count': user.cohort_queryset().count(),
         'posts_count': own_posts.count(),
-        # Grid is a plain slice, same pattern as Home's cohort_users[:4]/
+        # Grid is a plain slice, same pattern as Home's suggestions/
         # upcoming_events[:3] — no pagination this pass.
         'posts': own_posts[:30],
         'share_url': request.build_absolute_uri(f'/profile/{user.id}/'),

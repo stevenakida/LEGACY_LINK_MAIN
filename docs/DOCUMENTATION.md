@@ -442,6 +442,14 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-10-17: **Home "Suggested for you" no longer suggests people you know** (CEO checklist
+  item 6). Home had its own older matcher (classmates only) that listed existing connections
+  with a "Connected" tag. It now shows Discover's own candidates
+  (`connections.services.home_suggestions`): same matching and exclusions, so anyone already
+  connected, waiting on a reply, declined, dismissed, blocked or deactivated is never
+  suggested; classmates come first, then schoolmates (with the Classmate/Schoolmate label,
+  school and level); a request already sent shows "Request Sent"; at most 6 people, each
+  once. With a school but nobody new it says so instead of asking for a school again.
 - 2026-10-17: **"School Verified" now means verified** (CEO checklist item 8). The badge
   used to appear for anyone who typed a secondary school and year, and a second
   "Community Verified" badge for anyone with one connection -- neither checked anything.

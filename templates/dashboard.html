@@ -251,40 +251,29 @@
     <h2>{% trans "Suggested for you" %}</h2>
     <a href="/connections/?tab=discover">{% trans "See all" %}</a>
 </div>
-{% if cohort_users %}
+{% if suggestions %}
     <div class="suggested-scroller">
-        {% for person in cohort_users %}
+        {% for c in suggestions %}
             <div class="suggested-card">
-                <a href="{% url 'view_profile' person.id %}" class="profile-link" aria-label="{{ person.full_name }}">
+                <a href="{% url 'view_profile' c.user.id %}" class="profile-link" aria-label="{{ c.user.full_name }}">
                     <div class="suggested-avatar">
-                        {% if person.avatar %}
-                            <img src="{{ person.avatar.url }}" alt="{{ person.full_name }}">
+                        {% if c.user.avatar %}
+                            <img src="{{ c.user.avatar.url }}" alt="{{ c.user.full_name }}">
                         {% else %}
-                            <span>{{ person.full_name|first }}</span>
+                            <span>{{ c.user.full_name|first }}</span>
                         {% endif %}
                     </div>
                 </a>
-                <a href="{% url 'view_profile' person.id %}" class="profile-link"><strong>{{ person.full_name }}</strong></a>
+                <a href="{% url 'view_profile' c.user.id %}" class="profile-link"><strong>{{ c.user.full_name }}</strong></a>
                 <p>
-                    {% trans "School" as school_label %}
-                    {% if user.secondary_school and person.secondary_school == user.secondary_school and person.secondary_completion_year == user.secondary_completion_year %}
-                        {{ person.secondary_school.name }} · {{ person.secondary_completion_year }}
-                    {% elif user.high_school and person.high_school == user.high_school and person.high_school_completion_year == user.high_school_completion_year %}
-                        {{ person.high_school.name }} ({% trans "A-Level" %}) · {{ person.high_school_completion_year }}
-                    {% elif user.tertiary_school and person.tertiary_school == user.tertiary_school and person.tertiary_completion_year == user.tertiary_completion_year %}
-                        {{ person.tertiary_school.name }} · {{ person.tertiary_completion_year }}
-                    {% elif user.primary_school and person.primary_school == user.primary_school and person.primary_completion_year == user.primary_completion_year %}
-                        {{ person.primary_school.name }} ({% trans "Primary" %}) · {{ person.primary_completion_year }}
-                    {% else %}
-                        {{ person.secondary_school.name|default:school_label }}{% if person.secondary_completion_year %} · {{ person.secondary_completion_year }}{% endif %}
-                    {% endif %}
+                    {{ c.reason.institution_name }}<br>
+                    {{ c.reason.level_label }}{% if c.reason.cohort_year %} · {{ c.reason.cohort_year }}{% endif %}<br>
+                    <span class="mutual">{{ c.reason.display_label }}</span>
                 </p>
-                {% if person.connection_status == 'accepted' %}
-                    <span class="suggested-connect is-disabled">{% trans "Connected" %}</span>
-                {% elif person.connection_status == 'pending' %}
-                    <span class="suggested-connect is-disabled">{% trans "Pending" %}</span>
+                {% if c.request_sent %}
+                    <span class="suggested-connect is-disabled">{% trans "Request Sent" %}</span>
                 {% else %}
-                    <form method="post" action="{% url 'send_connection_web' person.id %}">
+                    <form method="post" action="{% url 'send_connection_web' c.user.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="next" value="{% url 'dashboard' %}">
                         <button type="submit" class="suggested-connect">{% trans "Connect" %}</button>
@@ -293,6 +282,8 @@
             </div>
         {% endfor %}
     </div>
+{% elif suggestions_has_education %}
+    <p class="suggested-empty">{% trans "No new people to suggest right now. Check Discover, or invite your classmates to join." %}</p>
 {% else %}
     <p class="suggested-empty">{% trans "Complete your school and graduation year to see classmate suggestions." %}</p>
 {% endif %}

@@ -427,6 +427,30 @@ def discover(user, level_filter='all', q='', preview_size=DISCOVER_PREVIEW_SIZE)
     return DiscoverResult(groups, bool(all_records), total, empty_context)
 
 
+HOME_SUGGESTION_LIMIT = 6
+
+
+def home_suggestions(user, limit=HOME_SUGGESTION_LIMIT):
+    """People for Home's "Suggested for you" row. These ARE Discover's
+    candidates -- same matching, same exclusions (anyone already connected,
+    waiting on a reply, declined, dismissed or blocked is never suggested,
+    and neither are deactivated accounts) -- strongest first: classmates,
+    then schoolmates, level by level. A person who matches at several levels
+    appears once. Returns (candidates, has_education); has_education lets
+    the page tell "add your school" apart from "nobody new right now"."""
+    result = discover(with_education(user), 'all', '', preview_size=limit)
+    picks, seen = [], set()
+    for group in result.groups:
+        for candidate in group.members:
+            if candidate.user.id in seen:
+                continue
+            seen.add(candidate.user.id)
+            picks.append(candidate)
+            if len(picks) >= limit:
+                return picks, result.has_education
+    return picks, result.has_education
+
+
 def discover_group_page(user, level_slug, institution_id, mode, q='', page=1):
     """One Discover group in full, paginated. Only groups that belong to the
     viewer's own education journey exist -- anything else returns None, so
