@@ -612,3 +612,20 @@ class GoogleLoginTests(TestCase):
         response = self._do_callback()
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/login/')
+
+
+class PrivacyPolicyPageTests(TestCase):
+    """The privacy policy is the URL given to Google Play, so it must stay
+    public and include what Play checks for: a contact, and how to delete
+    an account."""
+
+    def test_privacy_url_points_at_the_policy_section(self):
+        response = self.client.get('/privacy/')
+        self.assertRedirects(response, '/terms/#privacy', fetch_redirect_response=False)
+
+    def test_policy_is_public_and_has_contact_and_deletion_steps(self):
+        response = self.client.get('/terms/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="privacy"')
+        self.assertContains(response, 'developer@legacylink.africa')
+        self.assertContains(response, '/settings/delete-account/')

@@ -172,7 +172,6 @@ def login_view(request):
 
         return render(request, 'login.html', {
             'submitted_username': phone_or_email,
-            'submitted_password': password,
             'next_url': next_url,
         })
 

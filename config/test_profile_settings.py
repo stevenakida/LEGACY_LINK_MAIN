@@ -471,3 +471,13 @@ class LoginNextRedirectTests(TestCase):
             'username': '+255744000040', 'password': OLD, 'next': 'https://evil.example.com/',
         })
         self.assertRedirects(response, reverse('dashboard'), fetch_redirect_response=False)
+
+
+@FAST_HASH
+class FailedLoginTests(TestCase):
+    def test_failed_login_keeps_the_identifier_but_never_echoes_the_password(self):
+        person('+255744000050', 'Paula Password')
+        response = self.client.post(reverse('login'), {'username': '+255744000050', 'password': 'Wrong-Secret-9'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="+255744000050"')
+        self.assertNotContains(response, 'Wrong-Secret-9')

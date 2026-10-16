@@ -251,8 +251,8 @@
         <h3>13. MODIFICATIONS</h3>
         <p>The Company may revise these Terms periodically. Continued use of the Platform constitutes acceptance of updated Terms.</p>
 
-        <h2>LEGACYLINK AFRICA &ndash; PRIVACY POLICY</h2>
-        <h2 class="effective-date">Effective Date: 21 April 2026</h2>
+        <h2 id="privacy">LEGACYLINK AFRICA &ndash; PRIVACY POLICY</h2>
+        <h2 class="effective-date">Effective Date: 21 April 2026 &middot; Last updated: 29 September 2026</h2>
         <p>This Privacy Policy explains how LegacyLink Africa collects, uses, and protects personal data in accordance with applicable laws and internationally recognized data protection principles.</p>
 
         <h3>1. INFORMATION WE COLLECT</h3>
@@ -269,9 +269,16 @@
           <li>connections and interactions</li>
           <li>participation in platform activities</li>
         </ul>
-        <h3>c) Technical Data</h3>
+        <h3>c) Content You Share</h3>
         <ul>
-          <li>device information</li>
+          <li>profile photo</li>
+          <li>posts, reposts, comments and likes, and photos attached to posts</li>
+          <li>messages you send in chats, including photos and files attached to them</li>
+          <li>reports you submit about content or other users</li>
+        </ul>
+        <h3>d) Technical Data</h3>
+        <ul>
+          <li>device information, including a notification token used to deliver push notifications in our Android app</li>
           <li>usage logs and analytics</li>
           <li>authentication and session data</li>
         </ul>
@@ -297,10 +304,17 @@
         <h3>4. DATA SHARING</h3>
         <p>We do not sell personal data. We may disclose data:</p>
         <ul>
-          <li>to other users, based on privacy settings</li>
+          <li>to other users, based on privacy settings and the audience you choose for each post (Connections, Cohort, School or Public)</li>
           <li>to trusted service providers under confidentiality obligations</li>
           <li>where required by law or regulatory authority</li>
         </ul>
+        <p>The service providers that process data on our behalf are:</p>
+        <ul>
+          <li>DigitalOcean &ndash; hosting of the Platform, its database and uploaded files</li>
+          <li>Google Firebase Cloud Messaging &ndash; delivery of push notifications to the Android app</li>
+          <li>Google &ndash; optional &ldquo;Continue with Google&rdquo; sign-in, and delivery of account emails such as password resets and email verification</li>
+        </ul>
+        <p>All data is transferred over encrypted (HTTPS) connections.</p>
 
         <h3>5. USER CONTROL AND VISIBILITY</h3>
         <p>Users have control over how their data is shared. Available controls may include:</p>
@@ -325,6 +339,7 @@
           <li>for as long as the account remains active</li>
           <li>as required for legal, regulatory, or operational purposes</li>
         </ul>
+        <p>When you delete your account, your profile, posts, comments, likes, connections, chats, notifications and uploaded photos are deleted immediately and permanently. Residual copies may remain in our secure backups for a limited period before they are overwritten.</p>
 
         <h3>8. USER RIGHTS</h3>
         <p>Subject to applicable law, users may:</p>
@@ -334,12 +349,16 @@
           <li>request deletion or restriction of processing</li>
         </ul>
         <p>Requests may be subject to verification.</p>
+        <p><strong>Deleting your account:</strong> you can delete your account and its data at any time from <em>Profile &rarr; Settings &rarr; Delete account</em> in the app or website, or by signing in at <a href="{% url 'delete_account' %}">{{ request.scheme }}://{{ request.get_host }}{% url 'delete_account' %}</a>.</p>
 
         <h3>9. INTERNATIONAL STANDARDS</h3>
         <p>While based in Tanzania, LegacyLink Africa aligns its practices with internationally recognized data protection principles, including fairness, transparency, and accountability.</p>
 
         <h3>10. POLICY UPDATES</h3>
         <p>This Policy may be updated periodically. Continued use constitutes acceptance.</p>
+
+        <h3>11. CONTACT US</h3>
+        <p>For questions about this Policy, or to exercise any of your rights, contact LegacyLink Africa at <a href="mailto:developer@legacylink.africa">developer@legacylink.africa</a>.</p>
 
         <h2>LEGACYLINK AFRICA &ndash; DATA USAGE POLICY</h2>
 

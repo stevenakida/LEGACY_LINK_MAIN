@@ -442,6 +442,17 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-09-29: **Google Play prep (Android app + privacy policy).** Android
+  (`legacy-link-android`): asks for POST_NOTIFICATIONS once the signed-in
+  Home feed loads (Android 13+), creates the notification channel at start-up,
+  targets/compiles against API 36, keeps the native loading bar and offline
+  screen clear of the system bars, and signs release builds with an upload key
+  read from `keystore/keystore.properties` (git-ignored; back it up — see
+  README). `gradlew.bat bundleProductionRelease` produces the Play upload file.
+  Privacy policy (`/terms/#privacy`, short link `/privacy/`) now lists content
+  you share, the push-notification token, the service providers (DigitalOcean,
+  Firebase Cloud Messaging, Google), what account deletion removes, where to
+  delete, and a privacy contact (developer@legacylink.africa).
 - 2026-09-29: **Delete account (Google Play requirement).** Settings → Delete
   account (`/settings/delete-account/`): immediate, permanent, confirmed with
   the password (or typing `DELETE` for Google-only accounts); staff/superuser
