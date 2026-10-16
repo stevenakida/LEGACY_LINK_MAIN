@@ -224,18 +224,40 @@
 
         // ---------- like ----------
 
-        function composeLikeSummary(liked, count, sampleNames) {
-            if (count <= 0) return '';
-            var parts = [];
-            if (liked) parts.push('You');
-            sampleNames.slice(0, liked ? 1 : 2).forEach(function (n) { parts.push(n); });
-            var remaining = count - parts.length;
-            var text = parts.join(', ');
-            if (remaining > 0) text += (parts.length ? ' and ' : '') + remaining + ' other' + (remaining > 1 ? 's' : '');
-            return text + ' liked this';
+        // The server decides who is named (posts.views.like_summary); this only
+        // draws it, so the first paint and every later tap always agree, and
+        // each named person links to their profile.
+        function renderLikeSummary(el, summary) {
+            el.textContent = '';
+            var parts = (summary && summary.parts) || [];
+            var others = (summary && summary.others) || 0;
+            if (!parts.length && !others) {
+                el.hidden = true;
+                return;
+            }
+            if (!parts.length) {
+                el.textContent = others + (others === 1 ? ' like' : ' likes');
+                el.hidden = false;
+                return;
+            }
+            parts.forEach(function (part, i) {
+                if (i > 0) el.appendChild(document.createTextNode(i === parts.length - 1 && !others ? ' and ' : ', '));
+                if (part.id) {
+                    var link = document.createElement('a');
+                    link.className = 'profile-link';
+                    link.href = '/profile/' + part.id + '/';
+                    link.textContent = part.name;
+                    el.appendChild(link);
+                } else {
+                    el.appendChild(document.createTextNode(part.name));
+                }
+            });
+            if (others) el.appendChild(document.createTextNode(' and ' + others + ' other' + (others === 1 ? '' : 's')));
+            el.appendChild(document.createTextNode(' liked this'));
+            el.hidden = false;
         }
 
-        function applyLikeState(article, liked, count, sampleNames) {
+        function applyLikeState(article, liked, count, summaryData) {
             var btn = article.querySelector('[data-action="like"]');
             var summary = article.querySelector('[data-like-summary]');
             var stats = article.querySelector('[data-post-stats]');
@@ -243,17 +265,19 @@
                 btn.classList.toggle('is-liked', liked);
                 btn.setAttribute('aria-pressed', liked ? 'true' : 'false');
             }
-            if (summary) {
-                var text = composeLikeSummary(liked, count, sampleNames || []);
-                summary.textContent = text;
-                summary.hidden = !text;
-            }
+            if (summary) renderLikeSummary(summary, summaryData);
             if (stats) {
                 var commentBtn = article.querySelector('[data-action="view-comments"]');
                 var hasComments = commentBtn && !commentBtn.hidden;
                 stats.hidden = !(count > 0 || hasComments);
             }
         }
+
+        feedList.querySelectorAll('[data-like-summary]').forEach(function (el) {
+            try {
+                renderLikeSummary(el, JSON.parse(el.dataset.summary || '{}'));
+            } catch (e) { /* leave the server-rendered state alone */ }
+        });
 
         // ---------- comments ----------
 
@@ -278,7 +302,12 @@
             row.dataset.commentId = comment.id;
 
             var strong = document.createElement('strong');
-            strong.textContent = comment.author_name + ':';
+            var nameLink = document.createElement('a');
+            nameLink.className = 'profile-link';
+            nameLink.href = '/profile/' + comment.author_id + '/';
+            nameLink.textContent = comment.author_name;
+            strong.appendChild(nameLink);
+            strong.appendChild(document.createTextNode(':'));
 
             var body = document.createElement('span');
             body.className = 'feed-post-comment-body';
@@ -560,7 +589,7 @@
             if (action === 'like') {
                 btn.disabled = true;
                 post('/posts/' + postId + '/like/')
-                    .then(function (data) { applyLikeState(article, data.liked, data.count, data.sample_names); })
+                    .then(function (data) { applyLikeState(article, data.liked, data.count, data.summary); })
                     .catch(function (err) { window.alert(err.message || 'Could not update your like.'); })
                     .finally(function () { btn.disabled = false; });
                 return;

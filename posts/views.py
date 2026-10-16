@@ -1,3 +1,5 @@
+import json
+
 from django.conf import settings
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponseRedirect, JsonResponse
@@ -110,6 +112,35 @@ def _is_repostable(root):
     )
 
 
+def recent_likers(post_ids, viewer, per_post=2):
+    """{post_id: [{'id', 'name'}, ...]} -- the newest likers other than
+    `viewer`, for the "Liked by ..." line. People the viewer has blocked (or
+    who blocked them) and deactivated accounts are never named."""
+    blocked_ids = UserRelationshipOverride.blocked_partner_ids(viewer)
+    rows = (
+        PostLike.objects.filter(post_id__in=post_ids, user__is_active=True)
+        .exclude(user=viewer).exclude(user_id__in=blocked_ids)
+        .order_by('-created_at').values_list('post_id', 'user_id', 'user__full_name')
+    )
+    likers = {}
+    for post_id, user_id, name in rows:
+        bucket = likers.setdefault(post_id, [])
+        if len(bucket) < per_post:
+            bucket.append({'id': str(user_id), 'name': name})
+    return likers
+
+
+def like_summary(liked_by_viewer, count, likers):
+    """The ordered pieces of "You, Neema and 3 others liked this": named
+    people (each with an id so the page can link to their profile) and how
+    many more there are. Built here once; the page only renders it."""
+    if count <= 0:
+        return {'parts': [], 'others': 0}
+    parts = [{'name': 'You'}] if liked_by_viewer else []
+    parts += likers[: 1 if liked_by_viewer else 2]
+    return {'parts': parts, 'others': max(count - len(parts), 0)}
+
+
 def get_feed_for_user(user, limit=FEED_PAGE_SIZE):
     """Newest-first slice of everything `user` is allowed to see, minus
     anything they've hidden or muted. Mute (unlike block) only ever applies
@@ -137,8 +168,10 @@ def get_feed_for_user(user, limit=FEED_PAGE_SIZE):
     visible_original_ids = set(
         _visible_posts_queryset(user).filter(id__in=original_ids).values_list('id', flat=True)
     ) if original_ids else set()
+    likers = recent_likers([p.id for p in posts], user)
     for p in posts:
         p.is_liked_by_viewer = p.id in liked_post_ids
+        p.like_summary_json = json.dumps(like_summary(p.is_liked_by_viewer, p.like_count, likers.get(p.id, [])))
         p.original_visible = p.reposted_from_id in visible_original_ids
         root = _repost_root(p)
         p.can_repost = _is_repostable(root) and (not p.is_repost or p.original_visible)
@@ -494,11 +527,12 @@ def toggle_like(request, post_id):
         )
 
     count = post.likes.count()
-    sample_names = list(
-        post.likes.exclude(user=request.user).select_related('user')
-        .order_by('-created_at').values_list('user__full_name', flat=True)[:2]
-    )
-    return JsonResponse({'liked': liked, 'count': count, 'sample_names': sample_names})
+    likers = recent_likers([post.id], request.user).get(post.id, [])
+    return JsonResponse({
+        'liked': liked, 'count': count,
+        'sample_names': [p['name'] for p in likers],
+        'summary': like_summary(liked, count, likers),
+    })
 
 
 def _serialize_comment(comment, viewer):

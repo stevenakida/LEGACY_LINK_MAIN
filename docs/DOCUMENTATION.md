@@ -442,6 +442,15 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-10-16: **Names and avatars open the person profile; "liked by" now shows on load.**
+  On Home and in the feed, the post author, the original author inside a repost, each
+  commenter, each person named in the "liked by" line, and the suggested-classmate cards
+  all link to `/profile/<id>/` (your own name goes to `/profile/`). The CSS class is
+  `profile-link` (not `person-link`, which the Network cards already use). Also fixed a gap
+  in the like feature: the "Liked by ..." line was only filled in after tapping Like and
+  was blank on page load. The server now builds it once (`posts.views.like_summary` /
+  `recent_likers`, never naming blocked or deactivated people) and the page only renders it,
+  both on load and after each tap.
 - 2026-10-16: **Removed the unused GET /schools/<id>/select/ route** (found by the same QA
   pass). It changed a logged-in user's secondary school from a plain link, with no POST or
   CSRF protection, so any page or message embedding the link could silently change someone's

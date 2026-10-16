@@ -121,15 +121,18 @@
                  data-liked="{{ post.is_liked_by_viewer|yesno:'1,0' }}"
                  data-like-count="{{ post.like_count }}" data-comment-count="{{ post.comment_count }}">
             <div class="feed-post-head">
-                <div class="greeting-avatar">
-                    {% if post.author.avatar %}
-                        <img src="{{ post.author.avatar.url }}" alt="{{ post.author.full_name }}">
-                    {% else %}
-                        <span>{{ post.author.full_name|first }}</span>
-                    {% endif %}
-                </div>
+                {% if post.author_id == user.id %}{% url 'profile' as author_url %}{% else %}{% url 'view_profile' post.author_id as author_url %}{% endif %}
+                <a href="{{ author_url }}" class="profile-link profile-link-avatar" aria-label="{{ post.author.full_name }}">
+                    <div class="greeting-avatar">
+                        {% if post.author.avatar %}
+                            <img src="{{ post.author.avatar.url }}" alt="{{ post.author.full_name }}">
+                        {% else %}
+                            <span>{{ post.author.full_name|first }}</span>
+                        {% endif %}
+                    </div>
+                </a>
                 <div class="feed-post-who">
-                    <strong>{{ post.author.full_name }}</strong>
+                    <a href="{{ author_url }}" class="profile-link"><strong>{{ post.author.full_name }}</strong></a>
                     {% if post.is_repost %}
                         <span class="feed-post-repost-label"><span class="material-symbols-rounded">repeat</span>{% trans "reposted" %}</span>
                     {% elif post.author.cohort_label %}<span class="feed-post-tag">{{ post.author.cohort_label }}</span>{% endif %}
@@ -185,16 +188,19 @@
             {% if post.is_repost %}
                 {% if post.original_visible %}
                     {% with original=post.reposted_from %}
+                    {% if original.author_id == user.id %}{% url 'profile' as original_url %}{% else %}{% url 'view_profile' original.author_id as original_url %}{% endif %}
                     <div class="feed-repost-embed">
                         <div class="feed-repost-embed-head">
-                            <div class="greeting-avatar feed-repost-embed-avatar">
-                                {% if original.author.avatar %}
-                                    <img src="{{ original.author.avatar.url }}" alt="{{ original.author.full_name }}">
-                                {% else %}
-                                    <span>{{ original.author.full_name|first }}</span>
-                                {% endif %}
-                            </div>
-                            <strong>{{ original.author.full_name }}</strong>
+                            <a href="{{ original_url }}" class="profile-link profile-link-avatar" aria-label="{{ original.author.full_name }}">
+                                <div class="greeting-avatar feed-repost-embed-avatar">
+                                    {% if original.author.avatar %}
+                                        <img src="{{ original.author.avatar.url }}" alt="{{ original.author.full_name }}">
+                                    {% else %}
+                                        <span>{{ original.author.full_name|first }}</span>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            <a href="{{ original_url }}" class="profile-link"><strong>{{ original.author.full_name }}</strong></a>
                             <span class="feed-post-time">{{ original.created_at|timesince }} {% trans "ago" %}</span>
                         </div>
                         {% if original.body %}<p class="feed-post-body">{{ original.body|urlize }}</p>{% endif %}
@@ -208,7 +214,7 @@
                 {% endif %}
             {% endif %}
             <div class="feed-post-stats" data-post-stats {% if not post.like_count and not post.comment_count %}hidden{% endif %}>
-                <span class="feed-post-like-summary" data-like-summary {% if not post.like_count %}hidden{% endif %}></span>
+                <span class="feed-post-like-summary" data-like-summary data-summary="{{ post.like_summary_json }}" {% if not post.like_count %}hidden{% endif %}></span>
                 <button type="button" class="feed-post-comment-count" data-action="view-comments" {% if not post.comment_count %}hidden{% endif %}>
                     <span data-comment-count-text>{% blocktrans count counter=post.comment_count %}{{ counter }} comment{% plural %}{{ counter }} comments{% endblocktrans %}</span>
                 </button>
@@ -249,14 +255,16 @@
     <div class="suggested-scroller">
         {% for person in cohort_users %}
             <div class="suggested-card">
-                <div class="suggested-avatar">
-                    {% if person.avatar %}
-                        <img src="{{ person.avatar.url }}" alt="{{ person.full_name }}">
-                    {% else %}
-                        <span>{{ person.full_name|first }}</span>
-                    {% endif %}
-                </div>
-                <strong>{{ person.full_name }}</strong>
+                <a href="{% url 'view_profile' person.id %}" class="profile-link" aria-label="{{ person.full_name }}">
+                    <div class="suggested-avatar">
+                        {% if person.avatar %}
+                            <img src="{{ person.avatar.url }}" alt="{{ person.full_name }}">
+                        {% else %}
+                            <span>{{ person.full_name|first }}</span>
+                        {% endif %}
+                    </div>
+                </a>
+                <a href="{% url 'view_profile' person.id %}" class="profile-link"><strong>{{ person.full_name }}</strong></a>
                 <p>
                     {% trans "School" as school_label %}
                     {% if user.secondary_school and person.secondary_school == user.secondary_school and person.secondary_completion_year == user.secondary_completion_year %}

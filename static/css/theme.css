@@ -399,6 +399,14 @@ a { color: inherit; }
 
 .suggested-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .suggested-avatar span { color: var(--gold); font-size: 1.15rem; font-weight: 700; }
+/* Names and avatars that open the person's profile (feed, reposts, comments,
+   suggestions, "liked by"). Names keep their own colour; only hover signals a link. */
+.profile-link { color: inherit; text-decoration: none; }
+.profile-link:hover, .profile-link:focus-visible { text-decoration: underline; }
+.profile-link-avatar { display: flex; flex-shrink: 0; }
+.profile-link-avatar:hover { text-decoration: none; }
+.suggested-card .profile-link { display: block; }
+.suggested-card .profile-link:hover strong { text-decoration: underline; }
 .suggested-card strong { display: block; color: var(--ink); font-size: 0.88rem; margin-bottom: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .suggested-card p { color: var(--muted); font-size: 0.72rem; line-height: 1.35; margin-bottom: 0.65rem; }
 .suggested-card .mutual { color: var(--teal); font-weight: 600; }
