@@ -34,10 +34,12 @@
             <div class="score-ring-inner">{{ identity_score }}%</div>
         </div>
         <div class="score-copy">
-            <strong>{% trans "Identity Score" %}</strong>
-            <p>{% trans "Complete your profile to increase your visibility and unlock more opportunities." %}</p>
+            <strong>{% trans "Profile Strength" %}</strong>
             {% if identity_score_suggestions %}
+                <p>{% trans "Complete your profile to increase your visibility and unlock more opportunities." %}</p>
                 <a href="/profile/" class="chip-action">+ {{ identity_score_suggestions.0.label }} · +{{ identity_score_suggestions.0.points }}%</a>
+            {% else %}
+                <p>{% trans "Your profile is fully complete — nice work!" %}</p>
             {% endif %}
         </div>
     </div>

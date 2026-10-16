@@ -336,7 +336,7 @@ class User(AbstractBaseUser, PermissionsMixin):
             | models.Q(tertiary_school_id__in=school_ids)
         ).exclude(id=self.id)
 
-    # Weights for the Identity Score (profile completion meter). Education is
+    # Weights for the Profile Strength meter (shown to users as "Profile Strength"; the code name stays identity_score). Education is
     # split across the three school levels; together they total 35%.
     IDENTITY_SCORE_WEIGHTS = {
         'avatar': 10,

@@ -47,8 +47,11 @@ msgstr "Karibu tena kwenye mtandao wako"
 msgid "Pending connection requests"
 msgstr "Maombi ya muunganisho yanayosubiri"
 
-msgid "Identity Score"
-msgstr "Alama za Utambulisho"
+msgid "Profile Strength"
+msgstr "Nguvu ya Wasifu"
+
+msgid "Your profile is fully complete — nice work!"
+msgstr "Wasifu wako umekamilika kabisa — kazi nzuri!"
 
 msgid "Complete your profile to increase your visibility and unlock more opportunities."
 msgstr "Kamilisha wasifu wako ili kuongeza uonekanaji wako na kufungua fursa zaidi."

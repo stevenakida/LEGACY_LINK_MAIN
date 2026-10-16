@@ -50,7 +50,7 @@
     <div class="card empty-state">
         <div class="ico">🎓</div>
         <div class="t">{% trans "No alumni found yet from" %}<br>{{ empty_record.institution_name }}{% if empty_record.cohort_year %} · {% blocktrans with year=empty_record.cohort_year %}Class of {{ year }}{% endblocktrans %}{% endif %}.</div>
-        <div class="s">{% trans "Invite your classmates and build your network — every invite grows your Identity Score." %}</div>
+        <div class="s">{% trans "Invite your classmates and build your network — the more of them join, the more people you can reconnect with." %}</div>
         <a class="btn btn-whatsapp" href="{{ invite_url }}" target="_blank" rel="noopener" data-net-track="whatsapp_invite_clicked">📲 {% trans "Invite Classmates" %}</a>
         {% if level != 'all' %}
             <p style="margin-top:0.9rem;"><a class="net-viewall" style="border:none;padding:0;" href="{% url 'connections' %}?tab=discover">{% trans "Try another education level" %}</a></p>

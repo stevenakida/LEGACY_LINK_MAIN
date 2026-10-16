@@ -24,7 +24,7 @@ Core concepts:
   `secondary_completion_year` as the current user.
 - **Connection** (`connections.Connection`) — a request between two users with
   status `pending` / `accepted` / `declined`.
-- **Identity Score** (`User.identity_score`) — a 0–100 profile-completion meter
+- **Profile Strength** (code name `User.identity_score`) — a 0–100 profile-completion meter
   (replaces the old ad-hoc "trust score"). Weighted: Profile Picture 10%, Bio
   10%, Primary School 12%, Secondary School 12%, University/Tertiary 11%,
   Current Location 10%, Profession 20%, Company/Organization 15%. Shown on the
@@ -42,7 +42,7 @@ Core concepts:
    graduation year. This sets `onboarding_complete = True` and is what powers
    cohort matching.
 3. **Dashboard (Home)** at `/dashboard/` — compact greeting header, a compact
-   Identity Score card (ring + top profile-completion suggestion), a 4-stat
+   Profile Strength card (ring + top profile-completion suggestion), a 4-stat
    row (Connections, Pending, Opportunities, Events — all four now backed by
    real querysets, see §6 history), a "Suggested for You" cohort carousel, and
    an Upcoming Events list drawn from real `Opportunity` rows. The old
@@ -413,11 +413,11 @@ custom admin UI exists.
 - **No general "view another alum's public profile" route.** `/profile/` is
   self-view only; Connect/Message entry points work from Connections list
   rows, but there's no `/profile/<user_id>/` page yet.
-- Identity Score has no "Verification Status" component yet — deferred until
+- Profile Strength has no "Verification Status" component yet — deferred until
   there's an actual identity-verification flow (see product discussion in
   change log 2026-07-03). The dashboard's new "Confirmed by document" trust
   tier is deliberately shown as "Coming soon" for the same reason.
-- Visibility tiers / search ranking / badges based on Identity Score were
+- Visibility tiers / search ranking / badges based on Profile Strength were
   discussed but explicitly deferred — there's no alumni search feature to
   rank yet.
 - **RESOLVED (2026-07-07): Render production school data.** Production now
@@ -442,6 +442,14 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-10-17: **"Identity Score" is now "Profile Strength"** (CEO checklist item 7). Renamed on
+  Home, the profile page (same capitalisation) and in Swahili ("Nguvu ya Wasifu"). At 100% Home
+  now says "Your profile is fully complete — nice work!" instead of asking the person to
+  complete their profile (the profile page already did). The Network empty-state line claimed
+  every invite "grows your Identity Score", which was never true; it now just encourages
+  inviting classmates. Display text only: code identifiers (`User.identity_score`,
+  `identity_score_suggestions`, `IDENTITY_SCORE_WEIGHTS`) and the API field are unchanged so
+  nothing else moves. Tests: `config/test_profile_strength.py`. Swahili wording needs native review.
 - 2026-10-17: **Home "Suggested for you" no longer suggests people you know** (CEO checklist
   item 6). Home had its own older matcher (classmates only) that listed existing connections
   with a "Connected" tag. It now shows Discover's own candidates

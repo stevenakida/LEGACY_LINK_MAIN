@@ -1,4 +1,4 @@
-"""Identity score: the icon key and completed-count added for the profile
+"""Profile Strength (code name: identity score): the icon key and completed-count added for the profile
 page's "Complete your profile" task cards, and the compatibility the
 dashboard relies on."""
 from django.test import TestCase, override_settings
