@@ -358,7 +358,8 @@
         <p>This Policy may be updated periodically. Continued use constitutes acceptance.</p>
 
         <h3>11. CONTACT US</h3>
-        <p>For questions about this Policy, or to exercise any of your rights, contact LegacyLink Africa at <a href="mailto:developer@legacylink.africa">developer@legacylink.africa</a>.</p>
+        {# The "@" is an HTML entity on purpose: the hosting edge (Cloudflare) rewrites any literal email address in the served HTML into "[email protected]" for clients that don't run JavaScript -- including store-review crawlers, which need to see a real contact. #}
+        <p>For questions about this Policy, or to exercise any of your rights, contact LegacyLink Africa at <a href="mailto:developer&#64;legacylink.africa">developer&#64;legacylink.africa</a>.</p>
 
         <h2>LEGACYLINK AFRICA &ndash; DATA USAGE POLICY</h2>
 

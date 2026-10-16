@@ -627,5 +627,12 @@ class PrivacyPolicyPageTests(TestCase):
         response = self.client.get('/terms/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="privacy"')
-        self.assertContains(response, 'developer@legacylink.africa')
+        self.assertContains(response, 'developer&#64;legacylink.africa')
         self.assertContains(response, '/settings/delete-account/')
+
+    def test_contact_email_is_not_written_as_a_literal_address(self):
+        # A literal address gets rewritten to "[email protected]" by the
+        # hosting edge for crawlers that don't run JavaScript (Google Play's
+        # policy check), so the contact would look missing.
+        response = self.client.get('/terms/')
+        self.assertNotContains(response, 'developer@legacylink.africa')
