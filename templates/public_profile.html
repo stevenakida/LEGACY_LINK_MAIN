@@ -20,8 +20,8 @@
         {% endif %}
     </div>
     <div class="nm">{{ profile_user.full_name|default:profile_user.phone_or_email }}</div>
-    {% if school_confirmed or community_confirmed %}
-        <div class="verify-badge">✓ {{ trust_label }}</div>
+    {% if profile_user.school_is_verified %}
+        <div class="verify-badge">✓ School Verified</div>
     {% endif %}
     <div class="bio">{{ profile_user.bio|default:'This alumnus has not added a bio yet.' }}</div>
     <div class="mt" style="margin-top:0.5rem;">

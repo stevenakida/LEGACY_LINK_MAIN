@@ -79,6 +79,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     # already trusted at login-credential strength (see eligible_reset_email).
     email_verified = models.BooleanField(default=False)
 
+    # Set by staff (Django admin) once they have actually checked that the
+    # person attended that secondary school in that year -- the ONLY thing
+    # that earns the "School Verified" badge. Typing a school and year into
+    # a profile proves nothing. Changing the school or the year clears it
+    # (see save()). Null means not verified.
+    school_verified_at = models.DateTimeField(null=True, blank=True)
+
     # Location
     current_location = models.CharField(max_length=200, blank=True)
     
@@ -223,6 +230,32 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.email = new_email
         self.email_verified = False
         return True, None
+
+    @property
+    def school_is_verified(self):
+        return bool(self.school_verified_at and self.secondary_school_id and self.secondary_completion_year)
+
+    def save(self, *args, **kwargs):
+        """A verification belongs to one school + year, so editing either (from
+        the profile form, the API or the admin) clears it -- otherwise someone
+        could keep a verified badge after switching to a school nobody checked."""
+        update_fields = kwargs.get('update_fields')
+        touches_school = update_fields is None or bool({'secondary_school', 'secondary_completion_year'} & set(update_fields))
+        if self.school_verified_at and touches_school and not self._state.adding:
+            previous = type(self).objects.filter(pk=self.pk).values_list(
+                'secondary_school_id', 'secondary_completion_year').first()
+            # The profile form assigns the year as text ("2004"); compare it
+            # as the number the database holds, or every save would look like
+            # a change.
+            try:
+                year = self._meta.get_field('secondary_completion_year').to_python(self.secondary_completion_year)
+            except ValidationError:
+                year = self.secondary_completion_year
+            if previous is not None and previous != (self.secondary_school_id, year):
+                self.school_verified_at = None
+                if update_fields is not None:
+                    kwargs['update_fields'] = list(update_fields) + ['school_verified_at']
+        super().save(*args, **kwargs)
 
     def eligible_reset_email(self):
         """The address a password-reset link may be sent to, or None if this

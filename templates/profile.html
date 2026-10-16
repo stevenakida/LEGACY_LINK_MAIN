@@ -42,8 +42,8 @@
 
 <div class="ig-name-block">
     <div class="nm">{{ user.full_name|default:user.phone_or_email }}</div>
-    {% if school_confirmed or community_confirmed %}
-        <div class="verify-badge">✓ {{ trust_label }}</div>
+    {% if user.school_is_verified %}
+        <div class="verify-badge">✓ School Verified</div>
     {% endif %}
     <div class="bio">{{ user.bio|default:'Add a short bio to help classmates recognize you.' }}</div>
 </div>

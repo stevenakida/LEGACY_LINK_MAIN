@@ -531,18 +531,6 @@ def view_profile(request, user_id):
         messages.error(request, 'That profile could not be found.')
         return redirect('connections')
 
-    school_confirmed = bool(profile_user.secondary_school and profile_user.secondary_completion_year)
-    accepted_count = Connection.objects.filter(
-        (Q(requester=profile_user) | Q(receiver=profile_user)) & Q(status='accepted')
-    ).count()
-    community_confirmed = accepted_count > 0
-    if school_confirmed:
-        trust_label = 'School Verified'
-    elif community_confirmed:
-        trust_label = 'Community Verified'
-    else:
-        trust_label = 'Getting Started'
-
     mutual_count = len(_mutual_connection_ids(request.user) & _mutual_connection_ids(profile_user))
 
     conn = Connection.objects.filter(
@@ -568,9 +556,6 @@ def view_profile(request, user_id):
 
     return render(request, 'public_profile.html', {
         'profile_user': profile_user,
-        'trust_label': trust_label,
-        'school_confirmed': school_confirmed,
-        'community_confirmed': community_confirmed,
         'mutual_count': mutual_count,
         'connection': conn,
         'connection_status': connection_status,
@@ -591,15 +576,6 @@ def profile(request):
     # Same definition the Network header and Home use (accepted, both sides
     # active, neither blocked) so the numbers can never disagree.
     connections_count = network_state(user)['connections_count']
-    school_confirmed = bool(user.secondary_school and user.secondary_completion_year)
-    community_confirmed = connections_count > 0
-    if school_confirmed:
-        trust_label = 'School Verified'
-    elif community_confirmed:
-        trust_label = 'Community Verified'
-    else:
-        trust_label = 'Getting Started'
-
     own_posts = Post.objects.filter(author=user).select_related('media_asset', 'reposted_from').order_by('-created_at')
 
     return render(request, 'profile.html', {
@@ -608,9 +584,6 @@ def profile(request):
         'identity_score_suggestions': user.identity_score_suggestions[:4],
         'identity_score_completed_count': user.identity_score_completed_count,
         'identity_score_total_count': len(User.IDENTITY_SCORE_WEIGHTS),
-        'school_confirmed': school_confirmed,
-        'community_confirmed': community_confirmed,
-        'trust_label': trust_label,
         'active_tab': 'profile',
         # Drives a logged-in-only nudge to add/verify a reset email —
         # deliberately not surfaced anywhere unauthenticated (forgot_password

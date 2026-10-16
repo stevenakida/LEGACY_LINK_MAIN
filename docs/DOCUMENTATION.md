@@ -442,6 +442,17 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-10-17: **"School Verified" now means verified** (CEO checklist item 8). The badge
+  used to appear for anyone who typed a secondary school and year, and a second
+  "Community Verified" badge for anyone with one connection -- neither checked anything.
+  Both are gone. `User.school_verified_at` is set only by staff: Django admin -> Users ->
+  select people -> "Mark school as verified" (skips anyone without a school and year) or
+  "Remove school verification"; the user list has a "School verified" column and filter.
+  Changing the secondary school or year (profile form, API or admin) clears the
+  verification automatically (`User.save`), while re-saving the same values keeps it.
+  Every existing account starts unverified, so the badge disappears everywhere until staff
+  verify people. Real verification at scale (classmates confirming each other, or a
+  university email domain) is not built yet.
 - 2026-10-16: **Names and avatars open the person profile; "liked by" now shows on load.**
   On Home and in the feed, the post author, the original author inside a repost, each
   commenter, each person named in the "liked by" line, and the suggested-classmate cards
