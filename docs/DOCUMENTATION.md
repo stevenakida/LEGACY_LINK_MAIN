@@ -442,6 +442,11 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-10-16: **Removed the unused GET /schools/<id>/select/ route** (found by the same QA
+  pass). It changed a logged-in user's secondary school from a plain link, with no POST or
+  CSRF protection, so any page or message embedding the link could silently change someone's
+  school. Nothing in the web app, Android app or scripts called it; the profile form (school
+  autocomplete) is the only way to change a school.
 - 2026-10-16: **Registration enforces the password rules** (found by an end-to-end QA
   pass). The web sign-up form called `create_user` directly and never ran
   `AUTH_PASSWORD_VALIDATORS`, so passwords like "123" were accepted, while the mobile API

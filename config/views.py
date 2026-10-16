@@ -1132,19 +1132,6 @@ def unmute_user_web(request, user_id):
     messages.info(request, f'{other.full_name} has been unmuted.')
     return redirect(next_url)
 
-def select_school(request, school_id):
-    if not request.user.is_authenticated:
-        return redirect('login')
-    try:
-        school = School.objects.get(id=school_id, school_type='secondary')
-        user = request.user
-        user.secondary_school = school
-        user.save()
-        messages.success(request, f'School updated to {school.name}')
-        return redirect('profile')
-    except School.DoesNotExist:
-        messages.error(request, 'School not found.')
-        return redirect('opportunities')
 
 def onboarding(request):
     if not request.user.is_authenticated:
