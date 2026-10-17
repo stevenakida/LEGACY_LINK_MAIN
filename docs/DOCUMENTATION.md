@@ -442,6 +442,13 @@ custom admin UI exists.
 Keep this brief — one line per notable change, newest first. Full detail lives
 in git history.
 
+- 2026-10-17: **Old DigitalOcean address now only redirects to `app.legacylink.africa`.**
+  DigitalOcean keeps serving the default `legacylink-app-qs7gl.ondigitalocean.app`
+  after a custom domain is added, and Google Safe Browsing's "Deceptive pages"
+  flag stayed attached to that address. `config.middleware.CanonicalHostMiddleware`
+  sends every request for a host in `LEGACY_HOSTS` to the same path on
+  `CANONICAL_HOST` (301; 308 for POSTs), except Search Console's verification
+  file. The Android app's production `BASE_URL` moved to the new domain too.
 - 2026-10-17: **"Identity Score" is now "Profile Strength"** (CEO checklist item 7). Renamed on
   Home, the profile page (same capitalisation) and in Swahili ("Nguvu ya Wasifu"). At 100% Home
   now says "Your profile is fully complete — nice work!" instead of asking the person to

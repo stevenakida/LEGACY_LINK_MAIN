@@ -29,12 +29,22 @@ DEBUG = config("DEBUG", default="False") == "True"
 
 
 ALLOWED_HOSTS = config(
-    "ALLOWED_HOSTS", default="legacylink-app-qs7gl.ondigitalocean.app,localhost,127.0.0.1"
+    "ALLOWED_HOSTS", default="app.legacylink.africa,legacylink-app-qs7gl.ondigitalocean.app,localhost,127.0.0.1"
 ).split(",")
 CSRF_TRUSTED_ORIGINS = config(
-    "CSRF_TRUSTED_ORIGINS", default="https://legacylink-app-qs7gl.ondigitalocean.app"
+    "CSRF_TRUSTED_ORIGINS", default="https://app.legacylink.africa,https://legacylink-app-qs7gl.ondigitalocean.app"
 ).split(",")
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Requests for a legacy host are redirected to the canonical domain — see
+# config.middleware.CanonicalHostMiddleware. Keep legacy hosts in
+# ALLOWED_HOSTS so the redirect can still be served.
+CANONICAL_HOST = config('CANONICAL_HOST', default='app.legacylink.africa')
+LEGACY_HOSTS = [
+    h.strip().lower()
+    for h in config('LEGACY_HOSTS', default='legacylink-app-qs7gl.ondigitalocean.app').split(',')
+    if h.strip()
+]
 
 # HTTPS enforcement / secure cookies — all default OFF so local dev and the
 # local staging replica (both plain HTTP on 127.0.0.1) keep working without
@@ -92,6 +102,7 @@ SITE_ID = 1
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # Must be first!
+    'config.middleware.CanonicalHostMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -106,7 +117,7 @@ MIDDLEWARE = [
 AUTH_USER_MODEL = 'accounts.User'  # Custom user model
 
 CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS", default="https://legacylink-app-qs7gl.ondigitalocean.app"
+    "CORS_ALLOWED_ORIGINS", default="https://app.legacylink.africa,https://legacylink-app-qs7gl.ondigitalocean.app"
 ).split(",")
 
 MEDIA_URL = '/media/'

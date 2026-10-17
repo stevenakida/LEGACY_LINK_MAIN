@@ -636,3 +636,36 @@ class PrivacyPolicyPageTests(TestCase):
         # policy check), so the contact would look missing.
         response = self.client.get('/terms/')
         self.assertNotContains(response, 'developer@legacylink.africa')
+
+
+@override_settings(
+    ALLOWED_HOSTS=['legacylink-app-qs7gl.ondigitalocean.app', 'app.legacylink.africa', 'testserver'],
+    CANONICAL_HOST='app.legacylink.africa',
+    LEGACY_HOSTS=['legacylink-app-qs7gl.ondigitalocean.app'],
+)
+class CanonicalHostRedirectTests(TestCase):
+    """The old *.ondigitalocean.app address was flagged by Google Safe
+    Browsing; it must only ever redirect to the custom domain."""
+    LEGACY = 'legacylink-app-qs7gl.ondigitalocean.app'
+
+    def test_legacy_host_redirects_permanently_keeping_path_and_query(self):
+        response = self.client.get('/login/?next=/settings/', HTTP_HOST=self.LEGACY)
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response['Location'], 'https://app.legacylink.africa/login/?next=/settings/')
+
+    def test_legacy_host_root_redirects(self):
+        response = self.client.get('/', HTTP_HOST=self.LEGACY)
+        self.assertEqual(response['Location'], 'https://app.legacylink.africa/')
+
+    def test_post_to_legacy_host_keeps_its_method(self):
+        response = self.client.post('/login/', {'username': 'x'}, HTTP_HOST=self.LEGACY)
+        self.assertEqual(response.status_code, 308)
+        self.assertEqual(response['Location'], 'https://app.legacylink.africa/login/')
+
+    def test_search_console_verification_file_still_served_on_legacy_host(self):
+        response = self.client.get('/google53e347c5788d485a.html', HTTP_HOST=self.LEGACY)
+        self.assertEqual(response.status_code, 200)
+
+    def test_canonical_host_is_served_normally(self):
+        response = self.client.get('/login/', HTTP_HOST='app.legacylink.africa')
+        self.assertEqual(response.status_code, 200)
