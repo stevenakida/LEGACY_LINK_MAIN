@@ -28,7 +28,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="card">
+<section class="card strength-card">
     <div class="score-row">
         <div class="score-ring" style="--score: {{ identity_score }};">
             <div class="score-ring-inner">{{ identity_score }}%</div>
@@ -47,22 +47,18 @@
 
 <section class="stats-panel">
     <a href="/connections/" class="stats-card teal">
-        <span class="material-symbols-rounded">groups</span>
         <strong>{{ connections_count }}</strong>
         <span>{% trans "Connections" %}</span>
     </a>
     <a href="/connections/?tab=pending" class="stats-card gold">
-        <span class="material-symbols-rounded">person_add</span>
         <strong>{{ pending_count }}</strong>
         <span>{% trans "Pending" %}</span>
     </a>
     <a href="/opportunities/" class="stats-card teal">
-        <span class="material-symbols-rounded">work</span>
         <strong>{{ opportunities_count|default:0 }}</strong>
         <span>{% trans "Opportunities" %}</span>
     </a>
     <a href="/opportunities/?type=event" class="stats-card gold">
-        <span class="material-symbols-rounded">event</span>
         <strong>{{ events_count|default:0 }}</strong>
         <span>{% trans "Events" %}</span>
     </a>

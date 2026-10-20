@@ -449,6 +449,13 @@ in git history.
   sends every request for a host in `LEGACY_HOSTS` to the same path on
   `CANONICAL_HOST` (301; 308 for POSTs), except Search Console's verification
   file. The Android app's production `BASE_URL` moved to the new domain too.
+- 2026-10-20: **Home's info boxes are now a compact strip.** The Profile Strength card and the
+  four stat tiles took about 290px of a phone's first screen (tiles stacked 2×2 with big icons).
+  Now: a slimmer Profile Strength card (54px ring, smaller text) and one slim panel with
+  Connections / Pending / Opportunities / Events as number-over-label cells with dividers, in the
+  style of Instagram/TikTok profile stats, in our teal/gold. About 145–175px total (down from
+  ~290px). The profile page's strength ring is unchanged (`.strength-card` is Home-only).
+  Icons removed from the stat cells; links unchanged. Tests: `config/test_home_stats_strip.py`.
 - 2026-10-17: **"Identity Score" is now "Profile Strength"** (CEO checklist item 7). Renamed on
   Home, the profile page (same capitalisation) and in Swahili ("Nguvu ya Wasifu"). At 100% Home
   now says "Your profile is fully complete — nice work!" instead of asking the person to
