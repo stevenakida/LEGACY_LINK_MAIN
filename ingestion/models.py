@@ -28,3 +28,18 @@ class IngestedItem(models.Model):
 
     def __str__(self):
         return f"{self.get_source_display()}:{self.external_id}"
+
+
+class SourceCheck(models.Model):
+    """Latest health of one scraped source, one row per source. A scheduled
+    job that can't reach a site looks exactly like a site with no news unless
+    something records the difference — see services.record_source_check."""
+
+    source = models.CharField(max_length=30, unique=True)
+    consecutive_failures = models.PositiveIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    last_checked_at = models.DateTimeField(auto_now=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.source}: {self.consecutive_failures} consecutive failure(s)"

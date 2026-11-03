@@ -669,6 +669,25 @@ in git history.
   over, deliberately, since a JSON API client expects nothing to change on
   a 400). Tests: `accounts/tests.py` (`MeViewEmailUpdateTests`, +6 cases).
   Full suite: 265/265 pass.
+- 2026-11-03: **NECTA news job: results-portal backup and failure reporting.**
+  `www.necta.go.tz` was unreachable on PSLE results day while
+  `matokeo.necta.go.tz` stayed up, and the job logged a failed fetch the same
+  way as an empty news page (exit 0), so an outage looked like a quiet week.
+  `ingest_necta_news` now also reads the portal home page (same URL dedup key
+  as results announcements, so a release on both posts once). The portal lists
+  old results that were never ingested, so only entries dated in the last
+  `PORTAL_RECENT_DAYS` count; undated ones are skipped. New
+  `ingestion.SourceCheck` keeps each source's health (visible in Django admin).
+  A page with no parseable articles now counts as a failure, both sources
+  failing exits non-zero, and the third consecutive failure (then every 7th)
+  emails `FEEDBACK_NOTIFY_EMAIL`. **The `ingest-necta-news` DO job does not
+  have the `EMAIL_*`/`FEEDBACK_NOTIFY_EMAIL` env vars as of 2026-10-07** — job
+  envs are independent of the service's, so alerts only print to the job log
+  until they're added. `CURATED_POST_BODIES` (`ingestion/necta.py`) holds
+  hand-written text for a release, used for PSLE 2026. Wizara ya Elimu
+  (`moe.go.tz`) was checked and not added: its news list loads client-side, so
+  the server HTML has no articles to parse; it needs its CMS API or a headless
+  browser, plus the terms check noted below.
 - 2026-09-11: **Fixed: feed post links weren't clickable.** Confirmed live
   after the first `ingest_necta_news` scheduled run — `dashboard.html`
   rendered `{{ post.body }}` as plain escaped text, so a URL in a post
