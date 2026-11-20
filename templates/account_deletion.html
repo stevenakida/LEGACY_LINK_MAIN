@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Delete your account - LegacyLink Africa</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(160deg, #070b14 0%, #0b1220 55%, #0d1730 100%);
+            min-height: 100vh;
+            padding: calc(20px + env(safe-area-inset-top)) 20px calc(40px + env(safe-area-inset-bottom));
+            color: #E2E8F0;
+        }
+        .container {
+            width: 100%;
+            max-width: 780px;
+            margin: 0 auto;
+            background: rgba(17, 24, 39, 0.85);
+            border: 2px solid #26334D;
+            border-radius: 15px;
+            padding: 40px 35px;
+        }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; }
+        .logo img { height: 60px; width: auto; }
+        .top-bar a.back-link { color: #E8A63C; text-decoration: none; font-size: 0.95em; font-weight: 600; }
+        .top-bar a.back-link:hover { text-decoration: underline; }
+        h1 { color: #E8A63C; font-size: 1.6em; margin-bottom: 6px; }
+        .subtitle { color: #94A3B8; font-size: 0.9em; margin-bottom: 26px; }
+        h2 {
+            color: #E8A63C; font-size: 1.15em; margin-top: 30px; margin-bottom: 10px;
+            padding-bottom: 8px; border-bottom: 1px solid #26334D;
+        }
+        p { line-height: 1.6; margin-bottom: 10px; color: #E2E8F0; }
+        ol, ul { margin: 0 0 10px 22px; line-height: 1.6; color: #E2E8F0; }
+        li { margin-bottom: 4px; }
+        a { color: #E8A63C; }
+        .actions { margin-top: 34px; padding-top: 20px; border-top: 1px solid #26334D; text-align: center; }
+        .actions a.btn {
+            display: inline-block; background: #E8A63C; color: #0B1220; padding: 12px 28px;
+            border-radius: 8px; font-weight: 600; text-decoration: none;
+        }
+        .actions a.btn:hover { background: #F2C368; }
+        .actions p { margin-top: 12px; color: #94A3B8; font-size: 0.88em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <div class="logo"><img src="{% static 'img/legacy-logo.png' %}" alt="LegacyLink Africa Logo"></div>
+            <a class="back-link" href="{% url 'login' %}">&larr; Back to sign in</a>
+        </div>
+
+        <h1>Delete your LegacyLink Africa account</h1>
+        <div class="subtitle">LegacyLink Africa app &middot; account and data deletion</div>
+
+        <p>You can delete your LegacyLink Africa account, and the data tied to it, at any time. Deleting is permanent and happens straight away. It can&rsquo;t be undone and we can&rsquo;t recover the account afterwards.</p>
+
+        <h2>How to delete your account</h2>
+        <ol>
+            <li>Open the LegacyLink Africa app (or this website) and sign in.</li>
+            <li>Go to <strong>Profile</strong> &rarr; <strong>Settings</strong> &rarr; <strong>Delete account</strong>.</li>
+            <li>Enter your password to confirm. If you signed up with Google, type <strong>DELETE</strong> instead.</li>
+            <li>Tap <strong>Delete my account</strong> and confirm.</li>
+        </ol>
+        <p>You can also go straight to the deletion page: after you sign in, <a href="{% url 'delete_account' %}">{{ request.scheme }}://{{ request.get_host }}{% url 'delete_account' %}</a> opens the confirmation form.</p>
+
+        <h2>What is deleted</h2>
+        <ul>
+            <li>Your profile, photo, schools and contact details</li>
+            <li>Your posts, reposts, comments and likes</li>
+            <li>Your connections and connection requests</li>
+            <li>Your chats and the messages in them</li>
+            <li>Photos you uploaded, and your notifications</li>
+        </ul>
+
+        <h2>What may remain</h2>
+        <ul>
+            <li>Residual copies may remain in our secure backups for a limited period before they are overwritten.</li>
+            <li>Content that other people have already received from you elsewhere, such as a screenshot someone took, is outside our control.</li>
+        </ul>
+
+        <h2>Can&rsquo;t sign in?</h2>
+        <p>If you can&rsquo;t sign in, email us from the address on your account at <a href="mailto:developer%40legacylink.africa">developer&#64;legacylink.africa</a> with the phone number or email you registered with and ask us to delete your account. We will check that the account is yours before deleting it.</p>
+        <p>Administrator accounts can&rsquo;t be deleted from the Settings page; ask another administrator to remove them.</p>
+
+        <div class="actions">
+            <a class="btn" href="{% url 'delete_account' %}">Sign in and delete my account</a>
+            <p>See also our <a href="{% url 'terms' %}">Terms of Use, Privacy and Data Usage Policy</a>.</p>
+        </div>
+    </div>
+</body>
+</html>

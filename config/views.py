@@ -425,6 +425,13 @@ def google_login_callback(request):
 def terms(request):
     return render(request, 'terms.html')
 
+
+def account_deletion_info(request):
+    """Public, no-login page explaining how to delete an account and what that
+    removes. Google Play's account-deletion URL must be reachable without
+    signing in; the real deletion form (delete_account_view) needs a login."""
+    return render(request, 'account_deletion.html')
+
 def dashboard(request):
     if not request.user.is_authenticated:
         return redirect('login')

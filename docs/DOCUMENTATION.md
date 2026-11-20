@@ -449,6 +449,14 @@ in git history.
   sends every request for a host in `LEGACY_HOSTS` to the same path on
   `CANONICAL_HOST` (301; 308 for POSTs), except Search Console's verification
   file. The Android app's production `BASE_URL` moved to the new domain too.
+- 2026-11-20: **Public account-deletion page for Google Play** at `/account-deletion/` (no login
+  needed): explains the steps (Profile → Settings → Delete account), what is deleted, what may
+  remain (backups), and an email route for people who can't sign in. Google's deletion-URL rule
+  needs a page reachable without signing in, and the real form (`/settings/delete-account/`) needs
+  a login, so the form is unchanged and this page links to it. Also added
+  `docs/PLAY_STORE_LISTING.md` (listing text, data-safety and content-rating answers, reviewer
+  account instructions). Tests: `config/test_account_deletion_page.py`. Note: emailed deletion
+  requests are handled by hand by whoever reads developer@legacylink.africa.
 - 2026-10-20: **Home's info boxes are now a compact strip.** The Profile Strength card and the
   four stat tiles took about 290px of a phone's first screen (tiles stacked 2×2 with big icons).
   Now: a slimmer Profile Strength card (54px ring, smaller text) and one slim panel with
